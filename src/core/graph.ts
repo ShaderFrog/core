@@ -40,7 +40,6 @@ import {
   SourceNode,
 } from './nodes/code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
-import { Color, Vector2, Vector3, Vector4 } from 'three';
 import { makeId } from '../util/id';
 
 export type ShaderStage = 'fragment' | 'vertex';
@@ -206,7 +205,7 @@ export const mangleMainFn = (ast: Program, node: SourceNode) => {
 export const coreParsers: CoreParser = {
   [NodeType.SOURCE]: {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {
-      let ast;
+      let ast: Program;
       if (node.expressionOnly) {
         ast = makeExpressionWithScopes(node.source);
       } else {
