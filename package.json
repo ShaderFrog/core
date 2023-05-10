@@ -12,6 +12,9 @@
   },
   "author": "Andrew Ray",
   "license": "ISC",
+  "files": [
+    "src"
+  ],
   "bugs": {
     "url": "https://github.com/ShaderFrog/core/issues"
   },
