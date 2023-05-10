@@ -1,0 +1,29 @@
+{
+  "name": "core",
+  "version": "0.0.1",
+  "description": "Shaderfrog core",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShaderFrog/core.git"
+  },
+  "author": "Andrew Ray",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ShaderFrog/core/issues"
+  },
+  "homepage": "https://github.com/ShaderFrog/core#readme",
+  "devDependencies": {
+    "@babel/core": "^7.21.8",
+    "@babel/preset-env": "^7.21.5",
+    "@babel/preset-typescript": "^7.21.5",
+    "@types/jest": "^29.5.1",
+    "babel-jest": "^29.5.0",
+    "jest": "^29.5.0",
+    "prettier": "^2.8.8",
+    "typescript": "^5.0.4"
+  }
+}
