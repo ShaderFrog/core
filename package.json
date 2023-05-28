@@ -34,6 +34,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@shaderfrog/glsl-parser": "^1.4.1",
     "lodash.groupby": "^4.6.0"
   },
   "peerDependencies": {
