@@ -19,7 +19,7 @@ import {
   findShaderSections,
   mergeShaderSections,
   ShaderSections,
-} from '../ast/shader-sections';
+} from './ast/shader-sections';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import {
   convert300MainToReturn,
@@ -27,8 +27,8 @@ import {
   makeExpression,
   makeExpressionWithScopes,
   makeFnStatement,
-} from '../ast/manipulate';
-import { ensure } from '../util/ensure';
+} from './ast/manipulate';
+import { ensure } from './util/ensure';
 import { applyStrategy } from './strategy';
 import { DataNode } from './nodes/data-nodes';
 import { Edge } from './nodes/edge';
@@ -40,7 +40,7 @@ import {
   SourceNode,
 } from './nodes/code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
-import { makeId } from '../util/id';
+import { makeId } from './util/id';
 
 export type ShaderStage = 'fragment' | 'vertex';
 

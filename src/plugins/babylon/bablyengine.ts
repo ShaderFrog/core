@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { Engine, EngineNodeType, EngineContext } from '../../core/engine';
+import { Engine, EngineNodeType, EngineContext } from '../../engine';
 import {
   nodeName,
   doesLinkThruShader,
@@ -9,7 +9,7 @@ import {
   Graph,
   mangleMainFn,
   NodeType,
-} from '../../core/graph';
+} from '../../graph';
 import importers from './importers';
 
 import {
@@ -25,15 +25,15 @@ import {
   NodeProperty,
   property,
   SourceNode,
-} from '../../core/nodes/code-nodes';
+} from '../../nodes/code-nodes';
 
 import {
   namedAttributeStrategy,
   texture2DStrategy,
   uniformStrategy,
-} from '../../core/strategy';
-import { NodeInput, NodePosition } from '../../core/nodes/core-node';
-import { DataNode, UniformDataType } from '../../core/nodes/data-nodes';
+} from '../../strategy';
+import { NodeInput, NodePosition } from '../../nodes/core-node';
+import { DataNode, UniformDataType } from '../../nodes/data-nodes';
 
 // Setting these properties on the material have side effects, not just for the
 // GLSL, but for the material itself in JS memory apparently, maybe the bound

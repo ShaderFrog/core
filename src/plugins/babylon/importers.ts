@@ -1,5 +1,5 @@
 import { renameBindings } from '@shaderfrog/glsl-parser/parser/utils';
-import { EngineImporters, EngineNodeType } from '../../core/engine';
+import { EngineImporters, EngineNodeType } from '../../engine';
 
 const nodeInputMap = {
   normalMap: 'bumpSampler',

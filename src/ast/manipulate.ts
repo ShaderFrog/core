@@ -14,7 +14,7 @@ import {
   DeclarationNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { ShaderStage } from '../core/graph';
+import { ShaderStage } from '../graph';
 
 export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   let parent: AstNode | undefined;

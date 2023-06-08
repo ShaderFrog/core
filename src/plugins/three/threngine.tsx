@@ -7,11 +7,11 @@ import {
   ShaderStage,
   prepopulatePropertyInputs,
   mangleMainFn,
-} from '../../core/graph';
+} from '../../graph';
 import importers from './importers';
 
-import { Engine, EngineContext, EngineNodeType } from '../../core/engine';
-import { GraphNode, doesLinkThruShader, nodeName } from '../../core/graph';
+import { Engine, EngineContext, EngineNodeType } from '../../engine';
+import { GraphNode, doesLinkThruShader, nodeName } from '../../graph';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
@@ -22,14 +22,14 @@ import {
   NodeProperty,
   property,
   SourceNode,
-} from '../../core/nodes/code-nodes';
-import { NodeInput, NodePosition } from '../../core/nodes/core-node';
-import { DataNode, UniformDataType } from '../../core/nodes/data-nodes';
+} from '../../nodes/code-nodes';
+import { NodeInput, NodePosition } from '../../nodes/core-node';
+import { DataNode, UniformDataType } from '../../nodes/data-nodes';
 import {
   namedAttributeStrategy,
   texture2DStrategy,
   uniformStrategy,
-} from '../../core/strategy';
+} from '../../strategy';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[35m(three)\x1b[0m', ...args);

@@ -9,26 +9,26 @@ import {
   strategyRunners,
   StrategyType,
   texture2DStrategy,
-} from './core/strategy';
-import * as graphModule from './core/graph';
+} from './strategy';
+import * as graphModule from './graph';
 import {
   Graph,
   evaluateNode,
   ShaderStage,
   compileGraph,
   computeAllContexts,
-} from './core/graph';
+} from './graph';
 import { shaderSectionsToProgram } from './ast/shader-sections';
-import { addNode, outputNode, sourceNode } from './core/nodes/engine-node';
+import { addNode, outputNode, sourceNode } from './nodes/engine-node';
 import { makeExpression, returnGlPositionVec3Right } from './ast/manipulate';
 
 import { mergeShaderSections, findShaderSections } from './ast/shader-sections';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { numberNode } from './core/nodes/data-nodes';
-import { makeEdge } from './core/nodes/edge';
-import { SourceNode } from './core/nodes/code-nodes';
+import { numberNode } from './nodes/data-nodes';
+import { makeEdge } from './nodes/edge';
+import { SourceNode } from './nodes/code-nodes';
 import { threngine } from './plugins/three/threngine';
-import { Engine, EngineContext, PhysicalNodeConstructor } from './core/engine';
+import { Engine, EngineContext, PhysicalNodeConstructor } from './engine';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));

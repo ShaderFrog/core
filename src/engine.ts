@@ -1,6 +1,6 @@
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { AstNode } from '@shaderfrog/glsl-parser/ast';
-import { MergeOptions } from '../ast/shader-sections';
+import { MergeOptions } from './ast/shader-sections';
 import { Graph, NodeParser } from './graph';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parser } from '@shaderfrog/glsl-parser';
@@ -140,15 +140,15 @@ export const convertToEngine = (
       if (node.type in newEngine.constructors) {
         const source = node as SourceNode;
         nodeUpdates[source.id] = // @ts-ignore
-        (newEngine.constructors[source.type] as PhysicalNodeConstructor)(
-          source.id,
-          source.name,
-          source.groupId,
-          source.position,
-          source.config.uniforms,
-          source.stage,
-          source.nextStageNodeId
-        );
+          (newEngine.constructors[source.type] as PhysicalNodeConstructor)(
+            source.id,
+            source.name,
+            source.groupId,
+            source.position,
+            source.config.uniforms,
+            source.stage,
+            source.nextStageNodeId
+          );
         // Bail if no conversion
       } else {
         throw new Error(

@@ -1,5 +1,5 @@
 import { renameBindings } from '@shaderfrog/glsl-parser/parser/utils';
-import { EngineImporters } from '../../core/engine';
+import { EngineImporters } from '../../engine';
 
 const importers: EngineImporters = {
   babylon: {
