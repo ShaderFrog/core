@@ -18,6 +18,14 @@ import {
 } from './namedAttribute';
 import { VariableStrategy, applyVariableStrategy } from './variable';
 
+export * from './hardCode';
+export * from './uniform';
+export * from './assignemntTo';
+export * from './declarationOf';
+export * from './texture2D';
+export * from './namedAttribute';
+export * from './variable';
+
 export enum StrategyType {
   VARIABLE = 'Variable Names',
   ASSIGNMENT_TO = 'Assignment To',

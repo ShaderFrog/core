@@ -27,7 +27,6 @@ import { Program } from '@shaderfrog/glsl-parser/ast';
 import { numberNode } from './nodes/data-nodes';
 import { makeEdge } from './nodes/edge';
 import { SourceNode } from './nodes/code-nodes';
-import { threngine } from './plugins/three/threngine';
 import { Engine, EngineContext, PhysicalNodeConstructor } from './engine';
 
 const inspect = (thing: any): void =>
