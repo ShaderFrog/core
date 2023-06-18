@@ -1,5 +1,5 @@
 import { NodeInput } from '../nodes/core-node';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export interface HardCodeStrategy extends BaseStrategy {
   type: StrategyType.HARD_CODE;
@@ -10,13 +10,10 @@ export const hardCodeStrategy = (inputs: NodeInput[]): HardCodeStrategy => ({
   config: { inputs },
 });
 
-export const applyHardCodeStrategy: StrategyImpl = (
+export const applyHardCodeStrategy: ApplyStrategy<HardCodeStrategy> = (
   graphNode,
   ast,
   strategy
 ) => {
-  return (strategy as HardCodeStrategy).config.inputs.map((input) => [
-    input,
-    (filler) => filler,
-  ]);
+  return strategy.config.inputs.map((input) => [input, (filler) => filler]);
 };

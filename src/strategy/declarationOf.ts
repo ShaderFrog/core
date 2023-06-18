@@ -1,6 +1,6 @@
 import { findDeclarationOf } from '../ast/manipulate';
 import { InputCategory, nodeInput } from '../nodes/core-node';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export const declarationOfStrategy = (
   declarationOf: string
@@ -15,10 +15,13 @@ export interface DeclarationOfStrategy extends BaseStrategy {
   };
 }
 
-export const constApplyDeclarationOf: StrategyImpl = (node, ast, strategy) => {
-  const cast = strategy as DeclarationOfStrategy;
-  const declaration = findDeclarationOf(ast, cast.config.declarationOf);
-  const name = cast.config.declarationOf;
+export const constApplyDeclarationOf: ApplyStrategy<DeclarationOfStrategy> = (
+  node,
+  ast,
+  strategy
+) => {
+  const declaration = findDeclarationOf(ast, strategy.config.declarationOf);
+  const name = strategy.config.declarationOf;
   return declaration
     ? [
         [

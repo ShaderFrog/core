@@ -8,7 +8,6 @@ import {
   NodeVisitors,
   ExpressionStatementNode,
   FunctionNode,
-  AssignmentNode,
   DeclarationStatementNode,
   KeywordNode,
   DeclarationNode,

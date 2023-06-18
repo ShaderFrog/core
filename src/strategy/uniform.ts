@@ -7,7 +7,7 @@ import {
 import { ComputedInput, mangleName } from '../graph';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { GraphDataType } from '../nodes/data-nodes';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export interface UniformStrategy extends BaseStrategy {
   type: StrategyType.UNIFORM;
@@ -122,7 +122,7 @@ const mapUniformType = (type: string): GraphDataType | undefined => {
   // console.log(`Unknown uniform type, can't map to graph: ${type}`);
 };
 
-export const applyUniformStrategy: StrategyImpl = (
+export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
   graphNode,
   ast,
   strategy

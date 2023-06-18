@@ -1,6 +1,6 @@
 import { findAssignmentTo } from '../ast/manipulate';
 import { InputCategory, nodeInput } from '../nodes/core-node';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export interface AssignemntToStrategy extends BaseStrategy {
   type: StrategyType.ASSIGNMENT_TO;
@@ -18,15 +18,14 @@ export const assignemntToStrategy = (
 });
 
 // Apply the strategy
-export const applyAssignmentToStrategy: StrategyImpl = (
+export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
   node,
   ast,
   strategy
 ) => {
-  const cast = strategy as AssignemntToStrategy;
-  const assignNode = findAssignmentTo(ast, cast.config.assignTo);
+  const assignNode = findAssignmentTo(ast, strategy.config.assignTo);
 
-  const name = cast.config.assignTo;
+  const name = strategy.config.assignTo;
   return assignNode
     ? [
         [

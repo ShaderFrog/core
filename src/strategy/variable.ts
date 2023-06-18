@@ -7,7 +7,7 @@ import {
 } from '@shaderfrog/glsl-parser/ast';
 import { ComputedInput } from '../graph';
 import { InputCategory, nodeInput } from '../nodes/core-node';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export interface VariableStrategy extends BaseStrategy {
   type: StrategyType.VARIABLE;
@@ -17,7 +17,7 @@ export const variableStrategy = (): VariableStrategy => ({
   config: {},
 });
 
-export const applyVariableStrategy: StrategyImpl = (node, ast, strategy) => {
+export const applyVariableStrategy: ApplyStrategy = (node, ast, strategy) => {
   const program = ast as Program;
   return Object.values(
     (program.scopes as Scope[]).reduce<ScopeIndex>(

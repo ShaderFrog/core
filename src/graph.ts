@@ -833,7 +833,7 @@ const computeNodeContext = async (
   };
 
   // Skip mangling if the node tells us to, which probably means it's an engine
-  // ndoe where we don't care about renaming all the variables, or if it's
+  // node where we don't care about renaming all the variables, or if it's
   // an expression, where we want to be in the context of other variables
   if (node.config.mangle !== false && !node.expressionOnly) {
     mangleEntireProgram(ast as Program, node, engine);

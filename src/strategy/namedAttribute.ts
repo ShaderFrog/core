@@ -1,7 +1,7 @@
 import { generate } from '@shaderfrog/glsl-parser';
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../nodes/core-node';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export const namedAttributeStrategy = (
   attributeName: string
@@ -16,14 +16,11 @@ export interface NamedAttributeStrategy extends BaseStrategy {
   };
 }
 
-export const applyNamedAttributeStrategy: StrategyImpl = (
-  node,
-  ast,
-  strategy
-) => {
+export const applyNamedAttributeStrategy: ApplyStrategy<
+  NamedAttributeStrategy
+> = (node, ast, strategy) => {
   const program = ast as Program;
-  const cast = strategy as NamedAttributeStrategy;
-  const { attributeName } = cast.config;
+  const { attributeName } = strategy.config;
   return [
     [
       nodeInput(

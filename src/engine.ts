@@ -5,7 +5,7 @@ import { Graph, NodeParser } from './graph';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parser } from '@shaderfrog/glsl-parser';
 import { ShaderStage, GraphNode, NodeType } from './graph';
-import { CoreNode, NodeInput, NodePosition } from './nodes/core-node';
+import { NodeInput, NodePosition } from './nodes/core-node';
 import { DataNode, UniformDataType } from './nodes/data-nodes';
 import { CodeNode, SourceNode } from './nodes/code-nodes';
 import { Edge } from './nodes/edge';

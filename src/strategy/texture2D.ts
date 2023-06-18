@@ -1,15 +1,8 @@
 import { generate } from '@shaderfrog/glsl-parser';
-import {
-  visit,
-  AstNode,
-  NodeVisitors,
-  Program,
-} from '@shaderfrog/glsl-parser/ast';
+import { visit, AstNode, NodeVisitors } from '@shaderfrog/glsl-parser/ast';
 import { ComputedInput } from '../graph';
-import { SourceNode } from '../nodes/code-nodes';
-import { InputCategory, nodeInput, NodeInput } from '../nodes/core-node';
-import { GraphDataType } from '../nodes/data-nodes';
-import { BaseStrategy, StrategyImpl, StrategyType } from '.';
+import { InputCategory, nodeInput } from '../nodes/core-node';
+import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export interface Texture2DStrategy extends BaseStrategy {
   type: StrategyType.TEXTURE_2D;
@@ -19,7 +12,11 @@ export const texture2DStrategy = (): Texture2DStrategy => ({
   config: {},
 });
 
-export const applyTexture2DStrategy: StrategyImpl = (node, ast, strategy) => {
+export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
+  node,
+  ast,
+  strategy
+) => {
   let texture2Dcalls: [string, AstNode, string, AstNode[]][] = [];
   const seen: { [key: string]: number } = {};
   const visitors: NodeVisitors = {

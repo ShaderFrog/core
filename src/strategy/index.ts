@@ -50,21 +50,21 @@ export type Strategy =
   | HardCodeStrategy
   | DeclarationOfStrategy;
 
-export type StrategyImpl = (
+export type ApplyStrategy<T> = (
   node: SourceNode,
   ast: AstNode | Program,
-  strategy: Strategy
+  strategy: T
 ) => ComputedInput[];
 
-type Strategies = Record<StrategyType, StrategyImpl>;
+type Strategies = Record<
+  StrategyType,
+  // I don't know how else to make ApplyStrategy take a generic as well as
+  // make the object below well typed, as well as make applyStrategy() have
+  // the right return type.
+  (...args: any[]) => ReturnType<ApplyStrategy<BaseStrategy>>
+>;
 
-export const applyStrategy = (
-  strategy: Strategy,
-  node: SourceNode,
-  ast: AstNode | Program
-) => strategyRunners[strategy.type](node, ast, strategy);
-
-export const strategyRunners: Strategies = {
+const strategyRunners: Strategies = {
   [StrategyType.HARD_CODE]: applyHardCodeStrategy,
   [StrategyType.UNIFORM]: applyUniformStrategy,
   [StrategyType.ASSIGNMENT_TO]: applyAssignmentToStrategy,
@@ -73,3 +73,9 @@ export const strategyRunners: Strategies = {
   [StrategyType.NAMED_ATTRIBUTE]: applyNamedAttributeStrategy,
   [StrategyType.VARIABLE]: applyVariableStrategy,
 };
+
+export const applyStrategy = (
+  strategy: Strategy,
+  node: SourceNode,
+  ast: AstNode | Program
+) => strategyRunners[strategy.type](node, ast, strategy);

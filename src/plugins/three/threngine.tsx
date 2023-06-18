@@ -11,7 +11,7 @@ import {
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
-import { GraphNode, doesLinkThruShader, nodeName } from '../../graph';
+import { doesLinkThruShader, nodeName } from '../../graph';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
