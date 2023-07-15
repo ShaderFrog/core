@@ -32,11 +32,16 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
         true
       ),
       (fillerAst) => {
-        console.log(JSON.stringify(program.scopes[0].bindings, null, 2));
         Object.entries(program.scopes[0].bindings).forEach(
           ([name, binding]) => {
             binding.references.forEach((ref) => {
-              if (ref.type === 'identifier' && ref !== binding.declaration) {
+              // Rename the variable usage only if it's not the identifier, to
+              // avoid filling in `in vec3 replaceMe;` with `replacer()`
+              if (
+                ref.type === 'identifier' &&
+                ref !== binding.declaration &&
+                ref.identifier === attributeName
+              ) {
                 ref.identifier = generate(fillerAst);
               }
             });
