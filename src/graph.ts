@@ -40,6 +40,7 @@ import {
   mapInputName,
   NodeProperty,
   SourceNode,
+  SourceType,
 } from './nodes/code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
 import { makeId } from './util/id';
@@ -169,7 +170,7 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
       // know if a graph links through a "shader" which now means somehting
       // different... does a config object need isShader? Can we compute it from
       // inputs/ outputs/source?
-      ((upstreamNode as CodeNode).sourceType !== 'expression' &&
+      ((upstreamNode as CodeNode).sourceType !== SourceType.EXPRESSION &&
         upstreamNode.type !== NodeType.OUTPUT) ||
       doesLinkThruShader(graph, upstreamNode)
     );
@@ -215,12 +216,12 @@ export const coreParsers: CoreParser = {
 
       // @ts-ignore
       if (node.expressionOnly) {
-        node.sourceType = 'expression';
+        node.sourceType = SourceType.EXPRESSION;
         // @ts-ignore
         delete node.expressionOnly;
       }
 
-      if (node.sourceType === 'function body fragment') {
+      if (node.sourceType === SourceType.FN_BODY_FRAGMENT) {
         const { statements, scope } = makeFnBodyStatementWithScopes(
           node.source
         );
@@ -230,7 +231,7 @@ export const coreParsers: CoreParser = {
           // @ts-ignore
           program: statements,
         };
-      } else if (node.sourceType === 'expression') {
+      } else if (node.sourceType === SourceType.EXPRESSION) {
         const { expression, scope } = makeExpressionWithScopes(node.source);
         ast = {
           type: 'program',
@@ -276,9 +277,9 @@ export const coreParsers: CoreParser = {
         });
     },
     produceFiller: (node, ast) => {
-      return node.sourceType === 'expression'
+      return node.sourceType === SourceType.EXPRESSION
         ? (ast as Program).program[0]
-        : node.sourceType === 'function body fragment'
+        : node.sourceType === SourceType.FN_BODY_FRAGMENT
         ? (ast as Program).program
         : makeExpression(`${nodeName(node)}()`);
     },
@@ -720,9 +721,6 @@ export const compileNode = (
           // Fill in the input! The return value is the new AST of the filled in
           // fromNode.
           nodeContext.ast = filler.filler(fillerAst);
-          if (generate(nodeContext.ast).includes('in vec3 main_Fireball')) {
-            debugger;
-          }
         }
         // console.log(generate(ast.program));
       });
@@ -732,8 +730,8 @@ export const compileNode = (
     const sections = mergeShaderSections(
       continuation,
       isDataNode(node) ||
-        (node as SourceNode).sourceType === 'expression' ||
-        (node as SourceNode).sourceType === 'function body fragment'
+        (node as SourceNode).sourceType === SourceType.EXPRESSION ||
+        (node as SourceNode).sourceType === SourceType.FN_BODY_FRAGMENT
         ? emptyShaderSections()
         : findShaderSections(ast as Program)
     );
@@ -749,8 +747,8 @@ export const compileNode = (
     // these lines above the loop?
     const sections =
       isDataNode(node) ||
-      (node as SourceNode).sourceType === 'expression' ||
-      (node as SourceNode).sourceType === 'function body fragment'
+      (node as SourceNode).sourceType === SourceType.EXPRESSION ||
+      (node as SourceNode).sourceType === SourceType.FN_BODY_FRAGMENT
         ? emptyShaderSections()
         : findShaderSections(ast as Program);
 
@@ -817,7 +815,7 @@ const computeNodeContext = async (
       ast = manipulateAst(engineContext, engine, graph, node, ast, inputEdges);
     }
   } catch (error) {
-    console.error('Error parsing source code!', error);
+    console.error('Error parsing source code!', { error, node });
     return makeError(error);
   }
 
@@ -880,8 +878,8 @@ const computeNodeContext = async (
   // TODO: Use global undefined engine variables here?
   if (
     node.config.mangle !== false &&
-    node.sourceType !== 'expression' &&
-    node.sourceType !== 'function body fragment'
+    node.sourceType !== SourceType.EXPRESSION &&
+    node.sourceType !== SourceType.FN_BODY_FRAGMENT
   ) {
     mangleEntireProgram(ast as Program, node, engine);
   }

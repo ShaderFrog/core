@@ -47,10 +47,16 @@ export const property = (
   defaultValue,
 });
 
+export enum SourceType {
+  EXPRESSION = 'Expression',
+  FN_BODY_FRAGMENT = 'Function Body Fragment',
+  SHADER_FRAGMENT = 'Shader Fragment',
+}
+
 export interface CodeNode extends CoreNode {
   config: NodeConfig;
   source: string;
-  sourceType?: 'expression' | 'function body fragment' | 'shader fragment';
+  sourceType?: SourceType;
   stage: ShaderStage | undefined;
   biStage?: boolean;
   groupId: string | null | undefined;
