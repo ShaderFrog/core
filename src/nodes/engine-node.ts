@@ -8,7 +8,13 @@ import {
   uniformStrategy,
   variableStrategy,
 } from '../strategy';
-import { BinaryNode, CodeNode, NodeConfig, property } from './code-nodes';
+import {
+  BinaryNode,
+  CodeNode,
+  NodeConfig,
+  SourceType,
+  property,
+} from './code-nodes';
 import { NodePosition } from './core-node';
 import { UniformDataType } from './data-nodes';
 
@@ -115,7 +121,7 @@ export const expressionNode = (
   name,
   position,
   type: NodeType.SOURCE,
-  expressionOnly: true,
+  sourceType: SourceType.EXPRESSION,
   groupId: undefined,
   stage: undefined,
   config: {
@@ -230,7 +236,7 @@ export const addNode = (id: string, position: NodePosition): BinaryNode => ({
   ],
   source: `a + b`,
   operator: '+',
-  expressionOnly: true,
+  sourceType: SourceType.EXPRESSION,
   biStage: true,
 });
 
@@ -261,6 +267,6 @@ export const multiplyNode = (
   ],
   source: `a * b`,
   operator: '*',
-  expressionOnly: true,
+  sourceType: SourceType.EXPRESSION,
   biStage: true,
 });
