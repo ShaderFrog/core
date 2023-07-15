@@ -4,7 +4,7 @@
   "description": "Shaderfrog core",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --colors"
   },
   "repository": {
     "type": "git",
@@ -37,7 +37,7 @@
     "lodash.groupby": "^4.6.0"
   },
   "peerDependencies": {
-    "@shaderfrog/glsl-parser": ">=1.4.1",
+    "@shaderfrog/glsl-parser": "^2.0.0-beta.5",
     "babylonjs": ">=4",
     "three": ">=0.50"
   },

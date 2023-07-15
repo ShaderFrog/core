@@ -1,5 +1,10 @@
 import { generate } from '@shaderfrog/glsl-parser';
-import { visit, AstNode, NodeVisitors } from '@shaderfrog/glsl-parser/ast';
+import {
+  visit,
+  AstNode,
+  NodeVisitors,
+  IdentifierNode,
+} from '@shaderfrog/glsl-parser/ast';
 import { ComputedInput } from '../graph';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
@@ -22,12 +27,11 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
   const visitors: NodeVisitors = {
     function_call: {
       enter: (path) => {
+        const identifier = path.node.identifier as IdentifierNode;
         if (
           // TODO: 100 vs 300
-          // @ts-ignore
-          (path.node.identifier?.specifier?.identifier === 'texture2D' ||
-            // @ts-ignore
-            path.node.identifier?.specifier?.identifier === 'texture') &&
+          (identifier?.identifier === 'texture2D' ||
+            identifier?.identifier === 'texture') &&
           path.key
         ) {
           if (!path.parent) {

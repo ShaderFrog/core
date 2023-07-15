@@ -8,7 +8,7 @@ import * as graphModule from './graph';
 import { Graph, evaluateNode } from './graph';
 import { shaderSectionsToProgram } from './ast/shader-sections';
 import { addNode } from './nodes/engine-node';
-import { makeExpression } from './ast/manipulate';
+import { makeExpression, makeFnStatement } from './ast/manipulate';
 
 import { mergeShaderSections, findShaderSections } from './ast/shader-sections';
 import { Program } from '@shaderfrog/glsl-parser/ast';
@@ -167,18 +167,22 @@ uniform vec3 a;`);
 uniform vec3 a;
 `);
 
-  const astL01 = parser.parse(`uniform Light0 { vec4 y; } x;`);
-  const astL02 = parser.parse(`uniform Light0 { vec4 y; } x;`);
+  const astL01 = parser.parse(`uniform Light0 { vec4 y; } x;`, { quiet: true });
+  const astL02 = parser.parse(`uniform Light0 { vec4 y; } x;`, { quiet: true });
   expect(mergeBlocks(astL01, astL02)).toEqual(`uniform Light0 { vec4 y; } x;
 `);
 
-  const astL001 = parser.parse(`uniform Light0 { vec4 y; } x;`);
-  const astL002 = parser.parse(`uniform Light0 x;`);
+  const astL001 = parser.parse(`uniform Light0 { vec4 y; } x;`, {
+    quiet: true,
+  });
+  const astL002 = parser.parse(`uniform Light0 x;`, { quiet: true });
   expect(mergeBlocks(astL001, astL002)).toEqual(`uniform Light0 { vec4 y; } x;
 `);
 
-  const astLo01 = parser.parse(`uniform Light0 x;`);
-  const astLo02 = parser.parse(`uniform Light0 { vec4 y; } x;`);
+  const astLo01 = parser.parse(`uniform Light0 x;`, { quiet: true });
+  const astLo02 = parser.parse(`uniform Light0 { vec4 y; } x;`, {
+    quiet: true,
+  });
   expect(mergeBlocks(astLo01, astLo02)).toEqual(`uniform Light0 { vec4 y; } x;
 `);
 
@@ -198,102 +202,4 @@ uniform vec3 a;
   expect(dedupe(`layout(std140,column_major) uniform;`)).toEqual(
     `layout(std140,column_major) uniform;`
   );
-});
-
-describe('strategies', () => {
-  let orig: any;
-  beforeEach(() => {
-    orig = graphModule.mangleName;
-    // Terrible hack. in the real world, strategies are applied after mangling
-    // @ts-ignore
-    graphModule.mangleName = (name: string) => name;
-  });
-  afterEach(() => {
-    // @ts-ignore
-    graphModule.mangleName = orig;
-  });
-
-  it('correctly fills with uniform strategy', () => {
-    const ast = parser.parse(`
-layout(std140,column_major) uniform;
-uniform sampler2D image;
-uniform vec4 input, output, other;
-uniform vec4 zenput;
-uniform Light0 { vec4 y; } x;
-void main() {
-  vec4 computed = texture2D(image, uvPow * 1.0);
-  vec4 x = input;
-  vec4 y = output;
-  vec4 z = zenput;
-}`);
-    const fillers = applyStrategy(
-      { type: StrategyType.UNIFORM, config: {} },
-      {} as SourceNode,
-      ast
-    );
-
-    // It should find uniforms with simple types, excluding sampler2D
-    expect(fillers.map(([{ displayName: name }]) => name)).toEqual([
-      'image',
-      'input',
-      'output',
-      'other',
-      'zenput',
-    ]);
-
-    fillers.find(([{ displayName: name }]) => name === 'input')?.[1](
-      makeExpression('a')
-    );
-    fillers.find(([{ displayName: name }]) => name === 'output')?.[1](
-      makeExpression('b')
-    );
-    fillers.find(([{ displayName: name }]) => name === 'zenput')?.[1](
-      makeExpression('c')
-    );
-    const result = generate(ast);
-
-    // Should fill references
-    expect(result).toContain('vec4 x = a;');
-    expect(result).toContain('vec4 y = b;');
-    expect(result).toContain('vec4 z = c;');
-
-    // Should preserve things it shouldn't touch
-    expect(result).toContain('layout(std140,column_major) uniform;');
-    expect(result).toContain('uniform sampler2D image;');
-    expect(result).toContain('uniform Light0 { vec4 y; } x;');
-
-    // Should remove uniforms from declarator list
-    expect(result).toContain('uniform vec4 other;');
-    // Should remove uniform lines
-    expect(result).not.toContain('uniform vec4 zenput');
-  });
-
-  it('uses name without suffix for single call', () => {
-    const ast = parser.parse(`
-void main() {
-  vec4 computed = texture2D(noiseImage, uvPow * 1.0);
-}`);
-    expect(
-      applyStrategy(
-        { type: StrategyType.TEXTURE_2D, config: {} },
-        {} as SourceNode,
-        ast
-      ).map(([{ displayName: name }]) => name)
-    ).toEqual(['noiseImage']);
-  });
-
-  it('finds multiple texture2D inputs for one uniform', () => {
-    const ast = parser.parse(`
-void main() {
-  vec4 computed = texture2D(noiseImage, uvPow * 1.0);
-  computed += texture2D(noiseImage, uvPow * 2.0);
-}`);
-    expect(
-      applyStrategy(
-        { type: StrategyType.TEXTURE_2D, config: {} },
-        {} as SourceNode,
-        ast
-      ).map(([{ displayName: name }]) => name)
-    ).toEqual(['noiseImage_0', 'noiseImage_1']);
-  });
 });

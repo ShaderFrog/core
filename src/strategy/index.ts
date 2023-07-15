@@ -17,6 +17,7 @@ import {
   applyNamedAttributeStrategy,
 } from './namedAttribute';
 import { VariableStrategy, applyVariableStrategy } from './variable';
+import { InjectStrategy, applyInjectStrategy } from './inject';
 
 export * from './hardCode';
 export * from './uniform';
@@ -33,6 +34,7 @@ export enum StrategyType {
   TEXTURE_2D = 'Texture2D',
   NAMED_ATTRIBUTE = 'Named Attribute',
   UNIFORM = 'Uniform',
+  INJECT = 'Inject',
   HARD_CODE = 'Hard Code Inputs',
 }
 
@@ -48,6 +50,7 @@ export type Strategy =
   | NamedAttributeStrategy
   | VariableStrategy
   | HardCodeStrategy
+  | InjectStrategy
   | DeclarationOfStrategy;
 
 export type ApplyStrategy<T> = (
@@ -65,6 +68,7 @@ type Strategies = Record<
 >;
 
 const strategyRunners: Strategies = {
+  [StrategyType.INJECT]: applyInjectStrategy,
   [StrategyType.HARD_CODE]: applyHardCodeStrategy,
   [StrategyType.UNIFORM]: applyUniformStrategy,
   [StrategyType.ASSIGNMENT_TO]: applyAssignmentToStrategy,

@@ -4,6 +4,7 @@
 import {
   AstNode,
   DeclarationStatementNode,
+  InterfaceDeclaratorNode,
   PreprocessorNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { generate } from '@shaderfrog/glsl-parser';
@@ -49,9 +50,9 @@ export const highestPrecisions = (
       (precisions, stmt) => ({
         ...precisions,
         // Like "float"
-        [stmt.declaration.specifier.specifier.token]: higherPrecision(
-          precisions[stmt.declaration.specifier.specifier.token],
-          stmt.declaration.qualifier.token
+        [(stmt.declaration as any).specifier.specifier.token]: higherPrecision(
+          precisions[(stmt.declaration as any).specifier.specifier.token],
+          (stmt.declaration as any).qualifier.token
         ),
       }),
       {} as { [type: string]: Precision }
@@ -72,11 +73,11 @@ export const dedupeQualifiedStatements = (
       (stmts, stmt) => ({
         ...stmts,
         // Like "vec2"
-        [stmt.declaration.specified_type.specifier.specifier.token]: {
+        [(stmt.declaration as any).specified_type.specifier.specifier.token]: {
           ...(stmts[
-            stmt.declaration.specified_type.specifier.specifier.token
+            (stmt.declaration as any).specified_type.specifier.specifier.token
           ] || {}),
-          ...stmt.declaration.declarations.reduce(
+          ...(stmt.declaration as any).declarations.reduce(
             (types: { [typeName: string]: string }, decl: any) => ({
               ...types,
               [decl.identifier.identifier]: true,
@@ -106,41 +107,54 @@ type UniformGroup = Record<string, UniformName>;
 export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
   const groupedByTypeName = Object.entries(
     statements.reduce<UniformGroup>((stmts, stmt) => {
-      const { specified_type } = stmt.declaration;
-      const { identifier, interface_type } = stmt.declaration;
+      const decl = stmt.declaration;
 
       // This is the standard case, a uniform like "uniform vec2 x"
-      if (specified_type) {
+      if ('specified_type' in decl) {
+        const { specified_type } = decl;
         const { specifier } = specified_type.specifier;
         // Token is for "vec2", "identifier" is for custom names like struct
-        const type = (specifier.token || specifier.identifier) as string;
+        const type =
+          'token' in specifier
+            ? specifier.token
+            : 'identifier' in specifier
+            ? specifier.identifier
+            : undefined;
+        if (!type) {
+          console.error('Unknown statement: ', stmt);
+          throw new Error(`Unknown specifier: ${specifier.type}`);
+        }
 
         // Groups uniforms into their return type, and for each type, collapses
         // uniform names into an object where the keys determine uniqueness
         // "vec2": { x: x[1] }
-        const grouped = (
-          stmt.declaration.declarations as any[]
-        ).reduce<UniformName>(
-          (types, decl) => ({
+        const grouped = decl.declarations.reduce<UniformName>((types, decl) => {
+          const { identifier } = decl;
+
+          let quantifier = '';
+          if (decl.quantifier) {
+            if (!('token' in decl.quantifier[0].expression)) {
+              console.error('Unknown expression in quantifier: ', decl);
+              throw new Error(
+                `Unknown expression in quantifier: ${generate(decl)}`
+              );
+            }
+            quantifier = `[${decl.quantifier[0].expression.token}]`;
+          }
+          return {
             ...types,
             // There's probably a bug here where one shader declares x[1],
             // another declares x[2], they both get collapsed under "x",
             // and one is wrong
-            [decl.identifier.identifier as string]: stmts[type]?.[
-              decl.identifier.identifier as string
-            ]?.hasInterface
-              ? stmts[type]?.[decl.identifier.identifier as string]
+            [identifier.identifier]: stmts[type]?.[identifier.identifier]
+              ?.hasInterface
+              ? stmts[type]?.[identifier.identifier]
               : {
                   hasInterface: false,
-                  generated:
-                    decl.identifier.identifier +
-                    (decl.quantifier
-                      ? `[${decl.quantifier.specifiers[0].expression.token}]`
-                      : ''),
+                  generated: identifier.identifier + quantifier,
                 },
-          }),
-          {}
-        );
+          };
+        }, {});
 
         return {
           ...stmts,
@@ -150,23 +164,34 @@ export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
           },
         };
         // This is the less common case, a uniform like "uniform Light { vec3 position; } name"
-      } else if (interface_type) {
+      } else if ('interface_type' in decl) {
+        const { interface_type, identifier } = decl;
+
         // If this is an interface block only, like uniform Scene { mat4 view; };
         // then group the interface block declaration under ''
         const interfaceDeclaredUniform =
-          (identifier?.identifier?.identifier as string) || '';
+          identifier?.identifier?.identifier || '';
+
+        const node = {
+          type: 'interface_declarator',
+          lp: decl.lp,
+          declarations: decl.declarations,
+          qualifiers: [],
+          // This is non-nullable, to produce "X" in "uniform X { ... } varName"
+          // But it appears "X" is in declarations above
+          interface_type: {
+            type: 'identifier',
+            identifier: '',
+            whitespace: '',
+          },
+          rp: decl.rp,
+        } as InterfaceDeclaratorNode;
+
         return {
           ...stmts,
-          [interface_type.identifier as string]: {
+          [interface_type.identifier]: {
             [interfaceDeclaredUniform]: {
-              generated: `${generate({
-                type: 'interface_declarator',
-                lp: stmt.declaration.lp,
-                declarations: stmt.declaration.declarations,
-                qualifiers: null,
-                interface_type: null,
-                rp: stmt.declaration.rp,
-              })}${interfaceDeclaredUniform}`,
+              generated: `${generate(node)}${interfaceDeclaredUniform}`,
               hasInterface: true,
             },
           },
@@ -268,6 +293,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
       };
     } else if (
       node.type === 'declaration_statement' &&
+      node.declaration.type === 'declarator_list' &&
       node.declaration?.specified_type?.specifier?.specifier?.type === 'struct'
     ) {
       return {
@@ -279,15 +305,21 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     } else if (
       node.type === 'declaration_statement' &&
       // Ignore lines like "layout(std140,column_major) uniform;"
-      !node.declaration?.qualifiers?.find(
-        (q: any) => q.layout?.token === 'layout'
+      !(
+        'qualifiers' in node.declaration &&
+        node.declaration?.qualifiers?.find((q) => 'layout' in q)
       ) &&
       // One of these checks is for a uniform with an interface block, and the
       // other is for vanilla uniforms. I don't remember which is which
-      (node.declaration?.specified_type?.qualifiers?.find(
-        (n: any) => n.token === 'uniform'
-      ) ||
-        node.declaration?.qualifiers?.find((n: any) => n.token === 'uniform'))
+      (('specified_type' in node.declaration &&
+        'qualifiers' in node.declaration.specified_type &&
+        node.declaration.specified_type.qualifiers?.find(
+          (n) => 'token' in n && n.token === 'uniform'
+        )) ||
+        ('qualifiers' in node.declaration &&
+          node.declaration?.qualifiers?.find(
+            (n) => 'token' in n && n.token === 'uniform'
+          )))
     ) {
       return {
         ...sections,
@@ -295,18 +327,25 @@ export const findShaderSections = (ast: Program): ShaderSections => {
       };
     } else if (
       node.type === 'declaration_statement' &&
+      'specified_type' in node.declaration &&
       node.declaration?.specified_type?.qualifiers?.find(
-        (n: any) => n.token === 'in'
+        (n) => 'token' in n && n.token === 'in'
       )
     ) {
+      if (generate(node).includes('main_Fireball')) {
+        console.log('findShaderSections\n', generate(ast));
+        console.log(`Tracking inStatement "${generate(node)}"`, node);
+        debugger;
+      }
       return {
         ...sections,
         inStatements: sections.inStatements.concat(node),
       };
     } else if (
       node.type === 'declaration_statement' &&
+      'specified_type' in node.declaration &&
       node.declaration?.specified_type?.qualifiers?.find(
-        (n: any) => n.token === 'out'
+        (n) => 'token' in n && n.token === 'out'
       )
     ) {
       return {

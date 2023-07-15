@@ -1,5 +1,5 @@
 import { generate } from '@shaderfrog/glsl-parser';
-import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
+import { AstNode, IdentifierNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
@@ -32,20 +32,12 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
         true
       ),
       (fillerAst) => {
+        console.log(JSON.stringify(program.scopes[0].bindings, null, 2));
         Object.entries(program.scopes[0].bindings).forEach(
-          ([name, binding]: [string, any]) => {
-            binding.references.forEach((ref: AstNode) => {
-              if (
-                ref.type === 'identifier' &&
-                ref.identifier === attributeName
-              ) {
+          ([name, binding]) => {
+            binding.references.forEach((ref) => {
+              if (ref.type === 'identifier' && ref !== binding.declaration) {
                 ref.identifier = generate(fillerAst);
-              } else if (
-                ref.type === 'parameter_declaration' &&
-                'identifier' in ref.declaration &&
-                ref.declaration.identifier.identifier === attributeName
-              ) {
-                ref.declaration.identifier.identifier = generate(fillerAst);
               }
             });
           }

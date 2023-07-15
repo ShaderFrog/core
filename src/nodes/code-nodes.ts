@@ -50,7 +50,7 @@ export const property = (
 export interface CodeNode extends CoreNode {
   config: NodeConfig;
   source: string;
-  expressionOnly?: boolean;
+  sourceType?: 'expression' | 'function body fragment' | 'shader fragment';
   stage: ShaderStage | undefined;
   biStage?: boolean;
   groupId: string | null | undefined;

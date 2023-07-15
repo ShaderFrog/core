@@ -11,18 +11,28 @@ import {
   DeclarationStatementNode,
   KeywordNode,
   DeclarationNode,
+  AssignmentNode,
+  IdentifierNode,
+  TypeSpecifierNode,
+  DeclaratorListNode,
+  LiteralNode,
+  FloatConstantNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { ShaderStage } from '../graph';
+import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 
 export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   let parent: AstNode | undefined;
   const visitors: NodeVisitors = {
     function_call: {
       enter: (path) => {
+        console.log('findVec4Constructor', path.node);
         if (
-          'specifier' in path.node.identifier &&
-          path.node.identifier?.specifier?.token === 'vec4'
+          (
+            (path.node.identifier as TypeSpecifierNode)
+              ?.specifier as KeywordNode
+          ).token === 'vec4'
         ) {
           parent = path.findParent((p) => 'right' in p.node)?.node;
           path.skip();
@@ -42,7 +52,10 @@ export const findAssignmentTo = (
   const visitors: NodeVisitors = {
     expression_statement: {
       enter: (path) => {
-        if (path.node.expression?.left?.identifier === assignTo) {
+        if (
+          ((path.node.expression as AssignmentNode)?.left as IdentifierNode)
+            ?.identifier === assignTo
+        ) {
           assign = path.node;
         }
         path.skip();
@@ -61,8 +74,10 @@ export const findDeclarationOf = (
   const visitors: NodeVisitors = {
     declaration_statement: {
       enter: (path) => {
-        const foundDecl = path.node.declaration?.declarations?.find(
-          (decl: any) => decl?.identifier?.identifier === declarationOf
+        const foundDecl = (
+          path.node.declaration as DeclaratorListNode
+        )?.declarations?.find(
+          (decl) => decl?.identifier?.identifier === declarationOf
         );
         if (foundDecl) {
           declaration = foundDecl;
@@ -84,46 +99,19 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
   //   _: '\n',
   // });
   if (stage === 'fragment') {
-    ast.program.unshift({
-      type: 'declaration_statement',
-      declaration: {
-        type: 'declarator_list',
-        specified_type: {
-          type: 'fully_specified_type',
-          qualifiers: [{ type: 'keyword', token: 'out', whitespace: ' ' }],
-          specifier: {
-            type: 'type_specifier',
-            specifier: { type: 'keyword', token: 'vec4', whitespace: ' ' },
-            quantifier: null,
-          },
-        },
-        declarations: [
-          {
-            type: 'declaration',
-            identifier: {
-              type: 'identifier',
-              identifier: glOut,
-              whitespace: undefined,
-            },
-            quantifier: null,
-            operator: undefined,
-            initializer: undefined,
-          },
-        ],
-        commas: [],
-      },
-      semi: { type: 'literal', literal: ';', whitespace: '\n    ' },
-    });
+    ast.program.unshift(
+      makeStatement(`out vec4 ${glOut}`) as DeclarationStatementNode
+    );
   }
   visit(ast, {
     function_call: {
       enter: (path) => {
         const identifier = path.node.identifier;
         if (
-          'specifier' in identifier &&
-          identifier.specifier?.identifier === 'texture2D'
+          identifier.type === 'identifier' &&
+          identifier.identifier === 'texture2D'
         ) {
-          identifier.specifier.identifier = 'texture';
+          identifier.identifier = 'texture';
         }
       },
     },
@@ -180,7 +168,7 @@ export const outDeclaration = (name: string): Object => ({
 });
 
 export const makeStatement = (stmt: string): AstNode => {
-  // console.log(stmt);
+  // console.log(`Parsing "${stmt}"`);
   let ast;
   try {
     ast = parser.parse(
@@ -229,11 +217,20 @@ export const makeExpression = (expr: string): AstNode => {
     throw new Error(`Error parsing expr "${expr}": ${error?.message}`);
   }
 
-  // console.log(util.inspect(ast, false, null, true));
-  return (ast.program[0] as FunctionNode).body.statements[0].expression.right;
+  return (
+    (
+      (ast.program[0] as FunctionNode).body
+        .statements[0] as ExpressionStatementNode
+    ).expression as AssignmentNode
+  ).right;
 };
 
-export const makeExpressionWithScopes = (expr: string): Program => {
+export const makeExpressionWithScopes = (
+  expr: string
+): {
+  scope: Scope;
+  expression: AstNode;
+} => {
   let ast: Program;
   try {
     ast = parser.parse(
@@ -249,10 +246,37 @@ export const makeExpressionWithScopes = (expr: string): Program => {
 
   // console.log(util.inspect(ast, false, null, true));
   return {
-    type: 'program',
-    // Set the main() fn body scope as the global one
-    scopes: [ast.scopes[1]],
-    program: [(ast.program[0] as FunctionNode).body.statements[0].expression],
+    scope: ast.scopes[1],
+    expression: (
+      (ast.program[0] as FunctionNode).body
+        .statements[0] as ExpressionStatementNode
+    ).expression,
+  };
+};
+
+export const makeFnBodyStatementWithScopes = (
+  body: string
+): {
+  scope: Scope;
+  statements: AstNode[];
+} => {
+  let ast: Program;
+  try {
+    ast = parser.parse(
+      `void main() {
+${body}
+        }`,
+      { quiet: true }
+    );
+  } catch (error: any) {
+    console.error({ body, error });
+    throw new Error(`Error parsing body "${body}": ${error?.message}`);
+  }
+
+  // console.log(util.inspect(ast, false, null, true));
+  return {
+    scope: ast.scopes[1],
+    statements: (ast.program[0] as FunctionNode).body.statements,
   };
 };
 
@@ -263,7 +287,12 @@ export const findFn = (ast: Program, name: string): FunctionNode | undefined =>
   );
 
 export const returnGlPosition = (fnName: string, ast: Program): void =>
-  convertVertexMain(fnName, ast, 'vec4', (assign) => assign.expression.right);
+  convertVertexMain(
+    fnName,
+    ast,
+    'vec4',
+    (assign) => (assign.expression as AssignmentNode).right
+  );
 
 export const returnGlPositionHardCoded = (
   fnName: string,
@@ -281,11 +310,12 @@ export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
     visit(assign, {
       function_call: {
         enter: (path) => {
+          console.log('returnGlPositionVec3Right', path.node);
           const { node } = path;
           if (
-            // @ts-ignore
-            node?.identifier?.specifier?.token === 'vec4' &&
-            node?.args?.[2]?.token?.includes('1.')
+            ((node?.identifier as TypeSpecifierNode)?.specifier as KeywordNode)
+              ?.token === 'vec4' &&
+            (node?.args?.[2] as FloatConstantNode)?.token?.includes('1.')
           ) {
             found = node.args[0];
           }
@@ -320,9 +350,10 @@ const convertVertexMain = (
 
   // Find the gl_position assignment line
   const assign = main.body.statements.find(
-    (stmt: AstNode) =>
+    (stmt: AstNode): stmt is ExpressionStatementNode =>
       stmt.type === 'expression_statement' &&
-      stmt.expression.left?.identifier === 'gl_Position'
+      ((stmt.expression as AssignmentNode).left as IdentifierNode)
+        ?.identifier === 'gl_Position'
   );
   if (!assign) {
     throw new Error(`No gl position assign found in main fn!`);
@@ -331,7 +362,8 @@ const convertVertexMain = (
   const rtnStmt = makeFnStatement(
     `${returnType} ${mainReturnVar} = 1.0`
   ) as DeclarationStatementNode;
-  rtnStmt.declaration.declarations[0].initializer = generateRight(assign);
+  (rtnStmt.declaration as DeclaratorListNode).declarations[0].initializer =
+    generateRight(assign);
 
   main.body.statements.splice(main.body.statements.indexOf(assign), 1, rtnStmt);
   main.body.statements.push(makeFnStatement(`return ${mainReturnVar}`));
@@ -343,16 +375,19 @@ export const convert300MainToReturn = (fnName: string, ast: Program): void => {
   // Find the output variable, as in "pc_fragColor" from  "out highp vec4 pc_fragColor;"
   let outName: string | undefined;
   ast.program.find((line, index) => {
+    const declaration = (line as DeclarationStatementNode)
+      ?.declaration as DeclaratorListNode;
     if (
-      line.type === 'declaration_statement' &&
-      line.declaration?.specified_type?.qualifiers?.find(
-        (n: KeywordNode) => n.token === 'out'
+      // line.type === 'declaration_statement' &&
+      declaration?.specified_type?.qualifiers?.find(
+        (n) => (n as KeywordNode).token === 'out'
       ) &&
-      line.declaration.specified_type.specifier.specifier.token === 'vec4'
+      (declaration.specified_type.specifier.specifier as KeywordNode).token ===
+        'vec4'
     ) {
       // Remove the out declaration
       ast.program.splice(index, 1);
-      outName = line.declaration.declarations[0].identifier.identifier;
+      outName = declaration.declarations[0].identifier.identifier;
       return true;
     }
   });

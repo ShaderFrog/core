@@ -12,6 +12,7 @@ import {
   Path,
   Program,
   FunctionNode,
+  ParameterDeclarationNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from './engine';
 import {
@@ -26,6 +27,7 @@ import {
   from2To3,
   makeExpression,
   makeExpressionWithScopes,
+  makeFnBodyStatementWithScopes,
   makeFnStatement,
 } from './ast/manipulate';
 import { ensure } from './util/ensure';
@@ -62,7 +64,7 @@ export const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 export type NodeFiller = (
   node: SourceNode,
   ast: Program | AstNode
-) => AstNode | void;
+) => AstNode | AstNode[] | void;
 export const emptyFiller: NodeFiller = () => {};
 
 export const isDataNode = (node: GraphNode): node is DataNode =>
@@ -73,12 +75,16 @@ export const isSourceNode = (node: GraphNode): node is SourceNode =>
 
 export const MAGIC_OUTPUT_STMTS = 'mainStmts';
 
-export type InputFiller = (a: AstNode | Program) => AstNode | Program;
+export type InputFiller = (
+  a: AstNode[] | AstNode | Program
+) => AstNode | Program;
 export type InputFillerGroup = {
   filler: InputFiller;
   args?: AstNode[];
 };
 export type InputFillers = Record<string, InputFillerGroup>;
+// Note this has to match what's in engine.ts which also has a defintion of
+// NodeContext. TODO: Dry this up
 export type NodeContext = {
   ast: AstNode | Program;
   source?: string;
@@ -163,7 +169,7 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
       // know if a graph links through a "shader" which now means somehting
       // different... does a config object need isShader? Can we compute it from
       // inputs/ outputs/source?
-      (!(upstreamNode as CodeNode).expressionOnly &&
+      ((upstreamNode as CodeNode).sourceType !== 'expression' &&
         upstreamNode.type !== NodeType.OUTPUT) ||
       doesLinkThruShader(graph, upstreamNode)
     );
@@ -206,8 +212,32 @@ export const coreParsers: CoreParser = {
   [NodeType.SOURCE]: {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {
       let ast: Program;
+
+      // @ts-ignore
       if (node.expressionOnly) {
-        ast = makeExpressionWithScopes(node.source);
+        node.sourceType = 'expression';
+        // @ts-ignore
+        delete node.expressionOnly;
+      }
+
+      if (node.sourceType === 'function body fragment') {
+        const { statements, scope } = makeFnBodyStatementWithScopes(
+          node.source
+        );
+        ast = {
+          type: 'program',
+          scopes: [scope],
+          // @ts-ignore
+          program: statements,
+        };
+      } else if (node.sourceType === 'expression') {
+        const { expression, scope } = makeExpressionWithScopes(node.source);
+        ast = {
+          type: 'program',
+          scopes: [scope],
+          // @ts-ignore
+          program: [expression as AstNode],
+        };
       } else {
         const preprocessed =
           node.config.preprocess === false
@@ -246,8 +276,10 @@ export const coreParsers: CoreParser = {
         });
     },
     produceFiller: (node, ast) => {
-      return node.expressionOnly
+      return node.sourceType === 'expression'
         ? (ast as Program).program[0]
+        : node.sourceType === 'function body fragment'
+        ? (ast as Program).program
         : makeExpression(`${nodeName(node)}()`);
     },
   },
@@ -288,22 +320,15 @@ export const coreParsers: CoreParser = {
   [NodeType.BINARY]: {
     produceAst: (engineContext, engine, graph, iNode, inputEdges) => {
       const node = iNode as BinaryNode;
-      const fragmentAst: Program = {
-        type: 'program',
-        program: [
-          makeExpression(
-            '(' +
-              (inputEdges.length
-                ? inputEdges
-                    .map((_, index) => alphabet.charAt(index))
-                    .join(` ${node.operator} `)
-                : `a ${node.operator} b`) +
-              ')'
-          ),
-        ],
-        scopes: [],
-      };
-      return fragmentAst;
+      return makeExpression(
+        '(' +
+          (inputEdges.length
+            ? inputEdges
+                .map((_, index) => alphabet.charAt(index))
+                .join(` ${node.operator} `)
+            : `a ${node.operator} b`) +
+          ')'
+      );
     },
     findInputs: (engineContext, node, ast, inputEdges) => {
       return new Array(Math.max(inputEdges.length + 1, 2))
@@ -349,7 +374,7 @@ export const coreParsers: CoreParser = {
         });
     },
     produceFiller: (node, ast) => {
-      return (ast as Program).program[0];
+      return ast as AstNode;
     },
     evaluate: (node, inputEdges, inputNodes, evaluateNode) => {
       const operator = (node as BinaryNode).operator;
@@ -537,7 +562,11 @@ export const filterGraphNodes = (
   );
 
 type NodeIds = Record<string, GraphNode>;
-export type CompileNodeResult = [ShaderSections, AstNode | void, NodeIds];
+export type CompileNodeResult = [
+  ShaderSections,
+  AstNode | AstNode[] | void,
+  NodeIds
+];
 
 // before data inputs were known by the input.category being node or data. I
 // tried updating inputs to have acepts: [code|data] and "baked" now is there a
@@ -658,7 +687,11 @@ export const compileNode = (
            */
           // TODO: This is a hard coded hack for vUv backfilling. It works in
           // the simple case. Doesn't work for hell (based on world position).
-          if (filler.args && fillerAst.type === 'function_call') {
+          if (
+            filler.args &&
+            !Array.isArray(fillerAst) &&
+            fillerAst.type === 'function_call'
+          ) {
             // Object.values(filterGraphFromNode(graph, node, {
             //   node: (n) => n.type === 'source'
             // }).nodes).forEach(sourceNode => {
@@ -667,13 +700,15 @@ export const compileNode = (
               fillerAst.args = filler.args;
               // const fc = engineContext.nodes[sourceNode.id];
               const fc = engineContext.nodes[fromNode.id];
-              // @ts-ignore
-              fc.ast.scopes[0].functions.main.references[0].prototype.parameters =
-                ['vec2 vv'];
+              const main = Object.values(
+                (fc.ast as Program).scopes[0].functions.main
+              )[0].declaration as FunctionNode;
+              main.prototype.parameters = [
+                'vec2 vv' as unknown as ParameterDeclarationNode,
+              ];
               // @ts-ignore
               const scope = fc.ast.scopes[0];
               renameBindings(scope, (name, node) => {
-                console.log('renaming binding', name);
                 return node.type !== 'declaration' && name === 'vUv'
                   ? 'vv'
                   : name;
@@ -685,6 +720,9 @@ export const compileNode = (
           // Fill in the input! The return value is the new AST of the filled in
           // fromNode.
           nodeContext.ast = filler.filler(fillerAst);
+          if (generate(nodeContext.ast).includes('in vec3 main_Fireball')) {
+            debugger;
+          }
         }
         // console.log(generate(ast.program));
       });
@@ -693,7 +731,9 @@ export const compileNode = (
     // you have to declare functions in order of use in GLSL
     const sections = mergeShaderSections(
       continuation,
-      isDataNode(node) || (node as SourceNode).expressionOnly
+      isDataNode(node) ||
+        (node as SourceNode).sourceType === 'expression' ||
+        (node as SourceNode).sourceType === 'function body fragment'
         ? emptyShaderSections()
         : findShaderSections(ast as Program)
     );
@@ -708,7 +748,9 @@ export const compileNode = (
     // recalculate the shader sections and filler for every edge? Can I move
     // these lines above the loop?
     const sections =
-      isDataNode(node) || (node as SourceNode).expressionOnly
+      isDataNode(node) ||
+      (node as SourceNode).sourceType === 'expression' ||
+      (node as SourceNode).sourceType === 'function body fragment'
         ? emptyShaderSections()
         : findShaderSections(ast as Program);
 
@@ -835,7 +877,12 @@ const computeNodeContext = async (
   // Skip mangling if the node tells us to, which probably means it's an engine
   // node where we don't care about renaming all the variables, or if it's
   // an expression, where we want to be in the context of other variables
-  if (node.config.mangle !== false && !node.expressionOnly) {
+  // TODO: Use global undefined engine variables here?
+  if (
+    node.config.mangle !== false &&
+    node.sourceType !== 'expression' &&
+    node.sourceType !== 'function body fragment'
+  ) {
     mangleEntireProgram(ast as Program, node, engine);
   }
 
@@ -848,22 +895,33 @@ export const computeContextForNodes = async (
   graph: Graph,
   nodes: GraphNode[]
 ) =>
-  nodes.filter(isSourceNode).reduce(async (ctx, node) => {
-    const context = await ctx;
-
-    let result = await computeNodeContext(engineContext, engine, graph, node);
-    let nodeContext = isError(result)
-      ? {
-          errors: result,
+  nodes
+    .filter(isSourceNode)
+    .reduce<Promise<Record<string, NodeContext> | NodeErrors>>(
+      async (ctx, node) => {
+        const context = await ctx;
+        if (isError(context)) {
+          return context;
         }
-      : result;
 
-    context[node.id] = {
-      ...(context[node.id] || {}),
-      ...nodeContext,
-    };
-    return context;
-  }, Promise.resolve(engineContext.nodes));
+        let nodeContext = await computeNodeContext(
+          engineContext,
+          engine,
+          graph,
+          node
+        );
+        if (isError(nodeContext)) {
+          return makeError(nodeContext);
+        }
+
+        context[node.id] = {
+          ...(context[node.id] || {}),
+          ...nodeContext,
+        };
+        return context;
+      },
+      Promise.resolve(engineContext.nodes as Record<string, NodeContext>)
+    );
 
 export type CompileGraphResult = {
   fragment: ShaderSections;

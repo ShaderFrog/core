@@ -57,6 +57,8 @@ export interface Engine {
   };
 }
 
+// Note this has to match what's in graph.ts which also has a defintion of
+// NodeContext. TODO: Dry this up
 export type NodeContext = {
   ast: AstNode | Program;
   source?: string;
@@ -65,6 +67,7 @@ export type NodeContext = {
   inputs?: NodeInput[];
   id?: string;
   name?: string;
+  errors?: any;
 };
 
 // The context an engine builds as it evaluates. It can manage its own state
