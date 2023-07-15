@@ -165,6 +165,8 @@ uniform sampler2D image;
 uniform vec4 input, output, other;
 uniform vec4 zenput;
 uniform Light0 { vec4 y; } x;
+vec3 topLevel = vec3(0.0);
+void other(in vec3 param) {}
 void main() {
   vec4 computed = texture2D(image, uvPow * 1.0);
   vec4 x = input;
