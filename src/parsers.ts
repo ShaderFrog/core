@@ -73,9 +73,17 @@ export type ManipulateAst = (
 
 export type NodeParser = {
   // cacheKey?: (graph: Graph, node: GraphNode, sibling?: GraphNode) => string;
+  // Callback hook to manipulate the node right before it's compiled by the
+  // graph. Engines use this to dynamically generate node source code.
   onBeforeCompile?: OnBeforeCompile;
+  // Callback hook to manipulate the parsed AST. Example use is to convert
+  // standalone GLSL programs into code that can be used in the graph, like
+  // turning `void main() { out = color; }` into `vec4 main() { return color; }`
   manipulateAst?: ManipulateAst;
+  // Find the inputs for this node type. Done dynamically because it's based on
+  // the source code of the node.
   findInputs?: FindInputs;
+  // Create the filler AST offered up to nodes that import this node.
   produceFiller?: ProduceNodeFiller;
 };
 
