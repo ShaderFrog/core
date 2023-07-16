@@ -169,7 +169,7 @@ process.
 
 ### Static Monkeypatching
 
-This whle process allows Shaderfrog to monkeypatch engine shaders. When
+This whole process allows Shaderfrog to monkeypatch engine shaders. When
 modifying an engine shader, the process is:
 
 - Shaderfrog creates a `BABYLON.PBRMaterial` or `Three.MeshPhysicalMaterial` (or
