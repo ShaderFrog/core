@@ -1,7 +1,7 @@
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { AstNode } from '@shaderfrog/glsl-parser/ast';
 import { MergeOptions } from './ast/shader-sections';
-import { Graph, NodeParser } from './graph';
+import { Graph } from './graph';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parser } from '@shaderfrog/glsl-parser';
 import { ShaderStage, GraphNode, NodeType } from './graph';
@@ -10,6 +10,8 @@ import { DataNode, UniformDataType } from './nodes/data-nodes';
 import { CodeNode, SourceNode } from './nodes/code-nodes';
 import { Edge } from './nodes/edge';
 import groupBy from 'lodash.groupby';
+import { NodeContext } from './context';
+import { NodeParser } from './parsers';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[32m(core)\x1b[0m', ...args);
@@ -57,18 +59,22 @@ export interface Engine {
   };
 }
 
-// Note this has to match what's in graph.ts which also has a defintion of
+// I commented this out because I don't know if I still need to duplicate it
+// here, and why I did that in the first place, or if I can just use the core
+// graph NodeContext type, which I am now
+//
+// Note this has to match what's in context.ts which also has a defintion of
 // NodeContext. TODO: Dry this up
-export type NodeContext = {
-  ast: AstNode | Program;
-  source?: string;
-  // Inputs are determined at parse time and should probably be in the graph,
-  // not here on the runtime context for the node
-  inputs?: NodeInput[];
-  id?: string;
-  name?: string;
-  errors?: any;
-};
+// export type NodeContext = {
+//   ast: AstNode | Program;
+//   source?: string;
+//   // Inputs are determined at parse time and should probably be in the graph,
+//   // not here on the runtime context for the node
+//   inputs?: NodeInput[];
+//   name?: string;
+//   id?: string;
+//   errors?: any;
+// };
 
 // The context an engine builds as it evaluates. It can manage its own state
 // as the generic "RuntimeContext" which is passed to implemented engine methods
@@ -93,7 +99,7 @@ export type EngineImporters = {
   [engine: string]: EngineImporter;
 };
 
-type EdgeUpdates = { [edgeId: string]: { oldInput: string; newInput: string } };
+// type EdgeUpdates = { [edgeId: string]: { oldInput: string; newInput: string } };
 
 export const convertNode = (
   node: SourceNode,

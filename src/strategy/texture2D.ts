@@ -5,9 +5,9 @@ import {
   NodeVisitors,
   IdentifierNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { ComputedInput } from '../graph';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { ComputedInput } from '../parsers';
 
 export interface Texture2DStrategy extends BaseStrategy {
   type: StrategyType.TEXTURE_2D;

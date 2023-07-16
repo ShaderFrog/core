@@ -3,7 +3,6 @@ import { Engine, EngineNodeType, EngineContext } from '../../engine';
 import {
   nodeName,
   doesLinkThruShader,
-  NodeParser,
   ShaderStage,
   prepopulatePropertyInputs,
   Graph,
@@ -34,6 +33,7 @@ import {
 } from '../../strategy';
 import { NodeInput, NodePosition } from '../../nodes/core-node';
 import { DataNode, UniformDataType } from '../../nodes/data-nodes';
+import { NodeParser } from '../../parsers';
 
 // Setting these properties on the material have side effects, not just for the
 // GLSL, but for the material itself in JS memory apparently, maybe the bound

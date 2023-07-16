@@ -1,7 +1,7 @@
-import { generate } from '@shaderfrog/glsl-parser';
-import { AstNode, IdentifierNode, Program } from '@shaderfrog/glsl-parser/ast';
+import { Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { generateFiller } from 'src/util/ast';
 
 export const namedAttributeStrategy = (
   attributeName: string
@@ -42,7 +42,7 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
                 ref !== binding.declaration &&
                 ref.identifier === attributeName
               ) {
-                ref.identifier = generate(fillerAst);
+                ref.identifier = generateFiller(fillerAst);
               }
             });
           }

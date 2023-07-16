@@ -3,11 +3,14 @@ import {
   Program,
   DeclarationStatementNode,
   KeywordNode,
+  DeclaratorListNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { ComputedInput, mangleName } from '../graph';
+import { mangleName } from '../graph';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { GraphDataType } from '../nodes/data-nodes';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { ComputedInput } from '../parsers';
+import { generateFiller } from 'src/util/ast';
 
 export interface UniformStrategy extends BaseStrategy {
   type: StrategyType.UNIFORM;
@@ -129,16 +132,19 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
 ) => {
   const program = ast as Program;
   return (program.program || []).flatMap<ComputedInput>((node) => {
-    // The uniform declration type, like vec4
-    const uniformType = (node as DeclarationStatementNode).declaration
-      ?.specified_type?.specifier?.specifier?.token;
+    // The uniform declaration type, like vec4
+    const uniformType = (
+      ((node as DeclarationStatementNode).declaration as DeclaratorListNode)
+        ?.specified_type?.specifier?.specifier as KeywordNode
+    )?.token;
     const graphDataType = mapUniformType(uniformType);
 
     // If this is a uniform declaration line
     if (
       node.type === 'declaration_statement' &&
+      node.declaration.type === 'declarator_list' &&
       node.declaration?.specified_type?.qualifiers?.find(
-        (n: KeywordNode) => n.token === 'uniform'
+        (n) => (n as KeywordNode).token === 'uniform'
       )
       // commented this out to allow for sampler2D uniforms to appear as inputs
       // && uniformType !== 'sampler2D'
@@ -171,23 +177,23 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           if (declarations.length === 1) {
             program.program.splice(program.program.indexOf(node), 1);
           } else {
-            node.declaration.declarations =
-              node.declaration.declarations.filter(
-                (d: any) => d.identifier.identifier !== mangledName
-              );
+            const decl = node.declaration as DeclaratorListNode;
+            decl.declarations = decl.declarations.filter(
+              (d) => d.identifier.identifier !== mangledName
+            );
           }
           // And rename all the references to said uniform
           program.scopes[0].bindings[name].references.forEach((ref) => {
             if (ref.type === 'identifier' && ref.identifier === mangledName) {
-              ref.identifier = generate(filler);
+              ref.identifier = generateFiller(filler);
             } else if (
               ref.type === 'parameter_declaration' &&
-              'identifier' in ref.declaration &&
-              ref.declaration.identifier.identifier === mangledName
+              'identifier' in ref &&
+              ref.identifier.identifier === mangledName
             ) {
-              ref.declaration.identifier.identifier = generate(filler);
+              ref.identifier.identifier = generateFiller(filler);
             } else if ('identifier' in ref) {
-              ref.identifier = generate(filler);
+              ref.identifier = generateFiller(filler);
             } else {
               console.warn(
                 'Unknown uniform reference for',

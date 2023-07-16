@@ -3,19 +3,16 @@ import util from 'util';
 import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
-import { applyStrategy, StrategyType } from './strategy';
-import * as graphModule from './graph';
-import { Graph, evaluateNode } from './graph';
+import { Graph } from './graph';
 import { shaderSectionsToProgram } from './ast/shader-sections';
 import { addNode } from './nodes/engine-node';
-import { makeExpression, makeFnStatement } from './ast/manipulate';
 
 import { mergeShaderSections, findShaderSections } from './ast/shader-sections';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { numberNode } from './nodes/data-nodes';
 import { makeEdge } from './nodes/edge';
-import { SourceNode } from './nodes/code-nodes';
 import { Engine, PhysicalNodeConstructor } from './engine';
+import { evaluateNode } from './evaluate';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));

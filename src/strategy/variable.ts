@@ -1,13 +1,9 @@
-import { generate } from '@shaderfrog/glsl-parser';
-import {
-  AstNode,
-  Program,
-  Scope,
-  ScopeIndex,
-} from '@shaderfrog/glsl-parser/ast';
-import { ComputedInput } from '../graph';
+import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { Scope, ScopeIndex } from '@shaderfrog/glsl-parser/parser/scope';
+import { ComputedInput, Filler } from '../parsers';
+import { generateFiller } from 'src/util/ast';
 
 export interface VariableStrategy extends BaseStrategy {
   type: StrategyType.VARIABLE;
@@ -17,7 +13,11 @@ export const variableStrategy = (): VariableStrategy => ({
   config: {},
 });
 
-export const applyVariableStrategy: ApplyStrategy = (node, ast, strategy) => {
+export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
+  node,
+  ast,
+  strategy
+) => {
   const program = ast as Program;
   return Object.values(
     (program.scopes as Scope[]).reduce<ScopeIndex>(
@@ -31,14 +31,14 @@ export const applyVariableStrategy: ApplyStrategy = (node, ast, strategy) => {
 
         if (ref.type === 'declaration') {
           identifier = ref.identifier.identifier;
-          replacer = (fillerAst: AstNode | Program) => {
-            ref.identifier.identifier = generate(fillerAst);
+          replacer = (fillerAst: Filler) => {
+            ref.identifier.identifier = generateFiller(fillerAst);
             return ast;
           };
         } else if (ref.type === 'identifier') {
           identifier = ref.identifier;
-          replacer = (fillerAst: AstNode | Program) => {
-            ref.identifier = generate(fillerAst);
+          replacer = (fillerAst: Filler) => {
+            ref.identifier = generateFiller(fillerAst);
             return ast;
           };
           // } else if (ref.type === 'parameter_declaration') {

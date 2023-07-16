@@ -1,49 +1,30 @@
-import { parser, generate } from '@shaderfrog/glsl-parser';
-import groupBy from 'lodash.groupby';
-
 import {
   renameBindings,
   renameFunctions,
 } from '@shaderfrog/glsl-parser/parser/utils';
 import {
-  visit,
   AstNode,
-  NodeVisitors,
-  Path,
   Program,
   FunctionNode,
   ParameterDeclarationNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from './engine';
+import { NodeContext } from './context';
 import {
   emptyShaderSections,
   findShaderSections,
   mergeShaderSections,
   ShaderSections,
 } from './ast/shader-sections';
-import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-import {
-  convert300MainToReturn,
-  from2To3,
-  makeExpression,
-  makeExpressionWithScopes,
-  makeFnBodyStatementWithScopes,
-  makeFnStatement,
-} from './ast/manipulate';
+import { makeExpression } from './ast/manipulate';
 import { ensure } from './util/ensure';
-import { applyStrategy } from './strategy';
 import { DataNode } from './nodes/data-nodes';
 import { Edge } from './nodes/edge';
-import {
-  BinaryNode,
-  CodeNode,
-  mapInputName,
-  NodeProperty,
-  SourceNode,
-  SourceType,
-} from './nodes/code-nodes';
+import { CodeNode, SourceNode, SourceType } from './nodes/code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
 import { makeId } from './util/id';
+import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
+import { toGlsl } from './evaluate';
 
 export type ShaderStage = 'fragment' | 'vertex';
 
@@ -60,14 +41,6 @@ export interface Graph {
   edges: Edge[];
 }
 
-export const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-
-export type NodeFiller = (
-  node: SourceNode,
-  ast: Program | AstNode
-) => AstNode | AstNode[] | void;
-export const emptyFiller: NodeFiller = () => {};
-
 export const isDataNode = (node: GraphNode): node is DataNode =>
   'value' in node;
 
@@ -75,81 +48,6 @@ export const isSourceNode = (node: GraphNode): node is SourceNode =>
   !isDataNode(node);
 
 export const MAGIC_OUTPUT_STMTS = 'mainStmts';
-
-export type InputFiller = (
-  a: AstNode[] | AstNode | Program
-) => AstNode | Program;
-export type InputFillerGroup = {
-  filler: InputFiller;
-  args?: AstNode[];
-};
-export type InputFillers = Record<string, InputFillerGroup>;
-// Note this has to match what's in engine.ts which also has a defintion of
-// NodeContext. TODO: Dry this up
-export type NodeContext = {
-  ast: AstNode | Program;
-  source?: string;
-  id: string;
-  inputFillers: InputFillers;
-  errors?: NodeErrors;
-};
-
-type FillerArguments = AstNode[];
-export type ComputedInput = [NodeInput, InputFiller, FillerArguments?];
-
-export type FindInputs = (
-  engineContext: EngineContext,
-  node: SourceNode,
-  ast: Program | AstNode,
-  inputEdges: Edge[]
-) => ComputedInput[];
-
-export type OnBeforeCompile = (
-  graph: Graph,
-  engineContext: EngineContext,
-  node: SourceNode,
-  sibling?: SourceNode
-) => Promise<void>;
-
-export type ProduceAst = (
-  engineContext: EngineContext,
-  engine: Engine,
-  graph: Graph,
-  node: SourceNode,
-  inputEdges: Edge[]
-) => AstNode | Program;
-
-export type Evaluator = (node: GraphNode) => any;
-export type Evaluate = (
-  node: SourceNode,
-  inputEdges: Edge[],
-  inputNodes: GraphNode[],
-  evaluate: Evaluator
-) => any;
-
-type CoreNodeParser = {
-  produceAst: ProduceAst;
-  findInputs: FindInputs;
-  produceFiller: NodeFiller;
-  evaluate?: Evaluate;
-};
-
-export type ManipulateAst = (
-  engineContext: EngineContext,
-  engine: Engine,
-  graph: Graph,
-  node: SourceNode,
-  ast: AstNode | Program,
-  inputEdges: Edge[]
-) => AstNode | Program;
-
-export type NodeParser = {
-  // cacheKey?: (graph: Graph, node: GraphNode, sibling?: GraphNode) => string;
-  onBeforeCompile?: OnBeforeCompile;
-  manipulateAst?: ManipulateAst;
-  findInputs?: FindInputs;
-  produceFiller?: NodeFiller;
-};
 
 export const findNode = (graph: Graph, id: string): GraphNode =>
   ensure(graph.nodes.find((node) => node.id === id));
@@ -176,8 +74,6 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
     );
   }, false);
 };
-
-type CoreParser = { [key: string]: CoreNodeParser };
 
 export const nodeName = (node: GraphNode): string =>
   'main_' + node.name.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
@@ -206,235 +102,6 @@ export const mangleEntireProgram = (
 export const mangleMainFn = (ast: Program, node: SourceNode) => {
   renameFunctions(ast.scopes[0], (name) =>
     name === 'main' ? nodeName(node) : mangleName(name, node)
-  );
-};
-
-export const coreParsers: CoreParser = {
-  [NodeType.SOURCE]: {
-    produceAst: (engineContext, engine, graph, node, inputEdges) => {
-      let ast: Program;
-
-      // @ts-ignore
-      if (node.expressionOnly) {
-        node.sourceType = SourceType.EXPRESSION;
-        // @ts-ignore
-        delete node.expressionOnly;
-      }
-
-      if (node.sourceType === SourceType.FN_BODY_FRAGMENT) {
-        const { statements, scope } = makeFnBodyStatementWithScopes(
-          node.source
-        );
-        ast = {
-          type: 'program',
-          scopes: [scope],
-          // @ts-ignore
-          program: statements,
-        };
-      } else if (node.sourceType === SourceType.EXPRESSION) {
-        const { expression, scope } = makeExpressionWithScopes(node.source);
-        ast = {
-          type: 'program',
-          scopes: [scope],
-          // @ts-ignore
-          program: [expression as AstNode],
-        };
-      } else {
-        const preprocessed =
-          node.config.preprocess === false
-            ? node.source
-            : preprocess(node.source, {
-                preserve: {
-                  version: () => true,
-                },
-              });
-
-        ast = parser.parse(preprocessed);
-
-        if (node.config.version === 2 && node.stage) {
-          from2To3(ast, node.stage);
-        }
-
-        // This assumes that expressionOnly nodes don't have a stage and that all
-        // fragment source code shades have main function, which is probably wrong
-        if (node.stage === 'fragment') {
-          convert300MainToReturn('main', ast);
-        }
-      }
-
-      return ast;
-    },
-    findInputs: (engineContext, node, ast) => {
-      let seen = new Set<string>();
-      return node.config.strategies
-        .flatMap((strategy) => applyStrategy(strategy, node, ast))
-        .filter(([input, _]) => {
-          if (!seen.has(input.id)) {
-            seen.add(input.id);
-            return true;
-          }
-          return false;
-        });
-    },
-    produceFiller: (node, ast) => {
-      return node.sourceType === SourceType.EXPRESSION
-        ? (ast as Program).program[0]
-        : node.sourceType === SourceType.FN_BODY_FRAGMENT
-        ? (ast as Program).program
-        : makeExpression(`${nodeName(node)}()`);
-    },
-  },
-  // TODO: Output node assumes strategies are still passed in on node creation,
-  // which might be a little awkward for graph creators?
-  [NodeType.OUTPUT]: {
-    produceAst: (engineContext, engine, graph, node, inputEdges) => {
-      return parser.parse(node.source);
-    },
-    findInputs: (engineContext, node, ast) => {
-      return [
-        ...node.config.strategies.flatMap((strategy) =>
-          applyStrategy(strategy, node, ast)
-        ),
-        [
-          nodeInput(
-            MAGIC_OUTPUT_STMTS,
-            `filler_${MAGIC_OUTPUT_STMTS}`,
-            'filler',
-            'rgba',
-            new Set<InputCategory>(['code']),
-            false
-          ),
-          (fillerAst) => {
-            const fn = (ast as Program).program.find(
-              (stmt): stmt is FunctionNode => stmt.type === 'function'
-            );
-            fn?.body.statements.unshift(makeFnStatement(generate(fillerAst)));
-            return ast;
-          },
-        ] as ComputedInput,
-      ];
-    },
-    produceFiller: (node, ast) => {
-      return makeExpression('impossible_call()');
-    },
-  },
-  [NodeType.BINARY]: {
-    produceAst: (engineContext, engine, graph, iNode, inputEdges) => {
-      const node = iNode as BinaryNode;
-      return makeExpression(
-        '(' +
-          (inputEdges.length
-            ? inputEdges
-                .map((_, index) => alphabet.charAt(index))
-                .join(` ${node.operator} `)
-            : `a ${node.operator} b`) +
-          ')'
-      );
-    },
-    findInputs: (engineContext, node, ast, inputEdges) => {
-      return new Array(Math.max(inputEdges.length + 1, 2))
-        .fill(0)
-        .map((_, index) => {
-          const letter = alphabet.charAt(index);
-          return [
-            nodeInput(
-              letter,
-              letter,
-              'filler',
-              undefined,
-              new Set<InputCategory>(['data', 'code']),
-              false
-            ),
-            (fillerAst) => {
-              let foundPath: Path<any> | undefined;
-              const visitors: NodeVisitors = {
-                identifier: {
-                  enter: (path) => {
-                    if (path.node.identifier === letter) {
-                      foundPath = path;
-                    }
-                  },
-                },
-              };
-              visit(ast, visitors);
-              if (!foundPath) {
-                throw new Error(
-                  `Im drunk and I think this case is impossible, no "${letter}" found in binary node?`
-                );
-              }
-
-              if (foundPath.parent && foundPath.key) {
-                // @ts-ignore
-                foundPath.parent[foundPath.key] = fillerAst;
-                return ast;
-              } else {
-                return fillerAst;
-              }
-            },
-          ] as ComputedInput;
-        });
-    },
-    produceFiller: (node, ast) => {
-      return ast as AstNode;
-    },
-    evaluate: (node, inputEdges, inputNodes, evaluateNode) => {
-      const operator = (node as BinaryNode).operator;
-      return inputNodes.map<number>(evaluateNode).reduce((num, next) => {
-        if (operator === '+') {
-          return num + next;
-        } else if (operator === '*') {
-          return num * next;
-        } else if (operator === '-') {
-          return num - next;
-        } else if (operator === '/') {
-          return num / next;
-        }
-        throw new Error(
-          `Don't know how to evaluate ${operator} for node ${node.name} (${node.id})`
-        );
-      });
-    },
-  },
-};
-
-export const toGlsl = (node: DataNode): string => {
-  const { type, value } = node;
-  if (type === 'vector2') {
-    return `vec2(${value[0]}, ${value[1]})`;
-  }
-  if (type === 'vector3' || type === 'rgb') {
-    return `vec3(${value[0]}, ${value[1]}, ${value[2]})`;
-  }
-  if (type === 'vector4' || type === 'rgba') {
-    return `vec4(${value[0]}, ${value[1]}, ${value[2]}, ${value[3]})`;
-  }
-  throw new Error(`Unknown GLSL inline type: "${node.type}"`);
-};
-
-export const evaluateNode = (
-  engine: Engine,
-  graph: Graph,
-  node: GraphNode
-): any => {
-  // TODO: Data nodes themselves should have evaluators
-  if ('value' in node) {
-    return engine.evaluateNode(node);
-  }
-
-  const { evaluate } = coreParsers[node.type];
-  if (!evaluate) {
-    throw new Error(`No evaluator for node ${node.name} (${node.id})`);
-  }
-  const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
-  const inputNodes = inputEdges.map(
-    (edge) => graph.nodes.find((node) => node.id === edge.from) as GraphNode
-  );
-
-  return evaluate(
-    node as SourceNode,
-    inputEdges,
-    inputNodes,
-    evaluateNode.bind(null, engine, graph)
   );
 };
 
@@ -563,10 +230,17 @@ export const filterGraphNodes = (
   );
 
 type NodeIds = Record<string, GraphNode>;
+
 export type CompileNodeResult = [
-  ShaderSections,
-  AstNode | AstNode[] | void,
-  NodeIds
+  // After compiling a node and all of its dependencies, the ShaderSections
+  // represent the intermidate compile result, continues to grow as the graph is
+  // compiled.
+  compiledSections: ShaderSections,
+  // The filler this node offers up to any filling nodes
+  filler: ReturnType<ProduceNodeFiller>,
+  // All of the nodes compiled as dependencies of this node, continues to grow
+  // as the graph is compiled.
+  compiledIds: NodeIds
 ];
 
 // before data inputs were known by the input.category being node or data. I
@@ -689,7 +363,7 @@ export const compileNode = (
           // TODO: This is a hard coded hack for vUv backfilling. It works in
           // the simple case. Doesn't work for hell (based on world position).
           if (
-            filler.args &&
+            filler.backfillArgs &&
             !Array.isArray(fillerAst) &&
             fillerAst.type === 'function_call'
           ) {
@@ -698,7 +372,7 @@ export const compileNode = (
             // }).nodes).forEach(sourceNode => {
             if (fromNode.type === 'source') {
               // @ts-ignore
-              fillerAst.args = filler.args;
+              fillerAst.args = filler.backfillArgs;
               // const fc = engineContext.nodes[sourceNode.id];
               const fc = engineContext.nodes[fromNode.id];
               const main = Object.values(
@@ -760,167 +434,6 @@ export const compileNode = (
   }
 };
 
-// Merge existing node inputs, and inputs based on properties, with new ones
-// found from the source code, using the *id* as the uniqueness key. Any filler input gets
-// merged into property inputs with the same id. This preserves the
-// "baked" property on node inputs which is toggle-able in the graph
-const collapseNodeInputs = (
-  node: CodeNode,
-  updatedInputs: NodeInput[]
-): NodeInput[] =>
-  Object.values(groupBy([...updatedInputs, ...node.inputs], (i) => i.id)).map(
-    (dupes) => dupes.reduce((node, dupe) => ({ ...node, ...dupe }))
-  );
-
-type NodeErrors = { type: 'errors'; errors: any[] };
-const makeError = (...errors: any[]): NodeErrors => ({
-  type: 'errors',
-  errors,
-});
-const isError = (test: any): test is NodeErrors => test?.type === 'errors';
-
-const computeNodeContext = async (
-  engineContext: EngineContext,
-  engine: Engine,
-  graph: Graph,
-  node: SourceNode
-): Promise<NodeContext | NodeErrors> => {
-  // THIS DUPLICATES OTHER LINE
-  const parser = {
-    ...(coreParsers[node.type] || coreParsers[NodeType.SOURCE]),
-    ...(engine.parsers[node.type] || {}),
-  };
-
-  const { onBeforeCompile, manipulateAst } = parser;
-  if (onBeforeCompile) {
-    const { groupId } = node as SourceNode;
-    const sibling = graph.nodes.find(
-      (n) =>
-        n !== node && 'groupId' in n && (n as SourceNode).groupId === groupId
-    );
-    await onBeforeCompile(
-      graph,
-      engineContext,
-      node as SourceNode,
-      sibling as SourceNode
-    );
-  }
-
-  const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
-
-  let ast;
-  try {
-    ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
-    if (manipulateAst) {
-      ast = manipulateAst(engineContext, engine, graph, node, ast, inputEdges);
-    }
-  } catch (error) {
-    console.error('Error parsing source code!', { error, node });
-    return makeError(error);
-  }
-
-  // Find all the inputs of this node where a "source" code node flows into it,
-  // to auto-bake it. This handles the case where a graph is instantiated with
-  // a shader plugged into a texture property. The property on the intial node
-  // doesn't know if it's baked or not
-  const dataInputs = groupBy(
-    filterGraphFromNode(
-      graph,
-      node,
-      {
-        input: (input, b, c, fromNode) =>
-          input.bakeable && fromNode?.type === 'source',
-      },
-      1
-    ).inputs[node.id] || [],
-    'id'
-  );
-
-  // Find the combination if inputs (data) and fillers (runtime context data)
-  // and copy the input data onto the node, and the fillers onto the context
-  const computedInputs = parser.findInputs(
-    engineContext,
-    node,
-    ast,
-    inputEdges
-  );
-
-  node.inputs = collapseNodeInputs(
-    node,
-    computedInputs.map(([i]) => ({
-      ...i,
-      displayName: mapInputName(node, i),
-    }))
-  ).map((input) => ({
-    // Auto-bake
-    ...input,
-    ...(input.id in dataInputs ? { baked: true } : {}),
-  }));
-
-  const nodeContext: NodeContext = {
-    ast,
-    id: node.id,
-    inputFillers: computedInputs.reduce<InputFillers>(
-      (acc, [input, filler, args]) => ({
-        ...acc,
-        [input.id]: {
-          filler,
-          args,
-        },
-      }),
-      {}
-    ),
-  };
-
-  // Skip mangling if the node tells us to, which probably means it's an engine
-  // node where we don't care about renaming all the variables, or if it's
-  // an expression, where we want to be in the context of other variables
-  // TODO: Use global undefined engine variables here?
-  if (
-    node.config.mangle !== false &&
-    node.sourceType !== SourceType.EXPRESSION &&
-    node.sourceType !== SourceType.FN_BODY_FRAGMENT
-  ) {
-    mangleEntireProgram(ast as Program, node, engine);
-  }
-
-  return nodeContext;
-};
-
-export const computeContextForNodes = async (
-  engineContext: EngineContext,
-  engine: Engine,
-  graph: Graph,
-  nodes: GraphNode[]
-) =>
-  nodes
-    .filter(isSourceNode)
-    .reduce<Promise<Record<string, NodeContext> | NodeErrors>>(
-      async (ctx, node) => {
-        const context = await ctx;
-        if (isError(context)) {
-          return context;
-        }
-
-        let nodeContext = await computeNodeContext(
-          engineContext,
-          engine,
-          graph,
-          node
-        );
-        if (isError(nodeContext)) {
-          return makeError(nodeContext);
-        }
-
-        context[node.id] = {
-          ...(context[node.id] || {}),
-          ...nodeContext,
-        };
-        return context;
-      },
-      Promise.resolve(engineContext.nodes as Record<string, NodeContext>)
-    );
-
 export type CompileGraphResult = {
   fragment: ShaderSections;
   vertex: ShaderSections;
@@ -928,60 +441,6 @@ export type CompileGraphResult = {
   outputVert: GraphNode;
   orphanNodes: GraphNode[];
   activeNodeIds: Set<string>;
-};
-
-/**
- * Compute the context for every node in the graph, done on initial graph load
- * to compute the inputs/outputs for every node
- */
-export const computeAllContexts = (
-  engineContext: EngineContext,
-  engine: Engine,
-  graph: Graph
-) => computeContextForNodes(engineContext, engine, graph, graph.nodes);
-
-/**
- * Compute the contexts for nodes starting from the outputs, working backwards.
- * Used to only (re)-compute context for any actively used nodes
- */
-export const computeGraphContext = async (
-  engineContext: EngineContext,
-  engine: Engine,
-  graph: Graph
-) => {
-  const outputFrag = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'fragment'
-  );
-  if (!outputFrag) {
-    throw new Error('No fragment output in graph');
-  }
-  const outputVert = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'vertex'
-  );
-  if (!outputVert) {
-    throw new Error('No vertex output in graph');
-  }
-
-  const vertexIds = collectConnectedNodes(graph, outputVert);
-  const fragmentIds = collectConnectedNodes(graph, outputFrag);
-  const additionalIds = graph.nodes.filter(
-    (node) =>
-      isSourceNode(node) &&
-      node.stage === 'vertex' &&
-      node.nextStageNodeId &&
-      fragmentIds[node.nextStageNodeId] &&
-      !vertexIds[node.id]
-  );
-
-  await computeContextForNodes(engineContext, engine, graph, [
-    outputVert,
-    ...Object.values(vertexIds).filter((node) => node.id !== outputVert.id),
-    ...additionalIds,
-  ]);
-  await computeContextForNodes(engineContext, engine, graph, [
-    outputFrag,
-    ...Object.values(fragmentIds).filter((node) => node.id !== outputFrag.id),
-  ]);
 };
 
 export const compileGraph = (

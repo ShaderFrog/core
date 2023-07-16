@@ -2,7 +2,6 @@ import { Vector2, Vector3, Vector4, Color } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import {
   Graph,
-  NodeParser,
   NodeType,
   ShaderStage,
   prepopulatePropertyInputs,
@@ -30,6 +29,7 @@ import {
   texture2DStrategy,
   uniformStrategy,
 } from '../../strategy';
+import { NodeParser } from '../../parsers';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[35m(three)\x1b[0m', ...args);

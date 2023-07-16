@@ -1,6 +1,7 @@
 import { findAssignmentTo } from '../ast/manipulate';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { AssignmentNode, AstNode } from '@shaderfrog/glsl-parser/ast';
 
 export interface AssignemntToStrategy extends BaseStrategy {
   type: StrategyType.ASSIGNMENT_TO;
@@ -38,7 +39,8 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
             false
           ),
           (fillerAst) => {
-            assignNode.expression.right = fillerAst;
+            (assignNode.expression as AssignmentNode).right =
+              fillerAst as AstNode;
             return ast;
           },
         ],

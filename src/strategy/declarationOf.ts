@@ -1,6 +1,7 @@
 import { findDeclarationOf } from '../ast/manipulate';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { AstNode } from '@shaderfrog/glsl-parser/ast';
 
 export const declarationOfStrategy = (
   declarationOf: string
@@ -34,7 +35,7 @@ export const constApplyDeclarationOf: ApplyStrategy<DeclarationOfStrategy> = (
             false
           ),
           (fillerAst) => {
-            declaration.initializer = fillerAst;
+            declaration.initializer = fillerAst as AstNode;
             return ast;
           },
         ],
