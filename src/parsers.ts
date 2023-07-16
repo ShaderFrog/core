@@ -22,11 +22,12 @@ import { applyStrategy } from './strategy';
 import { Edge } from './nodes/edge';
 import { BinaryNode, SourceNode, SourceType } from './nodes/code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
-import { Graph, MAGIC_OUTPUT_STMTS, NodeType, nodeName } from './graph';
+import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
+import { nodeName } from './graph';
 import { Evaluate } from './evaluate';
 import { generateFiller } from './util/ast';
 
-/**
+/*
  * Core graph parsers, which is the plumbing/interface the graph and context
  * calls into, to parse, find inputs, etc, and define this per-node type.
  */

@@ -3,7 +3,7 @@ import util from 'util';
 import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
-import { Graph } from './graph';
+import { Graph } from './graph-types';
 import { shaderSectionsToProgram } from './ast/shader-sections';
 import { addNode } from './nodes/engine-node';
 

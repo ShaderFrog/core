@@ -2,7 +2,7 @@ import { Engine } from './engine';
 import { Edge } from './nodes/edge';
 import { SourceNode } from './nodes/code-nodes';
 import { coreParsers } from './parsers';
-import { Graph, GraphNode } from './graph';
+import { Graph, GraphNode } from './graph-types';
 import { DataNode } from './nodes/data-nodes';
 
 export type Evaluator = (node: GraphNode) => any;

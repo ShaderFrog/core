@@ -1,8 +1,8 @@
 import { EngineNodeType } from '../engine';
-import { NodeType, ShaderStage, prepopulatePropertyInputs } from '../graph';
+import { prepopulatePropertyInputs } from '../graph';
+import { NodeType, ShaderStage } from '../graph-types';
 import {
   assignemntToStrategy,
-  hardCodeStrategy,
   namedAttributeStrategy,
   texture2DStrategy,
   uniformStrategy,
@@ -16,7 +16,6 @@ import {
   property,
 } from './code-nodes';
 import { NodePosition } from './core-node';
-import { UniformDataType } from './data-nodes';
 
 /**
  * TODO: These definitions should live outside of core since I'm trying to

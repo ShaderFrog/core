@@ -1,7 +1,7 @@
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { generateFiller } from 'src/util/ast';
+import { generateFiller } from '../util/ast';
 
 export const namedAttributeStrategy = (
   attributeName: string

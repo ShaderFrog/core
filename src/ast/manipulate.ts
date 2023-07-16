@@ -15,11 +15,10 @@ import {
   IdentifierNode,
   TypeSpecifierNode,
   DeclaratorListNode,
-  LiteralNode,
   FloatConstantNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { ShaderStage } from '../graph';
+import { ShaderStage } from '../graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 
 export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {

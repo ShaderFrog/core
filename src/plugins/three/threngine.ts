@@ -1,12 +1,7 @@
 import { Vector2, Vector3, Vector4, Color } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import {
-  Graph,
-  NodeType,
-  ShaderStage,
-  prepopulatePropertyInputs,
-  mangleMainFn,
-} from '../../graph';
+import { Graph, NodeType, ShaderStage } from '../../graph-types';
+import { prepopulatePropertyInputs, mangleMainFn } from '../../graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';

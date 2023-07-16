@@ -3,18 +3,15 @@ import { Engine, EngineNodeType, EngineContext } from '../../engine';
 import {
   nodeName,
   doesLinkThruShader,
-  ShaderStage,
   prepopulatePropertyInputs,
-  Graph,
   mangleMainFn,
-  NodeType,
 } from '../../graph';
+import { ShaderStage, Graph, NodeType } from '../../graph-types';
 import importers from './importers';
 
 import {
   returnGlPositionHardCoded,
   returnGlPosition,
-  makeFnStatement,
   returnGlPositionVec3Right,
 } from '../../ast/manipulate';
 

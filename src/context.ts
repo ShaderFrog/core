@@ -10,10 +10,8 @@ import {
   SourceType,
 } from './nodes/code-nodes';
 import { NodeInput } from './nodes/core-node';
+import { Graph, GraphNode, NodeType } from './graph-types';
 import {
-  Graph,
-  GraphNode,
-  NodeType,
   collectConnectedNodes,
   filterGraphFromNode,
   isSourceNode,

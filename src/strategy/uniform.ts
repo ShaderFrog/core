@@ -10,7 +10,7 @@ import { InputCategory, nodeInput } from '../nodes/core-node';
 import { GraphDataType } from '../nodes/data-nodes';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { ComputedInput } from '../parsers';
-import { generateFiller } from 'src/util/ast';
+import { generateFiller } from '../util/ast';
 
 export interface UniformStrategy extends BaseStrategy {
   type: StrategyType.UNIFORM;

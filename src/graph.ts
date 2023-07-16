@@ -25,29 +25,13 @@ import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
 import { makeId } from './util/id';
 import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
-
-export type ShaderStage = 'fragment' | 'vertex';
-
-export enum NodeType {
-  OUTPUT = 'output',
-  BINARY = 'binary',
-  SOURCE = 'source',
-}
-
-export type GraphNode = SourceNode | DataNode;
-
-export interface Graph {
-  nodes: GraphNode[];
-  edges: Edge[];
-}
+import { Graph, GraphNode, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
 
 export const isDataNode = (node: GraphNode): node is DataNode =>
   'value' in node;
 
 export const isSourceNode = (node: GraphNode): node is SourceNode =>
   !isDataNode(node);
-
-export const MAGIC_OUTPUT_STMTS = 'mainStmts';
 
 export const findNode = (graph: Graph, id: string): GraphNode =>
   ensure(graph.nodes.find((node) => node.id === id));

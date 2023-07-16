@@ -3,7 +3,7 @@ import { InputCategory, nodeInput } from '../nodes/core-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { Scope, ScopeIndex } from '@shaderfrog/glsl-parser/parser/scope';
 import { ComputedInput, Filler } from '../parsers';
-import { generateFiller } from 'src/util/ast';
+import { generateFiller } from '../util/ast';
 
 export interface VariableStrategy extends BaseStrategy {
   type: StrategyType.VARIABLE;

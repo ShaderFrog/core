@@ -1,11 +1,9 @@
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { AstNode } from '@shaderfrog/glsl-parser/ast';
 import { MergeOptions } from './ast/shader-sections';
-import { Graph } from './graph';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parser } from '@shaderfrog/glsl-parser';
-import { ShaderStage, GraphNode, NodeType } from './graph';
-import { NodeInput, NodePosition } from './nodes/core-node';
+import { Graph, ShaderStage, GraphNode, NodeType } from './graph-types';
+import { NodePosition } from './nodes/core-node';
 import { DataNode, UniformDataType } from './nodes/data-nodes';
 import { CodeNode, SourceNode } from './nodes/code-nodes';
 import { Edge } from './nodes/edge';
