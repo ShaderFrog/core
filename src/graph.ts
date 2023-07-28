@@ -77,8 +77,7 @@ export const mangleEntireProgram = (
   engine: Engine
 ) => {
   renameBindings(ast.scopes[0], (name, n) =>
-    // @ts-ignore
-    n.doNotDescope ? name : mangleVar(name, engine, node)
+    (n as any).doNotDescope ? name : mangleVar(name, engine, node)
   );
   mangleMainFn(ast, node);
 };

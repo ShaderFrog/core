@@ -1,4 +1,4 @@
-import { parser } from '@shaderfrog/glsl-parser';
+import { generate, parser } from '@shaderfrog/glsl-parser';
 
 import {
   visit,
@@ -154,12 +154,21 @@ export const coreParsers: CoreParser = {
 
         if (node.config.version === 2 && node.stage) {
           from2To3(ast, node.stage);
+          console.log('converted ', node, 'to version 3', {
+            code: generate(ast),
+          });
         }
 
         // This assumes that expressionOnly nodes don't have a stage and that all
         // fragment source code shades have main function, which is probably wrong
         if (node.stage === 'fragment') {
-          convert300MainToReturn('main', ast);
+          console.log('konverting fragment convert300MainToReturn', {
+            code: generate(ast),
+          });
+          convert300MainToReturn(node.id, ast);
+          console.log('konverted fragment convert300MainToReturn', {
+            code: generate(ast),
+          });
         }
       }
 

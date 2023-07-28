@@ -95,7 +95,9 @@ precision highp float;
 
 out vec4 frogFragOut;
 void main() {
+  // vec4 frogFragOut;
   frogFragOut = vec4(1.0);
+  // pc_fragColor = frogFragOut;
 }
 `
       : // gl_Position isn't "out"-able apparently https://stackoverflow.com/a/24425436/743464

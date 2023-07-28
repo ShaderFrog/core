@@ -368,8 +368,8 @@ const convertVertexMain = (
   main.body.statements.push(makeFnStatement(`return ${mainReturnVar}`));
 };
 
-export const convert300MainToReturn = (fnName: string, ast: Program): void => {
-  const mainReturnVar = `frogOut`;
+export const convert300MainToReturn = (suffix: string, ast: Program): void => {
+  const mainReturnVar = `frogOut_${suffix}`;
 
   // Find the output variable, as in "pc_fragColor" from  "out highp vec4 pc_fragColor;"
   let outName: string | undefined;
@@ -395,6 +395,10 @@ export const convert300MainToReturn = (fnName: string, ast: Program): void => {
     throw new Error('No "out vec4" line found in the fragment shader');
   }
 
+  ast.program.unshift(
+    makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode
+  );
+
   visit(ast, {
     identifier: {
       enter: (path) => {
@@ -407,14 +411,11 @@ export const convert300MainToReturn = (fnName: string, ast: Program): void => {
     },
     function: {
       enter: (path) => {
-        if (path.node.prototype.header.name.identifier === fnName) {
+        if (path.node.prototype.header.name.identifier === 'main') {
           (
             path.node.prototype.header.returnType.specifier
               .specifier as KeywordNode
           ).token = 'vec4';
-          path.node.body.statements.unshift(
-            makeFnStatement(`vec4 ${mainReturnVar}`)
-          );
           path.node.body.statements.push(
             makeFnStatement(`return ${mainReturnVar}`)
           );
