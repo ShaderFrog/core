@@ -150,6 +150,13 @@ export const coreParsers: CoreParser = {
                 },
               });
 
+        if (node.config.preprocess) {
+          console.log('Just preprocessed', {
+            stage: node.stage,
+            code: node.source,
+          });
+        }
+
         ast = parser.parse(preprocessed);
 
         if (node.config.version === 2 && node.stage) {
@@ -162,11 +169,11 @@ export const coreParsers: CoreParser = {
         // This assumes that expressionOnly nodes don't have a stage and that all
         // fragment source code shades have main function, which is probably wrong
         if (node.stage === 'fragment') {
-          console.log('konverting fragment convert300MainToReturn', {
+          console.log(`konverting fragment convert300MainToReturn ${node.id}`, {
             code: generate(ast),
           });
           convert300MainToReturn(node.id, ast);
-          console.log('konverted fragment convert300MainToReturn', {
+          console.log(`konverted fragment convert300MainToReturn ${node.id}`, {
             code: generate(ast),
           });
         }

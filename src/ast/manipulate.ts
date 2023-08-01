@@ -395,6 +395,7 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
     throw new Error('No "out vec4" line found in the fragment shader');
   }
 
+  console.log('--- unshifting declaration of ', mainReturnVar);
   ast.program.unshift(
     makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode
   );

@@ -99,13 +99,23 @@ export const physicalNode = (
       preprocess: true,
       properties: [
         property('Color', 'diffuse', 'rgb'),
-        property('Specular', 'specular', 'rgb'),
+        property(
+          'Diffuse Map',
+          'diffuseMap',
+          'texture',
+          'filler_texture_diffuseMap'
+        ),
+        property(
+          'Normal Map',
+          'normalMap',
+          'texture',
+          'filler_texture_normalMap'
+        ),
         property('Bumpiness', 'bumpiness', 'number'),
+        property('Specular', 'specular', 'rgb'),
         property('Opacity', 'opacity', 'number'),
         property('Opacity Map', 'opacityMap', 'texture'),
-        property('Normal Map', 'normalMap', 'texture'),
         property('Metalness', 'metalness', 'number'),
-        property('Diffuse Map', 'diffuseMap', 'texture'),
         // property('Bump Map', 'bumpTexture', 'texture', 'filler_bumpSampler'),
         // property('Metalness', 'metallic', 'number'),
         // property('Roughness', 'roughness', 'number'),
@@ -316,7 +326,7 @@ const onBeforeCompileMegaShader = async (
     ...playMaterialProperties(app, graph, node, sibling),
   };
   Object.assign(shaderMaterial, newProperties);
-  log('Engine megashader initial properties', { newProperties });
+  log('Engine megashader initial properties', newProperties);
 
   let vertexSource: string;
   let fragmentSource: string;
@@ -330,8 +340,6 @@ const onBeforeCompileMegaShader = async (
   //   nodeCache[node.id]?.vertex ||
   //   nodeCache[node.nextStageNodeId || 'unknown']?.vertex;
 
-  // TODO: Trying to update mesh material here
-  app.render();
   // log('playengine meshInstances', sceneData.mesh.meshInstances);
   // log(
   //   'playengine model.meshInstances',
@@ -344,22 +352,37 @@ const onBeforeCompileMegaShader = async (
 
   // test
   // shaderMaterial.diffuse.set(0, 1, 0);
+
+  console.log('wtf', shaderMaterial.diffuseMap, shaderMaterial.normalMap);
   // shaderMaterial.diffuseMap = new pc.Texture(app.graphicsDevice);
+  // shaderMaterial.normalMap = new pc.Texture(app.graphicsDevice);
 
   // todo: do I need this?
+
+  // @ts-ignore
+  shaderMaterial.chunks.hackSource = Math.random();
   shaderMaterial.update();
+  shaderMaterial.clearVariants();
+
+  // TODO: Trying to update mesh material here
+  // app.render();
 
   sceneData.mesh.model.meshInstances[0].material = shaderMaterial;
+  console.log('before render', shaderMaterial.variants);
+  // render() -> renderForward() -> updatePassShader() -> getShaderVariant() ->
+  // library.getProgram() -> generateShaderDefinition()
+  // This code path appears to create a new shader but somehow use the old fshader/vshader.
   app.render();
+  console.log('after render', shaderMaterial.variants);
 
   return new Promise((resolve) => {
     // @ts-ignore
     window.shaderMaterial = shaderMaterial;
-    log('shaderMaterial', shaderMaterial);
+    // log('shaderMaterial', shaderMaterial);
     const variants = Object.values(shaderMaterial.variants) as any[];
     if (variants.length === 1) {
       const { fshader, vshader } = variants[0].definition;
-      log({ fshader, vshader, variants });
+      log('Captured variant shader', { fshader, vshader, variants });
       fragmentSource = fshader;
       vertexSource = vshader;
       engineContext.runtime.cache.nodes[node.id] = {
@@ -458,7 +481,7 @@ export const playengine: Engine = {
     [EngineNodeType.toon]: toonNode,
   },
   // TODO: Get from uniform lib?
-  preserve: new Set<string>([]),
+  preserve: new Set<string>(['vUv0', 'time']),
   parsers: {
     [NodeType.SOURCE]: {
       manipulateAst: (engineContext, engine, graph, node, ast, inputEdges) => {
