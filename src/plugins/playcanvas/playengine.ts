@@ -367,13 +367,20 @@ const onBeforeCompileMegaShader = async (
   // TODO: Trying to update mesh material here
   // app.render();
 
+  const origMat = sceneData.mesh.model.meshInstances[0].material;
   sceneData.mesh.model.meshInstances[0].material = shaderMaterial;
   console.log('before render', shaderMaterial.variants);
   // render() -> renderForward() -> updatePassShader() -> getShaderVariant() ->
   // library.getProgram() -> generateShaderDefinition()
   // This code path appears to create a new shader but somehow use the old fshader/vshader.
   app.render();
-  console.log('after render', shaderMaterial.variants);
+  console.log(
+    'after render',
+    shaderMaterial.variants,
+    'materialId',
+    shaderMaterial.id
+  );
+  sceneData.mesh.model.meshInstances[0].material = origMat;
 
   return new Promise((resolve) => {
     // @ts-ignore
@@ -481,7 +488,16 @@ export const playengine: Engine = {
     [EngineNodeType.toon]: toonNode,
   },
   // TODO: Get from uniform lib?
-  preserve: new Set<string>(['vUv0', 'time']),
+  preserve: new Set<string>([
+    // Attributes
+    'position',
+    'normal',
+    'uv',
+    'uv2',
+    // varyings
+    'vUv0',
+    'time',
+  ]),
   parsers: {
     [NodeType.SOURCE]: {
       manipulateAst: (engineContext, engine, graph, node, ast, inputEdges) => {
