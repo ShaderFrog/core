@@ -35,7 +35,15 @@ import { NodeParser } from '../../parsers';
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[33m(playengine)\x1b[0m', ...args);
 
-const playMaterialProperties = (
+export const physicalDefaultProperties = {
+  // Required for objects with opacity
+  blendType: pc.BLEND_NORMAL,
+  // Required if you set blendtype apparently lol, otherwise object is black
+  opacity: 1,
+};
+
+const applyPlayMaterialProperties = (
+  shaderMaterial: pc.Material,
   app: pc.Application,
   graph: Graph,
   node: SourceNode,
@@ -61,15 +69,42 @@ const playMaterialProperties = (
           (p) => p.property === propertyInput.property
         ) as NodeProperty;
 
-        // Initialize the property on the material
+        /**
+         * Where you see "0.5" below, these values are intentionally set to. And
+         * this method intentionally returns the properties set (for debugging)
+         * as well as mutates the material in place.
+         *
+         * For the mutation, you apparently need to explicitily call .set() on
+         * some properties, like diffuse:
+         *    material.diffuse = new pc.Color(0.5, 0.5, 0.5)
+         * has no effect. You have to do
+         *     material.diffuse.set(0.5, 0.5, 0.5)
+         * and note the API isn't great, you can't do
+         *     material.diffuse.set(new pc.Color(...))
+         * So we have to specifically mutate the object. This code will probably
+         * error on some properties because I don't know if all "rgb" properties
+         * have to be set in this painful way.
+         *
+         * For the use of "0.5", apparently PlayCanvas optimizes uniform
+         * generation where if you set diffuse to white (1,1,1) then it doesn't
+         * add the diffuse uniform, because that's the default state.
+         */
         if (property.type === 'texture') {
           acc[property.property] = new pc.Texture(app.graphicsDevice);
+          // @ts-ignore
+          shaderMaterial[property.property] = acc[property.property];
         } else if (property.type === 'number') {
-          acc[property.property] = 0.5;
+          acc[property.property] = 0.99;
+          // @ts-ignore
+          shaderMaterial[property.property] = acc[property.property];
         } else if (property.type === 'rgb') {
-          acc[property.property] = new pc.Color(1, 1, 1);
+          acc[property.property] = new pc.Color(0.5, 0.5, 0.5);
+          // @ts-ignore
+          shaderMaterial[property.property].set(0.5, 0.5, 0.5);
         } else if (property.type === 'rgba') {
-          acc[property.property] = new pc.Color(1, 1, 1, 1);
+          acc[property.property] = new pc.Color(0.5, 0.5, 0.5, 0.5);
+          // @ts-ignore
+          shaderMaterial[property.property].set(0.5, 0.5, 0.5, 0.5);
         }
       }
       return acc;
@@ -131,8 +166,7 @@ export const physicalNode = (
         // property('Micro Surface', 'microSurface', 'number'),
         // property('Reflectivity Color', 'reflectivityColor', 'rgb'),
       ],
-      // TODO?
-      hardCodedProperties: {},
+      hardCodedProperties: physicalDefaultProperties,
       strategies: [
         uniformStrategy(),
         stage === 'fragment'
@@ -158,9 +192,6 @@ export type RuntimeContext = {
   camera: pc.Camera;
   pc: any;
   sceneData: any;
-  // material: any;
-  // index: number;
-  // threeTone: any;
   cache: {
     data: {
       [key: string]: any;
@@ -256,12 +287,10 @@ const programCacheKey = (
   node: SourceNode,
   sibling: SourceNode
 ) => {
-  // The megashader source is dependent on scene information, like the number
-  // and type of lights in the scene. This kinda sucks - it's duplicating
-  // three's material cache key, and is coupled to how three builds shaders
-  const scene = engineContext.runtime.scene as pc.Scene;
-  const lights: string[] = [];
-  //scene.getNodes().filter((n) => n instanceof pc.Light);
+  const lights = (engineContext.runtime.app as pc.Application).root
+    .findComponents('light')
+    .map((l) => (l as pc.LightComponent).type);
+  log({ lights });
 
   return (
     [node, sibling]
@@ -323,78 +352,59 @@ const onBeforeCompileMegaShader = async (
     ...(node.config.hardCodedProperties ||
       sibling.config.hardCodedProperties ||
       {}),
-    ...playMaterialProperties(app, graph, node, sibling),
   };
   Object.assign(shaderMaterial, newProperties);
-  log('Engine megashader initial properties', newProperties);
+  const applied = applyPlayMaterialProperties(
+    shaderMaterial,
+    app,
+    graph,
+    node,
+    sibling
+  );
+  log('Engine megashader initial properties', { ...newProperties, ...applied });
 
   let vertexSource: string;
   let fragmentSource: string;
 
-  // This was a previous attempt to do what's done in submeshes below
-  // const nodeCache = engineContext.runtime.cache.nodes;
-  // fragmentSource =
-  //   nodeCache[node.id]?.fragment ||
-  //   nodeCache[node.nextStageNodeId || 'unknown']?.fragment;
-  // vertexSource =
-  //   nodeCache[node.id]?.vertex ||
-  //   nodeCache[node.nextStageNodeId || 'unknown']?.vertex;
-
-  // log('playengine meshInstances', sceneData.mesh.meshInstances);
-  // log(
-  //   'playengine model.meshInstances',
-  //   sceneData.mesh?.model?.meshInstances
-  // );
-  // log(
-  //   'playengine findComponents',
-  //   sceneData.mesh.findComponents('render')
-  // );
-
-  // test
-  // shaderMaterial.diffuse.set(0, 1, 0);
-
-  console.log('wtf', shaderMaterial.diffuseMap, shaderMaterial.normalMap);
-  // shaderMaterial.diffuseMap = new pc.Texture(app.graphicsDevice);
-  // shaderMaterial.normalMap = new pc.Texture(app.graphicsDevice);
-
-  // todo: do I need this?
-
+  // This is a hack to force the material to regenerate. The chunks are used
+  // internally in playcanvas to generate the material cache key. If you use
+  // a real chunk, it messes up the GLSL. So this introduces a fake chunk that
+  // isn't used in the GLSL, but forces a new material to generate. The code
+  // path I'm hacking through is:
+  // render() -> renderForward() -> updatePassShader() -> getShaderVariant() ->
+  // library.getProgram() -> generateShaderDefinition()
+  // TODO: Try using the new hook https://github.com/playcanvas/engine/pull/5524
   // @ts-ignore
   shaderMaterial.chunks.hackSource = Math.random();
+
   shaderMaterial.update();
   shaderMaterial.clearVariants();
 
-  // TODO: Trying to update mesh material here
-  // app.render();
-
   const origMat = sceneData.mesh.model.meshInstances[0].material;
   sceneData.mesh.model.meshInstances[0].material = shaderMaterial;
-  console.log('before render', shaderMaterial.variants);
-  // render() -> renderForward() -> updatePassShader() -> getShaderVariant() ->
-  // library.getProgram() -> generateShaderDefinition()
-  // This code path appears to create a new shader but somehow use the old fshader/vshader.
+  // log('variants before render', shaderMaterial.variants);
+  // log('meshInstances before render', sceneData.mesh.model.meshInstances);
+
+  // Force shader compilation
   app.render();
-  console.log(
-    'after render',
-    shaderMaterial.variants,
-    'materialId',
-    shaderMaterial.id
-  );
+
+  // log(
+  //   'variants after render',
+  //   shaderMaterial.variants,
+  //   'materialId',
+  //   shaderMaterial.id
+  // );
+  // log('meshInstances after render', sceneData.mesh.model.meshInstances);
   sceneData.mesh.model.meshInstances[0].material = origMat;
 
   return new Promise((resolve) => {
-    // @ts-ignore
-    window.shaderMaterial = shaderMaterial;
-    // log('shaderMaterial', shaderMaterial);
     const variants = Object.values(shaderMaterial.variants) as any[];
     if (variants.length === 1) {
       const { fshader, vshader } = variants[0].definition;
-      log('Captured variant shader', { fshader, vshader, variants });
+      // log('Captured variant shader', { fshader, vshader, variants });
       fragmentSource = fshader;
       vertexSource = vshader;
       engineContext.runtime.cache.nodes[node.id] = {
-        // fragmentRef,
-        // vertexRef,
         fragment: fshader,
         vertex: vshader,
       };
@@ -487,7 +497,7 @@ export const playengine: Engine = {
     [EngineNodeType.physical]: physicalNode,
     [EngineNodeType.toon]: toonNode,
   },
-  // TODO: Get from uniform lib?
+  // TODO: Move into core based on engine shader scrape
   preserve: new Set<string>([
     // Attributes
     'position',
