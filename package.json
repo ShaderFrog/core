@@ -34,7 +34,8 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "lodash.groupby": "^4.6.0"
+    "lodash.groupby": "^4.6.0",
+    "playcanvas": "^1.64.4"
   },
   "peerDependencies": {
     "@shaderfrog/glsl-parser": "^2.0.0-beta.5",

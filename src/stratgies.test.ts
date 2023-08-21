@@ -6,6 +6,7 @@ import * as graphModule from './graph';
 import { makeExpression } from './ast/manipulate';
 
 import { SourceNode } from './nodes/code-nodes';
+import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 
 let orig: any;
 beforeEach(() => {
@@ -250,4 +251,30 @@ void main() {
       ast
     ).map(([{ displayName: name }]) => name)
   ).toEqual(['noiseImage_0', 'noiseImage_1']);
+});
+
+it('Make sure texture2D finds preprocessed texture() call', () => {
+  // I thought this was a regression, but it wasn't a real bug, but tests seems
+  // benign to keep anyway
+  const program = `
+#define texture2DBias texture
+
+uniform sampler2D normalMap;
+
+void getNormal() {
+    vec3 normalMap = unpackNormal(texture2DBias(normalMap, vUv0, textureBias));
+}`;
+  const pp = preprocess(program, {
+    preserve: {
+      version: () => true,
+    },
+  });
+  const ast = parser.parse(pp, { quiet: true });
+  expect(
+    applyStrategy(
+      { type: StrategyType.TEXTURE_2D, config: {} },
+      {} as SourceNode,
+      ast
+    ).map(([{ displayName: name }]) => name)
+  ).toEqual(['normalMapx']);
 });
