@@ -70,9 +70,9 @@ const applyPlayMaterialProperties = (
         ) as NodeProperty;
 
         /**
-         * Where you see "0.5" below, these values are intentionally set to. And
-         * this method intentionally returns the properties set (for debugging)
-         * as well as mutates the material in place.
+         * The "0.5" values below are intentional. And this method intentionally
+         * returns the properties for debugging, as well as mutates the
+         * material in place.
          *
          * For the mutation, you apparently need to explicitily call .set() on
          * some properties, like diffuse:
@@ -81,9 +81,8 @@ const applyPlayMaterialProperties = (
          *     material.diffuse.set(0.5, 0.5, 0.5)
          * and note the API isn't great, you can't do
          *     material.diffuse.set(new pc.Color(...))
-         * So we have to specifically mutate the object. This code will probably
-         * error on some properties because I don't know if all "rgb" properties
-         * have to be set in this painful way.
+         * This code will probably error on some properties because I don't know
+         * if all "rgb" properties have to be set in this painful way.
          *
          * For the use of "0.5", apparently PlayCanvas optimizes uniform
          * generation where if you set diffuse to white (1,1,1) then it doesn't
@@ -94,7 +93,7 @@ const applyPlayMaterialProperties = (
           // @ts-ignore
           shaderMaterial[property.property] = acc[property.property];
         } else if (property.type === 'number') {
-          acc[property.property] = 0.99;
+          acc[property.property] = 0.5;
           // @ts-ignore
           shaderMaterial[property.property] = acc[property.property];
         } else if (property.type === 'rgb') {
