@@ -290,7 +290,6 @@ const programCacheKey = (
   const lights = (engineContext.runtime.app as pc.Application).root
     .findComponents('light')
     .map((l) => (l as pc.LightComponent).type);
-  log({ lights });
 
   return (
     [node, sibling]
@@ -343,10 +342,12 @@ const onBeforeCompileMegaShader = async (
   fragment: string;
   vertex: string;
 }> => {
-  const { app, sceneData } = engineContext.runtime;
+  const { app: appUn, sceneData } = engineContext.runtime;
+  const app = appUn as pc.Application;
 
   const pbrName = `engine_pbr${id()}`;
   const shaderMaterial = new pc.StandardMaterial();
+  shaderMaterial.name = pbrName;
 
   const newProperties = {
     ...(node.config.hardCodedProperties ||
@@ -374,34 +375,23 @@ const onBeforeCompileMegaShader = async (
   // render() -> renderForward() -> updatePassShader() -> getShaderVariant() ->
   // library.getProgram() -> generateShaderDefinition()
   // TODO: Try using the new hook https://github.com/playcanvas/engine/pull/5524
-  // @ts-ignore
-  shaderMaterial.chunks.hackSource = Math.random();
+  shaderMaterial.chunks.engineHackSource = `${Math.random()}`;
 
-  shaderMaterial.update();
   shaderMaterial.clearVariants();
+  shaderMaterial.update();
 
-  const origMat = sceneData.mesh.model.meshInstances[0].material;
-  sceneData.mesh.model.meshInstances[0].material = shaderMaterial;
-  // log('variants before render', shaderMaterial.variants);
-  // log('meshInstances before render', sceneData.mesh.model.meshInstances);
+  const origMat = sceneData.mesh.render.meshInstances[0].material;
+  sceneData.mesh.render.meshInstances[0].material = shaderMaterial;
 
   // Force shader compilation
   app.render();
 
-  // log(
-  //   'variants after render',
-  //   shaderMaterial.variants,
-  //   'materialId',
-  //   shaderMaterial.id
-  // );
-  // log('meshInstances after render', sceneData.mesh.model.meshInstances);
-  sceneData.mesh.model.meshInstances[0].material = origMat;
+  sceneData.mesh.render.meshInstances[0].material = origMat;
 
   return new Promise((resolve) => {
     const variants = Object.values(shaderMaterial.variants) as any[];
     if (variants.length === 1) {
       const { fshader, vshader } = variants[0].definition;
-      // log('Captured variant shader', { fshader, vshader, variants });
       fragmentSource = fshader;
       vertexSource = vshader;
       engineContext.runtime.cache.nodes[node.id] = {

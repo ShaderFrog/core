@@ -21,12 +21,14 @@ import { Program } from '@shaderfrog/glsl-parser/ast';
 import { ShaderStage } from '../graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 
+const log = (...args: any[]) =>
+  console.log.call(console, '\x1b[31m(core.manipulate)\x1b[0m', ...args);
+
 export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   let parent: AstNode | undefined;
   const visitors: NodeVisitors = {
     function_call: {
       enter: (path) => {
-        console.log('findVec4Constructor', path.node);
         if (
           (
             (path.node.identifier as TypeSpecifierNode)
@@ -167,7 +169,7 @@ export const outDeclaration = (name: string): Object => ({
 });
 
 export const makeStatement = (stmt: string): AstNode => {
-  // console.log(`Parsing "${stmt}"`);
+  // log(`Parsing "${stmt}"`);
   let ast;
   try {
     ast = parser.parse(
@@ -179,7 +181,7 @@ export const makeStatement = (stmt: string): AstNode => {
     console.error({ stmt, error });
     throw new Error(`Error parsing stmt "${stmt}": ${error?.message}`);
   }
-  // console.log(util.inspect(ast, false, null, true));
+  // log(util.inspect(ast, false, null, true));
   return ast.program[0];
 };
 
@@ -198,7 +200,7 @@ export const makeFnStatement = (fnStmt: string): AstNode => {
     throw new Error(`Error parsing fnStmt "${fnStmt}": ${error?.message}`);
   }
 
-  // console.log(util.inspect(ast, false, null, true));
+  // log(util.inspect(ast, false, null, true));
   return (ast.program[0] as FunctionNode).body.statements[0];
 };
 
@@ -243,7 +245,7 @@ export const makeExpressionWithScopes = (
     throw new Error(`Error parsing expr "${expr}": ${error?.message}`);
   }
 
-  // console.log(util.inspect(ast, false, null, true));
+  // log(util.inspect(ast, false, null, true));
   return {
     scope: ast.scopes[1],
     expression: (
@@ -272,7 +274,7 @@ ${body}
     throw new Error(`Error parsing body "${body}": ${error?.message}`);
   }
 
-  // console.log(util.inspect(ast, false, null, true));
+  // log(util.inspect(ast, false, null, true));
   return {
     scope: ast.scopes[1],
     statements: (ast.program[0] as FunctionNode).body.statements,
@@ -309,7 +311,7 @@ export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
     visit(assign, {
       function_call: {
         enter: (path) => {
-          console.log('returnGlPositionVec3Right', path.node);
+          log('returnGlPositionVec3Right', path.node);
           const { node } = path;
           if (
             ((node?.identifier as TypeSpecifierNode)?.specifier as KeywordNode)
@@ -395,7 +397,6 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
     throw new Error('No "out vec4" line found in the fragment shader');
   }
 
-  console.log('--- unshifting declaration of ', mainReturnVar);
   ast.program.unshift(
     makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode
   );

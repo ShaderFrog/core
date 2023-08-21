@@ -3,7 +3,6 @@ import {
   renameFunctions,
 } from '@shaderfrog/glsl-parser/parser/utils';
 import {
-  AstNode,
   Program,
   FunctionNode,
   ParameterDeclarationNode,
@@ -26,6 +25,9 @@ import { makeId } from './util/id';
 import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
 import { Graph, GraphNode, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
+
+const log = (...args: any[]) =>
+  console.log.call(console, '\x1b[31m(core.graph)\x1b[0m', ...args);
 
 export const isDataNode = (node: GraphNode): node is DataNode =>
   'value' in node;
@@ -379,7 +381,7 @@ export const compileNode = (
           // fromNode.
           nodeContext.ast = filler.filler(fillerAst);
         }
-        // console.log(generate(ast.program));
+        // log(generate(ast.program));
       });
 
     // Order matters here! *Prepend* the input nodes to this one, because
