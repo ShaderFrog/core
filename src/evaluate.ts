@@ -39,7 +39,9 @@ export const evaluateNode = (
 
   const { evaluate } = coreParsers[node.type];
   if (!evaluate) {
-    throw new Error(`No evaluator for node ${node.name} (${node.id})`);
+    throw new Error(
+      `No evaluator for node ${node.name} (type: ${node.type}, id: ${node.id})`
+    );
   }
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
   const inputNodes = inputEdges.map(

@@ -3,13 +3,16 @@ import { MergeOptions } from './ast/shader-sections';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parser } from '@shaderfrog/glsl-parser';
 import { Graph, ShaderStage, GraphNode, NodeType } from './graph-types';
-import { NodePosition } from './nodes/core-node';
+import { NodeInput, NodePosition } from './nodes/core-node';
 import { DataNode, UniformDataType } from './nodes/data-nodes';
-import { CodeNode, SourceNode } from './nodes/code-nodes';
+import { CodeNode, NodeProperty, SourceNode } from './nodes/code-nodes';
 import { Edge } from './nodes/edge';
 import groupBy from 'lodash.groupby';
 import { NodeContext } from './context';
 import { NodeParser } from './parsers';
+import { type } from 'os';
+import { collectNodeProperties } from './graph';
+import { evaluateNode } from './evaluate';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[32m(core)\x1b[0m', ...args);
@@ -218,4 +221,73 @@ export const convertToEngine = (
 
   log('Created converted graph', graph);
   return graph;
+};
+
+export type DefaultPropertySetter = (p: NodeProperty) => any;
+
+/**
+ * Create the initial engine node properties for a plugin to create its initial
+ * material with. This finds all engine nodes in the graph, finds all their
+ * properties, evalutes them, and returns an object with initial properties to
+ * set on the new plugin material, like a three.RawShaderMaterial().
+ */
+export const collectInitialEvaluatedGraphProperties = (
+  engine: Engine,
+  graph: Graph,
+  defaultPropertySetting: DefaultPropertySetter
+) => {
+  const graphProperties: Record<string, any> = {};
+
+  // Get all the nodes with properties, meaning engine nodes, and the inputs
+  // for each property (property is like "diffuseMap").
+  const { nodes, inputs } = collectNodeProperties(graph);
+
+  Object.entries(inputs).forEach(([nodeId, nodeInputs]) => {
+    // For every node with properties... There might be mulitple if there are
+    // uniforms plugged into both frag and vertex engine nodes, which
+    const node = nodes[nodeId] as CodeNode;
+    nodeInputs.forEach((i) => {
+      // Cast this to an input with a property specified on it, which the
+      // predicate search enforces
+      const input = i as NodeInput & { property: string };
+      const edge = graph.edges.find(
+        ({ to, input: i }) => to === node.id && i === input.id
+      );
+      // In the case where a node has been deleted from the graph,
+      // dataInputs won't have been udpated until a recompile completes
+      const fromNode = edge && graph.nodes.find(({ id }) => id === edge.from);
+      if (fromNode) {
+        // If this is a baked input, we need to set the engine property to force
+        // whatever we're baking to generate.
+        if (input.baked) {
+          // Find the corresponding property on the node and get the default
+          // setting
+          const property = (node.config.properties || []).find(
+            (p) => p.property === input.property
+          );
+          if (property) {
+            graphProperties[input.property] = defaultPropertySetting(property);
+          } else {
+            console.error('Property not found on input node', node, input);
+            throw new Error('Property not found on input node');
+          }
+          // Other inputs should(?) be data if not baked
+        } else {
+          try {
+            graphProperties[input.property] = evaluateNode(
+              engine,
+              graph,
+              fromNode
+            );
+          } catch (err) {
+            console.error('Tried to evaluate a non-data node!', {
+              err,
+            });
+          }
+        }
+      }
+    });
+  });
+
+  return graphProperties;
 };

@@ -42,7 +42,28 @@ export const physicalDefaultProperties = {
   opacity: 1,
 };
 
+/**
+ * For the use of "0.5", apparently PlayCanvas optimizes uniform
+ * generation where if you set diffuse to white (1,1,1) then it doesn't
+ * add the diffuse uniform, because that's the default state.
+ */
+export const defaultPropertySetting = (
+  app: pc.Application,
+  property: NodeProperty
+) => {
+  if (property.type === 'texture') {
+    return new pc.Texture(app.graphicsDevice);
+  } else if (property.type === 'number') {
+    return 0.5;
+  } else if (property.type === 'rgb') {
+    return new pc.Color(0.5, 0.5, 0.5);
+  } else if (property.type === 'rgba') {
+    return new pc.Color(0.5, 0.5, 0.5, 0.5);
+  }
+};
+
 const applyPlayMaterialProperties = (
+  engineContext: EngineContext,
   shaderMaterial: pc.Material,
   app: pc.Application,
   graph: Graph,
@@ -70,10 +91,6 @@ const applyPlayMaterialProperties = (
         ) as NodeProperty;
 
         /**
-         * The "0.5" values below are intentional. And this method intentionally
-         * returns the properties for debugging, as well as mutates the
-         * material in place.
-         *
          * For the mutation, you apparently need to explicitily call .set() on
          * some properties, like diffuse:
          *    material.diffuse = new pc.Color(0.5, 0.5, 0.5)
@@ -83,28 +100,10 @@ const applyPlayMaterialProperties = (
          *     material.diffuse.set(new pc.Color(...))
          * This code will probably error on some properties because I don't know
          * if all "rgb" properties have to be set in this painful way.
-         *
-         * For the use of "0.5", apparently PlayCanvas optimizes uniform
-         * generation where if you set diffuse to white (1,1,1) then it doesn't
-         * add the diffuse uniform, because that's the default state.
          */
-        if (property.type === 'texture') {
-          acc[property.property] = new pc.Texture(app.graphicsDevice);
-          // @ts-ignore
-          shaderMaterial[property.property] = acc[property.property];
-        } else if (property.type === 'number') {
-          acc[property.property] = 0.5;
-          // @ts-ignore
-          shaderMaterial[property.property] = acc[property.property];
-        } else if (property.type === 'rgb') {
-          acc[property.property] = new pc.Color(0.5, 0.5, 0.5);
-          // @ts-ignore
-          shaderMaterial[property.property].set(0.5, 0.5, 0.5);
-        } else if (property.type === 'rgba') {
-          acc[property.property] = new pc.Color(0.5, 0.5, 0.5, 0.5);
-          // @ts-ignore
-          shaderMaterial[property.property].set(0.5, 0.5, 0.5, 0.5);
-        }
+        acc[property.property] = defaultPropertySetting(app, property);
+        // @ts-ignore
+        shaderMaterial[property.property] = acc[property.property];
       }
       return acc;
     }, {});
@@ -355,6 +354,7 @@ const onBeforeCompileMegaShader = async (
   };
   Object.assign(shaderMaterial, newProperties);
   const applied = applyPlayMaterialProperties(
+    engineContext,
     shaderMaterial,
     app,
     graph,
@@ -438,23 +438,27 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
 const evaluateNode = (node: DataNode) => {
   if (node.type === 'number') {
     return parseFloat(node.value);
-  }
-
-  if (node.type === 'vector2') {
-    return new pc.Vec2(parseFloat(node.value[0]), parseFloat(node.value[1]));
+    // Apparently PlayCanvas can't use new pc.Vec2(...), etc for vector uniforms,
+    // and instead requires arrays? But can (maybe) use a pc.Color() for other
+    // uniforms? I need to test the color assumption, but it's weird PC doesn't
+    // use its own types for uniforms
+  } else if (node.type === 'texture') {
+    return node;
+  } else if (node.type === 'vector2') {
+    return [parseFloat(node.value[0]), parseFloat(node.value[1])];
   } else if (node.type === 'vector3') {
-    return new pc.Vec3(
-      parseFloat(node.value[0]),
-      parseFloat(node.value[1]),
-      parseFloat(node.value[2])
-    );
-  } else if (node.type === 'vector4') {
-    return new pc.Vec4(
+    return [
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
-    );
+    ];
+  } else if (node.type === 'vector4') {
+    return [
+      parseFloat(node.value[0]),
+      parseFloat(node.value[1]),
+      parseFloat(node.value[2]),
+      parseFloat(node.value[3]),
+    ];
   } else if (node.type === 'rgb') {
     return new pc.Color(
       parseFloat(node.value[0]),

@@ -505,3 +505,42 @@ export const compileGraph = (
     ]),
   };
 };
+
+/**
+ * Find engine nodes to set properties on, like find a Physical node so
+ * consumers can set physicalNode.myProperty = 123.
+ *
+ * Finds all active nodes in the graph that have inputs that are properties,
+ * which currently means it will find all active engine nodes.
+ */
+export const collectNodeProperties = (graph: Graph): SearchResult => {
+  const nodesWithProperties: Predicates = {
+    node: (node) =>
+      'config' in node &&
+      'properties' in node.config &&
+      !!node.config.properties?.length,
+    input: (input) => !!input.property,
+  };
+
+  const outputFrag = graph.nodes.find(
+    (node) => node.type === 'output' && node.stage === 'fragment'
+  ) as GraphNode;
+  const outputVert = graph.nodes.find(
+    (node) => node.type === 'output' && node.stage === 'vertex'
+  ) as GraphNode;
+  const fragProperties = filterGraphFromNode(
+    graph,
+    outputFrag,
+    nodesWithProperties
+  );
+  const vertProperties = filterGraphFromNode(
+    graph,
+    outputVert,
+    nodesWithProperties
+  );
+
+  return {
+    nodes: { ...fragProperties.nodes, ...vertProperties.nodes },
+    inputs: { ...fragProperties.inputs, ...vertProperties.inputs },
+  };
+};

@@ -252,6 +252,18 @@ const programCacheKey = (
   );
 };
 
+export const defaultPropertySetting = (three: any, property: NodeProperty) => {
+  if (property.type === 'texture') {
+    return new three.Texture();
+  } else if (property.type === 'number') {
+    return 0.5;
+  } else if (property.type === 'rgb') {
+    return new three.Color(1, 1, 1);
+  } else if (property.type === 'rgba') {
+    return new three.Color(1, 1, 1, 1);
+  }
+};
+
 const threeMaterialProperties = (
   three: any,
   graph: Graph,
@@ -279,15 +291,7 @@ const threeMaterialProperties = (
         ) as NodeProperty;
 
         // Initialize the property on the material
-        if (property.type === 'texture') {
-          acc[property.property] = new three.Texture();
-        } else if (property.type === 'number') {
-          acc[property.property] = 0.5;
-        } else if (property.type === 'rgb') {
-          acc[property.property] = new three.Color(1, 1, 1);
-        } else if (property.type === 'rgba') {
-          acc[property.property] = new three.Color(1, 1, 1, 1);
-        }
+        acc[property.property] = defaultPropertySetting(three, property);
       }
       return acc;
     }, {});
