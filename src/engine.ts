@@ -230,6 +230,12 @@ export type DefaultPropertySetter = (p: NodeProperty) => any;
  * material with. This finds all engine nodes in the graph, finds all their
  * properties, evalutes them, and returns an object with initial properties to
  * set on the new plugin material, like a three.RawShaderMaterial().
+ *
+ * Currently only PlayCanvas uses this. It's at odds with the compileResult.dataInputs
+ * code path. That path uses isDataNode() to check for inputs, which excludes
+ * baked inputs. PlayCanvas requires (at least diffusesMap?) baked input properties
+ * to be set to a pc.Texture() at runtime, otherwise there's an error about
+ * vertex_texCoord0.
  */
 export const collectInitialEvaluatedGraphProperties = (
   engine: Engine,
