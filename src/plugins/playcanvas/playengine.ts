@@ -40,6 +40,10 @@ export const physicalDefaultProperties = {
   blendType: pc.BLEND_NORMAL,
   // Required if you set blendtype apparently lol, otherwise object is black
   opacity: 1,
+  // not sure if required for metalness https://developer.playcanvas.com/en/api/pc.StandardMaterial.html#useMetalness
+  useMetalness: true,
+  // Double sided
+  cull: pc.CULLFACE_NONE,
 };
 
 /**
@@ -146,6 +150,7 @@ export const physicalNode = (
         ),
         property('Bumpiness', 'bumpiness', 'number'),
         property('Specular', 'specular', 'rgb'),
+        property('Glosiness', 'gloss', 'number'),
         property('Opacity', 'opacity', 'number'),
         property('Opacity Map', 'opacityMap', 'texture'),
         property('Metalness', 'metalness', 'number'),
@@ -169,7 +174,7 @@ export const physicalNode = (
         uniformStrategy(),
         stage === 'fragment'
           ? texture2DStrategy()
-          : namedAttributeStrategy('position'),
+          : namedAttributeStrategy('vertex_position'),
       ],
     },
     inputs: [],
@@ -376,7 +381,10 @@ const onBeforeCompileMegaShader = async (
   // TODO: Try using the new hook https://github.com/playcanvas/engine/pull/5524
   shaderMaterial.chunks.engineHackSource = `${Math.random()}`;
 
-  shaderMaterial.clearVariants();
+  // I had this here before for testing, I commented it out trying to figure out
+  // the opacity issue while working on Playcanvas. Can remove if I ever figure
+  // out the opacity issue
+  // shaderMaterial.clearVariants();
   shaderMaterial.update();
 
   const origMat = sceneData.mesh.render.meshInstances[0].material;
@@ -460,19 +468,18 @@ const evaluateNode = (node: DataNode) => {
       parseFloat(node.value[3]),
     ];
   } else if (node.type === 'rgb') {
-    return new pc.Color(
+    return [
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      1
-    );
+    ];
   } else if (node.type === 'rgba') {
-    return new pc.Color(
+    return [
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
-    );
+      parseFloat(node.value[3]),
+    ];
   } else {
     return node.value;
   }
@@ -494,6 +501,12 @@ export const playengine: Engine = {
   preserve: new Set<string>([
     // Attributes
     'position',
+    'vertex_normal',
+    'vertex_position',
+    'vertex_texCoord0',
+    'vertex_texCoord1',
+    'matrix_model',
+    'matrix_viewProjection',
     'normal',
     'uv',
     'uv2',
