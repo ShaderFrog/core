@@ -136,6 +136,10 @@ export const physicalNode = (
       preprocess: true,
       properties: [
         property('Color', 'diffuse', 'rgb'),
+        // Object is black while using these
+        // property('Emissive', 'emissive', 'rgb'),
+        // property('Emissive Intensity', 'emissiveIntensity', 'number'),
+        // property('Emissive Map', 'emissiveMap', 'texture'),
         property(
           'Diffuse Map',
           'diffuseMap',
@@ -507,6 +511,7 @@ export const playengine: Engine = {
     'vertex_texCoord1',
     'matrix_model',
     'matrix_viewProjection',
+    'matrix_normal',
     'normal',
     'uv',
     'uv2',
