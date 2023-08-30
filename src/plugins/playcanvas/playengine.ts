@@ -38,8 +38,16 @@ const log = (...args: any[]) =>
 export const physicalDefaultProperties = {
   // Required for objects with opacity
   blendType: pc.BLEND_NORMAL,
-  // Required if you set blendtype apparently lol, otherwise object is black
-  opacity: 1,
+  // Hack (for now?). Playcanvas optimizes their materials to not calculate in
+  // the generated GLSL, if opacity is set to 1 or is unused. This forces the
+  // generated shader to include the opacity calculation. When we tween the
+  // opacity slider at runtime, playcanvas instantly generates a new shader +
+  // GLSL. The front-end code hijacks that call, and for now, for conveneinece,
+  // uses the GLSL from the core here that always includes opacity. Another
+  // option is to hijack both variations of the shader and generate two core
+  // variations. I might need to consider that with additional parameter
+  // variations.
+  opacity: 0.5,
   // not sure if required for metalness https://developer.playcanvas.com/en/api/pc.StandardMaterial.html#useMetalness
   useMetalness: true,
   // Double sided
@@ -400,11 +408,13 @@ const onBeforeCompileMegaShader = async (
   sceneData.mesh.render.meshInstances[0].material = origMat;
 
   return new Promise((resolve) => {
-    const variants = Object.values(shaderMaterial.variants) as any[];
-    if (variants.length === 1) {
-      const { fshader, vshader } = variants[0].definition;
-      fragmentSource = fshader;
-      vertexSource = vshader;
+    const { variants } = shaderMaterial;
+    if (variants.size === 1) {
+      const [, untypedVariant] = variants.entries().next().value;
+      const variant = untypedVariant as pc.Shader;
+      const { fshader, vshader } = variant.definition;
+      fragmentSource = fshader as string;
+      vertexSource = vshader as string;
       engineContext.runtime.cache.nodes[node.id] = {
         fragment: fshader,
         vertex: vshader,
