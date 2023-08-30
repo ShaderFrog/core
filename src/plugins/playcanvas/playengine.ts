@@ -305,7 +305,8 @@ const programCacheKey = (
   node: SourceNode,
   sibling: SourceNode
 ) => {
-  const lights = (engineContext.runtime.app as pc.Application).root
+  const app = engineContext.runtime.app as pc.Application;
+  const lights = app.root
     .findComponents('light')
     .map((l) => (l as pc.LightComponent).type);
 
@@ -317,8 +318,7 @@ const programCacheKey = (
     '|Lights:' +
     lights.join(',') +
     '|Envtex:' +
-    'UNKNOWN'
-    // scene.environmentTexture
+    [app.scene.envAtlas, app.scene.prefilteredCubemaps].join(',')
   );
 };
 
