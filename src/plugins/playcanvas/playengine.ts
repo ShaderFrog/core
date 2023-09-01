@@ -516,8 +516,8 @@ export const playengine: Engine = {
   },
   // TODO: Move into core based on engine shader scrape
   preserve: new Set<string>([
-    // Attributes
-    'position',
+    // Ugh I gotta stop doing this
+    'vPositionW',
     'vertex_normal',
     'vertex_position',
     'vertex_texCoord0',
