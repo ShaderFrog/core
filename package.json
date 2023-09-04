@@ -1,9 +1,12 @@
 {
   "name": "@shaderfrog/core",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Shaderfrog core",
   "main": "index.js",
   "scripts": {
+    "prepare": "npm run build",
+    "build": "./build.sh",
+    "watch-test": "jest --watch",
     "test": "jest --colors"
   },
   "repository": {
@@ -13,7 +16,7 @@
   "author": "Andrew Ray",
   "license": "ISC",
   "files": [
-    "src"
+    "dist"
   ],
   "bugs": {
     "url": "https://github.com/ShaderFrog/core/issues"
@@ -34,19 +37,22 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "lodash.groupby": "^4.6.0",
-    "playcanvas": "^1.65.3"
+    "lodash.groupby": "^4.6.0"
   },
   "peerDependencies": {
     "@shaderfrog/glsl-parser": "^2.0.0-beta.5",
     "babylonjs": ">=4",
-    "three": ">=0.50"
+    "three": ">=0.50",
+    "playcanvas": "^1.65.3"
   },
   "peerDependenciesMeta": {
     "babylonjs": {
       "optional": true
     },
     "three": {
+      "optional": true
+    },
+    "playcanvas": {
       "optional": true
     }
   }
