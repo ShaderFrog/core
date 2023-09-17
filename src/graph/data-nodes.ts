@@ -1,4 +1,4 @@
-import { CoreNode, NodeInput, NodeOutput, NodePosition } from './core-node';
+import { CoreNode, NodeInput, NodeOutput, NodePosition } from './base-node';
 
 type ArrayType = 'array';
 type Vector = 'vector2' | 'vector3' | 'vector4';

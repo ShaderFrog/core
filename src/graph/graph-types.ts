@@ -1,6 +1,6 @@
-import { DataNode } from './nodes/data-nodes';
-import { Edge } from './nodes/edge';
-import { SourceNode } from './nodes/code-nodes';
+import { DataNode } from './data-nodes';
+import { Edge } from './edge';
+import { SourceNode } from './code-nodes';
 
 /**
  * Core graph types.

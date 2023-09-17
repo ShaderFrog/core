@@ -1,3 +1,6 @@
+/**
+ * Base node stuff, used across all nodes
+ */
 import { GraphDataType } from './data-nodes';
 
 export type InputCategory = 'data' | 'code';
@@ -38,6 +41,7 @@ export interface NodeOutput {
 }
 
 export type NodePosition = { x: number; y: number };
+
 export interface CoreNode {
   id: string;
   name: string;

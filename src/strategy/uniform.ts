@@ -5,9 +5,9 @@ import {
   KeywordNode,
   DeclaratorListNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { mangleName } from '../graph';
-import { InputCategory, nodeInput } from '../nodes/core-node';
-import { GraphDataType } from '../nodes/data-nodes';
+import { mangleName } from '../graph/graph';
+import { InputCategory, nodeInput } from '../graph/base-node';
+import { GraphDataType } from '../graph/data-nodes';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { ComputedInput } from '../parsers';
 import { generateFiller } from '../util/ast';

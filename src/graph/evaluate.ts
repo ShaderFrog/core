@@ -1,9 +1,9 @@
-import { Engine } from './engine';
-import { Edge } from './nodes/edge';
-import { SourceNode } from './nodes/code-nodes';
-import { coreParsers } from './parsers';
+import { Engine } from '../engine';
+import { Edge } from './edge';
+import { SourceNode } from './code-nodes';
+import { coreParsers } from '../parsers';
 import { Graph, GraphNode } from './graph-types';
-import { DataNode } from './nodes/data-nodes';
+import { DataNode } from './data-nodes';
 
 export type Evaluator = (node: GraphNode) => any;
 export type Evaluate = (

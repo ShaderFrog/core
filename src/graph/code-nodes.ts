@@ -1,7 +1,7 @@
-import { ShaderStage } from '../graph-types';
+import { ShaderStage } from './graph-types';
 import { Strategy } from '../strategy';
 import { GraphDataType, UniformDataType } from './data-nodes';
-import { CoreNode, NodeInput } from './core-node';
+import { CoreNode, NodeInput } from './base-node';
 
 export const mapInputName = (
   node: CodeNode,

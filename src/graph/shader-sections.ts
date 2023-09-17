@@ -8,7 +8,7 @@ import {
   PreprocessorNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { generate } from '@shaderfrog/glsl-parser';
-import { makeStatement } from './manipulate';
+import { makeStatement } from '../util/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 export interface ShaderSections {
   precision: DeclarationStatementNode[];

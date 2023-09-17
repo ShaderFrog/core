@@ -5,8 +5,8 @@ import {
   doesLinkThruShader,
   prepopulatePropertyInputs,
   mangleMainFn,
-} from '../../graph';
-import { ShaderStage, Graph, NodeType } from '../../graph-types';
+} from '../../graph/graph';
+import { ShaderStage, Graph, NodeType } from '../../graph/graph-types';
 import importers from './importers';
 
 import {
@@ -21,15 +21,15 @@ import {
   NodeProperty,
   property,
   SourceNode,
-} from '../../nodes/code-nodes';
+} from '../../graph/code-nodes';
 
 import {
   namedAttributeStrategy,
   texture2DStrategy,
   uniformStrategy,
 } from '../../strategy';
-import { NodeInput, NodePosition } from '../../nodes/core-node';
-import { DataNode, UniformDataType } from '../../nodes/data-nodes';
+import { NodeInput, NodePosition } from '../../graph/base-node';
+import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import { NodeParser } from '../../parsers';
 
 const log = (...args: any[]) =>

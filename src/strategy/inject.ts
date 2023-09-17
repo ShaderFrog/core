@@ -1,6 +1,6 @@
 import { generate } from '@shaderfrog/glsl-parser';
 import { Program, AstNode } from '@shaderfrog/glsl-parser/ast';
-import { InputCategory, nodeInput } from '../nodes/core-node';
+import { InputCategory, nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 
 export interface InjectStrategy extends BaseStrategy {

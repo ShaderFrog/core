@@ -1,15 +1,10 @@
 import groupBy from 'lodash.groupby';
 
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
-import { Engine, EngineContext } from './engine';
-import { ShaderSections } from './ast/shader-sections';
-import {
-  CodeNode,
-  mapInputName,
-  SourceNode,
-  SourceType,
-} from './nodes/code-nodes';
-import { NodeInput } from './nodes/core-node';
+import { Engine, EngineContext } from '../engine';
+import { ShaderSections } from './shader-sections';
+import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
+import { NodeInput } from './base-node';
 import { Graph, GraphNode, NodeType } from './graph-types';
 import {
   collectConnectedNodes,
@@ -17,7 +12,7 @@ import {
   isSourceNode,
   mangleEntireProgram,
 } from './graph';
-import { InputFillers, coreParsers } from './parsers';
+import { InputFillers, coreParsers } from '../parsers';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a
@@ -196,15 +191,6 @@ export const computeContextForNodes = async (
       },
       Promise.resolve(engineContext.nodes as Record<string, NodeContext>)
     );
-
-export type CompileGraphResult = {
-  fragment: ShaderSections;
-  vertex: ShaderSections;
-  outputFrag: GraphNode;
-  outputVert: GraphNode;
-  orphanNodes: GraphNode[];
-  activeNodeIds: Set<string>;
-};
 
 /**
  * Compute the context for every node in the graph, done on initial graph load

@@ -1,8 +1,7 @@
 {
   "name": "@shaderfrog/core",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Shaderfrog core",
-  "main": "index.js",
   "scripts": {
     "prepare": "npm run build",
     "build": "./build.sh",

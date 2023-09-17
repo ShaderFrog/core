@@ -7,22 +7,22 @@ import {
   FunctionNode,
   ParameterDeclarationNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { Engine, EngineContext } from './engine';
+import { Engine, EngineContext } from '../engine';
 import { NodeContext } from './context';
 import {
   emptyShaderSections,
   findShaderSections,
   mergeShaderSections,
   ShaderSections,
-} from './ast/shader-sections';
-import { makeExpression } from './ast/manipulate';
-import { ensure } from './util/ensure';
-import { DataNode } from './nodes/data-nodes';
-import { Edge } from './nodes/edge';
-import { CodeNode, SourceNode, SourceType } from './nodes/code-nodes';
-import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
-import { makeId } from './util/id';
-import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
+} from './shader-sections';
+import { makeExpression } from '../util/ast';
+import { ensure } from '../util/ensure';
+import { DataNode } from './data-nodes';
+import { Edge } from './edge';
+import { CodeNode, SourceNode, SourceType } from './code-nodes';
+import { InputCategory, nodeInput, NodeInput } from './base-node';
+import { makeId } from '../util/id';
+import { InputFillerGroup, ProduceNodeFiller, coreParsers } from '../parsers';
 import { toGlsl } from './evaluate';
 import { Graph, GraphNode, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
 

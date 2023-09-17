@@ -17,14 +17,14 @@ import {
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
   makeFnStatement,
-} from './ast/manipulate';
+} from './util/ast';
 import { applyStrategy } from './strategy';
-import { Edge } from './nodes/edge';
-import { BinaryNode, SourceNode, SourceType } from './nodes/code-nodes';
-import { InputCategory, nodeInput, NodeInput } from './nodes/core-node';
-import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
-import { nodeName } from './graph';
-import { Evaluate } from './evaluate';
+import { Edge } from './graph/edge';
+import { BinaryNode, SourceNode, SourceType } from './graph/code-nodes';
+import { InputCategory, nodeInput, NodeInput } from './graph/base-node';
+import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph/graph-types';
+import { nodeName } from './graph/graph';
+import { Evaluate } from './graph/evaluate';
 import { generateFiller } from './util/ast';
 
 /*

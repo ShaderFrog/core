@@ -1,6 +1,6 @@
 import { EngineNodeType } from '../engine';
-import { prepopulatePropertyInputs } from '../graph';
-import { NodeType, ShaderStage } from '../graph-types';
+import { prepopulatePropertyInputs } from './graph';
+import { NodeType, ShaderStage } from './graph-types';
 import {
   assignemntToStrategy,
   namedAttributeStrategy,
@@ -15,7 +15,7 @@ import {
   SourceType,
   property,
 } from './code-nodes';
-import { NodePosition } from './core-node';
+import { NodePosition } from './base-node';
 
 /**
  * TODO: These definitions should live outside of core since I'm trying to

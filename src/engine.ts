@@ -1,18 +1,18 @@
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { MergeOptions } from './ast/shader-sections';
+import { MergeOptions } from './graph/shader-sections';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parser } from '@shaderfrog/glsl-parser';
-import { Graph, ShaderStage, GraphNode, NodeType } from './graph-types';
-import { NodeInput, NodePosition } from './nodes/core-node';
-import { DataNode, UniformDataType } from './nodes/data-nodes';
-import { CodeNode, NodeProperty, SourceNode } from './nodes/code-nodes';
-import { Edge } from './nodes/edge';
+import { Graph, ShaderStage, GraphNode, NodeType } from './graph/graph-types';
+import { NodeInput, NodePosition } from './graph/base-node';
+import { DataNode, UniformDataType } from './graph/data-nodes';
+import { CodeNode, NodeProperty, SourceNode } from './graph/code-nodes';
+import { Edge } from './graph/edge';
 import groupBy from 'lodash.groupby';
-import { NodeContext } from './context';
+import { NodeContext } from './graph/context';
 import { NodeParser } from './parsers';
 import { type } from 'os';
-import { collectNodeProperties } from './graph';
-import { evaluateNode } from './evaluate';
+import { collectNodeProperties } from './graph/graph';
+import { evaluateNode } from './graph/evaluate';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[32m(core)\x1b[0m', ...args);

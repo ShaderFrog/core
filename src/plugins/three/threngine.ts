@@ -1,11 +1,11 @@
 import { Vector2, Vector3, Vector4, Color } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { Graph, NodeType, ShaderStage } from '../../graph-types';
-import { prepopulatePropertyInputs, mangleMainFn } from '../../graph';
+import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
+import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
-import { doesLinkThruShader, nodeName } from '../../graph';
+import { doesLinkThruShader, nodeName } from '../../graph/graph';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
@@ -16,9 +16,9 @@ import {
   NodeProperty,
   property,
   SourceNode,
-} from '../../nodes/code-nodes';
-import { NodeInput, NodePosition } from '../../nodes/core-node';
-import { DataNode, UniformDataType } from '../../nodes/data-nodes';
+} from '../../graph/code-nodes';
+import { NodeInput, NodePosition } from '../../graph/base-node';
+import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import {
   namedAttributeStrategy,
   texture2DStrategy,

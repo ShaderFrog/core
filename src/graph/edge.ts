@@ -1,4 +1,4 @@
-import { ShaderStage } from '../graph-types';
+import { ShaderStage } from './graph-types';
 import { GraphDataType } from './data-nodes';
 
 export type EdgeType = ShaderStage | GraphDataType;

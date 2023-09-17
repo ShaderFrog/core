@@ -1,4 +1,4 @@
-import { NodeInput } from '../nodes/core-node';
+import { NodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { ComputedInput } from '../parsers';
 

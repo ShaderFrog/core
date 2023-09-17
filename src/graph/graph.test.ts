@@ -4,14 +4,17 @@ import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
 import { Graph } from './graph-types';
-import { shaderSectionsToProgram } from './ast/shader-sections';
-import { addNode } from './nodes/engine-node';
+import { addNode } from './engine-node';
 
-import { mergeShaderSections, findShaderSections } from './ast/shader-sections';
+import {
+  shaderSectionsToProgram,
+  mergeShaderSections,
+  findShaderSections,
+} from './shader-sections';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { numberNode } from './nodes/data-nodes';
-import { makeEdge } from './nodes/edge';
-import { Engine, PhysicalNodeConstructor } from './engine';
+import { numberNode } from './data-nodes';
+import { makeEdge } from './edge';
+import { Engine, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
 
 const inspect = (thing: any): void =>
