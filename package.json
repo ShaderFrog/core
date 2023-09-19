@@ -1,8 +1,8 @@
 {
   "name": "@shaderfrog/core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Shaderfrog core",
-  "module": "./dist/index.js",
+  "exports": "./dist/index.js",
   "scripts": {
     "prepare": "npm run build",
     "build": "./build.sh",
