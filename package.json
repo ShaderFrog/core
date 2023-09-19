@@ -1,6 +1,6 @@
 {
   "name": "@shaderfrog/core",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Shaderfrog core",
   "module": "./dist/index.js",
   "scripts": {
