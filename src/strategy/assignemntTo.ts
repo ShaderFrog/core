@@ -1,4 +1,4 @@
-import { findAssignmentTo } from '../ast/manipulate';
+import { findAssignmentTo } from '../util/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { AssignmentNode, AstNode } from '@shaderfrog/glsl-parser/ast';

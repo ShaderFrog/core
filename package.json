@@ -41,8 +41,8 @@
   "peerDependencies": {
     "@shaderfrog/glsl-parser": "^2.0.0-beta.5",
     "babylonjs": ">=4",
-    "three": ">=0.50",
-    "playcanvas": "^1.65.3"
+    "playcanvas": "^1.65.3",
+    "three": ">=0.50"
   },
   "peerDependenciesMeta": {
     "babylonjs": {

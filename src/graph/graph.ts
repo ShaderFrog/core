@@ -22,7 +22,7 @@ import { Edge } from './edge';
 import { CodeNode, SourceNode, SourceType } from './code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './base-node';
 import { makeId } from '../util/id';
-import { InputFillerGroup, ProduceNodeFiller, coreParsers } from '../parsers';
+import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
 import { Graph, GraphNode, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
 

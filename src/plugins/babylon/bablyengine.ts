@@ -1,4 +1,17 @@
-import * as BABYLON from 'babylonjs';
+import {
+  PBRMaterial,
+  Camera,
+  Scene,
+  Texture,
+  Light,
+  Material,
+  MaterialDefines,
+  Vector2,
+  Vector3,
+  Vector4,
+  Color3,
+  Color4,
+} from 'babylonjs';
 import { Engine, EngineNodeType, EngineContext } from '../../engine';
 import {
   nodeName,
@@ -13,7 +26,7 @@ import {
   returnGlPositionHardCoded,
   returnGlPosition,
   returnGlPositionVec3Right,
-} from '../../ast/manipulate';
+} from '../../util/ast';
 
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import {
@@ -30,7 +43,7 @@ import {
 } from '../../strategy';
 import { NodeInput, NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
-import { NodeParser } from '../../parsers';
+import { NodeParser } from '../../graph/parsers';
 
 // Setting these properties on the material have side effects, not just for the
 // GLSL, but for the material itself in JS memory apparently, maybe the bound
@@ -38,10 +51,10 @@ import { NodeParser } from '../../parsers';
 // properties as those in BabylonComponent or else there will be errors with
 // uniforms
 export const physicalDefaultProperties: Partial<
-  Record<keyof BABYLON.PBRMaterial, any>
+  Record<keyof PBRMaterial, any>
 > = {
   forceIrradianceInFragment: true,
-  albedoColor: new BABYLON.Color3(1.0, 1.0, 1.0),
+  albedoColor: new Color3(1.0, 1.0, 1.0),
   metallic: 0.0,
   roughness: 1.0,
 };
@@ -113,8 +126,8 @@ export const physicalNode = (
   });
 
 export type RuntimeContext = {
-  scene: BABYLON.Scene;
-  camera: BABYLON.Camera;
+  scene: Scene;
+  camera: Camera;
   BABYLON: any;
   sceneData: any;
   // material: any;
@@ -190,7 +203,7 @@ export const toonNode = (
   });
 
 const babylonMaterialProperties = (
-  scene: BABYLON.Scene,
+  scene: Scene,
   graph: Graph,
   node: SourceNode,
   sibling?: SourceNode
@@ -217,13 +230,13 @@ const babylonMaterialProperties = (
 
         // Initialize the property on the material
         if (property.type === 'texture') {
-          acc[property.property] = new BABYLON.Texture('', scene);
+          acc[property.property] = new Texture('', scene);
         } else if (property.type === 'number') {
           acc[property.property] = 0.5;
         } else if (property.type === 'rgb') {
-          acc[property.property] = new BABYLON.Color3(1, 1, 1);
+          acc[property.property] = new Color3(1, 1, 1);
         } else if (property.type === 'rgba') {
-          acc[property.property] = new BABYLON.Color4(1, 1, 1, 1);
+          acc[property.property] = new Color4(1, 1, 1, 1);
         }
       }
       return acc;
@@ -260,8 +273,8 @@ const programCacheKey = (
   // The megashader source is dependent on scene information, like the number
   // and type of lights in the scene. This kinda sucks - it's duplicating
   // three's material cache key, and is coupled to how three builds shaders
-  const scene = engineContext.runtime.scene as BABYLON.Scene;
-  const lights = scene.getNodes().filter((n) => n instanceof BABYLON.Light);
+  const scene = engineContext.runtime.scene as Scene;
+  const lights = scene.getNodes().filter((n) => n instanceof Light);
 
   return (
     [node, sibling]
@@ -309,14 +322,14 @@ const onBeforeCompileMegaShader = async (
   node: SourceNode,
   sibling: SourceNode
 ): Promise<{
-  material: BABYLON.Material;
+  material: Material;
   fragment: string;
   vertex: string;
 }> => {
   const { scene, sceneData } = engineContext.runtime;
 
   const pbrName = `engine_pbr${id()}`;
-  const shaderMaterial = new BABYLON.PBRMaterial(pbrName, scene);
+  const shaderMaterial = new PBRMaterial(pbrName, scene);
 
   shaderMaterial.linkRefractionWithTransparency = true;
   shaderMaterial.subSurface.isRefractionEnabled = true;
@@ -341,7 +354,7 @@ const onBeforeCompileMegaShader = async (
   //   nodeCache[node.id]?.vertex ||
   //   nodeCache[node.nextStageNodeId || 'unknown']?.vertex;
 
-  const genHackCacheKey = (unknown: BABYLON.MaterialDefines | string[]) =>
+  const genHackCacheKey = (unknown: MaterialDefines | string[]) =>
     unknown.toString();
   let hackKey: string;
 
@@ -473,31 +486,28 @@ const evaluateNode = (node: DataNode) => {
   }
 
   if (node.type === 'vector2') {
-    return new BABYLON.Vector2(
-      parseFloat(node.value[0]),
-      parseFloat(node.value[1])
-    );
+    return new Vector2(parseFloat(node.value[0]), parseFloat(node.value[1]));
   } else if (node.type === 'vector3') {
-    return new BABYLON.Vector3(
+    return new Vector3(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2])
     );
   } else if (node.type === 'vector4') {
-    return new BABYLON.Vector4(
+    return new Vector4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
       parseFloat(node.value[3])
     );
   } else if (node.type === 'rgb') {
-    return new BABYLON.Color3(
+    return new Color3(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2])
     );
   } else if (node.type === 'rgba') {
-    return new BABYLON.Color4(
+    return new Color4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),

@@ -8,7 +8,7 @@ import {
   Program,
   FunctionNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { Engine, EngineContext } from './engine';
+import { Engine, EngineContext } from '../engine';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import {
   convert300MainToReturn,
@@ -17,15 +17,15 @@ import {
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
   makeFnStatement,
-} from './util/ast';
-import { applyStrategy } from './strategy';
-import { Edge } from './graph/edge';
-import { BinaryNode, SourceNode, SourceType } from './graph/code-nodes';
-import { InputCategory, nodeInput, NodeInput } from './graph/base-node';
-import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph/graph-types';
-import { nodeName } from './graph/graph';
-import { Evaluate } from './graph/evaluate';
-import { generateFiller } from './util/ast';
+} from '../util/ast';
+import { applyStrategy } from '../strategy';
+import { Edge } from './edge';
+import { BinaryNode, SourceNode, SourceType } from './code-nodes';
+import { InputCategory, nodeInput, NodeInput } from './base-node';
+import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
+import { nodeName } from './graph';
+import { Evaluate } from './evaluate';
+import { generateFiller } from '../util/ast';
 
 /*
  * Core graph parsers, which is the plumbing/interface the graph and context

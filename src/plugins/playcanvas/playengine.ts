@@ -13,7 +13,7 @@ import {
   returnGlPositionHardCoded,
   returnGlPosition,
   returnGlPositionVec3Right,
-} from '../../ast/manipulate';
+} from '../../util/ast';
 
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import {
@@ -30,7 +30,7 @@ import {
 } from '../../strategy';
 import { NodeInput, NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
-import { NodeParser } from '../../parsers';
+import { NodeParser } from '../../graph/parsers';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[33m(playengine)\x1b[0m', ...args);

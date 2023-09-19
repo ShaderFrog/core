@@ -12,7 +12,7 @@ import {
   isSourceNode,
   mangleEntireProgram,
 } from './graph';
-import { InputFillers, coreParsers } from '../parsers';
+import { InputFillers, coreParsers } from './parsers';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a

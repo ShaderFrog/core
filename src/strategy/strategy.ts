@@ -17,7 +17,7 @@ import {
 } from './namedAttribute';
 import { VariableStrategy, applyVariableStrategy } from './variable';
 import { InjectStrategy, applyInjectStrategy } from './inject';
-import { ComputedInput } from '../parsers';
+import { ComputedInput } from '../graph/parsers';
 
 export enum StrategyType {
   VARIABLE = 'Variable Names',

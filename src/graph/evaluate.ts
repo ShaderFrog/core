@@ -1,7 +1,7 @@
 import { Engine } from '../engine';
 import { Edge } from './edge';
 import { SourceNode } from './code-nodes';
-import { coreParsers } from '../parsers';
+import { coreParsers } from './parsers';
 import { Graph, GraphNode } from './graph-types';
 import { DataNode } from './data-nodes';
 

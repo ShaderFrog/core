@@ -1,4 +1,4 @@
-import { findDeclarationOf } from '../ast/manipulate';
+import { findDeclarationOf } from '../util/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { AstNode } from '@shaderfrog/glsl-parser/ast';

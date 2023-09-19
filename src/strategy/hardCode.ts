@@ -1,6 +1,6 @@
 import { NodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../parsers';
+import { ComputedInput } from '../graph/parsers';
 
 /**
  * I don't actually know if anything uses this, nor do I remember how it would

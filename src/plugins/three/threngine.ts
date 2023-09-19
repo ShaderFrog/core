@@ -10,7 +10,7 @@ import {
   returnGlPosition,
   returnGlPositionHardCoded,
   returnGlPositionVec3Right,
-} from '../../ast/manipulate';
+} from '../../util/ast';
 import {
   CodeNode,
   NodeProperty,
@@ -24,7 +24,7 @@ import {
   texture2DStrategy,
   uniformStrategy,
 } from '../../strategy';
-import { NodeParser } from '../../parsers';
+import { NodeParser } from '../../graph/parsers';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[35m(three)\x1b[0m', ...args);

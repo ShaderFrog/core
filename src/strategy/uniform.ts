@@ -9,7 +9,7 @@ import { mangleName } from '../graph/graph';
 import { InputCategory, nodeInput } from '../graph/base-node';
 import { GraphDataType } from '../graph/data-nodes';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../parsers';
+import { ComputedInput } from '../graph/parsers';
 import { generateFiller } from '../util/ast';
 
 export interface UniformStrategy extends BaseStrategy {

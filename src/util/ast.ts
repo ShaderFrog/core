@@ -1,7 +1,7 @@
 /**
  * Utility functions to work with ASTs
  */
-import { Filler } from '../parsers';
+import { Filler } from '../graph/parsers';
 import { parser, generate } from '@shaderfrog/glsl-parser';
 import {
   visit,
