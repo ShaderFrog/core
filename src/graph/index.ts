@@ -5,6 +5,7 @@ export * from './code-nodes';
 
 export * from './edge';
 
+export * from './parsers';
 export * from './context';
 export * from './evaluate';
 export * from './graph-types';

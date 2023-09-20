@@ -8,12 +8,13 @@ import {
   ParameterDeclarationNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
-import { NodeContext } from './context';
+import { NodeContext, computeGraphContext } from './context';
 import {
   emptyShaderSections,
   findShaderSections,
   mergeShaderSections,
   ShaderSections,
+  shaderSectionsToProgram,
 } from './shader-sections';
 import { makeExpression } from '../util/ast';
 import { ensure } from '../util/ensure';
@@ -25,6 +26,7 @@ import { makeId } from '../util/id';
 import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
 import { Graph, GraphNode, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
+import { generate } from '@shaderfrog/glsl-parser';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.graph)\x1b[0m', ...args);
@@ -542,5 +544,65 @@ export const collectNodeProperties = (graph: Graph): SearchResult => {
   return {
     nodes: { ...fragProperties.nodes, ...vertProperties.nodes },
     inputs: { ...fragProperties.inputs, ...vertProperties.inputs },
+  };
+};
+
+export type IndexedDataInputs = Record<string, NodeInput[]>;
+
+export type CompileResult = {
+  fragmentResult: string;
+  vertexResult: string;
+  compileResult: CompileGraphResult;
+  dataNodes: Record<string, GraphNode>;
+  dataInputs: IndexedDataInputs;
+};
+
+export const compileSource = async (
+  graph: Graph,
+  engine: Engine,
+  ctx: EngineContext
+): Promise<CompileResult> => {
+  await computeGraphContext(ctx, engine, graph);
+  const compileResult = compileGraph(ctx, engine, graph);
+
+  const fragmentResult = generate(
+    shaderSectionsToProgram(compileResult.fragment, engine.mergeOptions).program
+  );
+  const vertexResult = generate(
+    shaderSectionsToProgram(compileResult.vertex, engine.mergeOptions).program
+  );
+
+  const dataInputs = filterGraphNodes(
+    graph,
+    [compileResult.outputFrag, compileResult.outputVert],
+    { input: isDataInput }
+  ).inputs;
+
+  // Find which nodes flow up into uniform inputs, for colorizing and for
+  // not recompiling when their data changes
+  const dataNodes = Object.entries(dataInputs).reduce<
+    Record<string, GraphNode>
+  >((acc, [nodeId, inputs]) => {
+    return inputs.reduce((iAcc, input) => {
+      const fromEdge = graph.edges.find(
+        (edge) => edge.to === nodeId && edge.input === input.id
+      );
+      const fromNode =
+        fromEdge && graph.nodes.find((node) => node.id === fromEdge.from);
+      return fromNode
+        ? {
+            ...iAcc,
+            ...collectConnectedNodes(graph, fromNode),
+          }
+        : iAcc;
+    }, acc);
+  }, {});
+
+  return {
+    compileResult,
+    fragmentResult,
+    vertexResult,
+    dataNodes,
+    dataInputs,
   };
 };

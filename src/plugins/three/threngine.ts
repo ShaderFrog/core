@@ -1,11 +1,18 @@
-import { Vector2, Vector3, Vector4, Color } from 'three';
+import {
+  ShaderLib,
+  RawShaderMaterial,
+  Vector2,
+  Vector3,
+  Vector4,
+  Color,
+} from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
 import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
-import { doesLinkThruShader, nodeName } from '../../graph/graph';
+import { doesLinkThruShader, nodeName, CompileResult } from '../../graph/graph';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
@@ -567,4 +574,71 @@ export const threngine: Engine = {
       manipulateAst: megaShaderMainpulateAst,
     },
   },
+};
+
+export const createMaterial = (
+  compileResult: CompileResult,
+  ctx: EngineContext
+) => {
+  const { engineMaterial } = ctx.runtime as ThreeRuntime;
+
+  const finalUniforms = {
+    // TODO: Get these from threngine
+    ...ShaderLib.phong.uniforms,
+    ...ShaderLib.toon.uniforms,
+    ...ShaderLib.physical.uniforms,
+    time: { value: 0 },
+  };
+
+  const initialProperties = {
+    name: 'ShaderFrog Material',
+    lights: true,
+    uniforms: {
+      ...finalUniforms,
+    },
+    transparent: true,
+    opacity: 1.0,
+    vertexShader: compileResult?.vertexResult,
+    fragmentShader: compileResult?.fragmentResult,
+  };
+
+  const additionalProperties = Object.entries({
+    ...engineMaterial,
+  })
+    .filter(
+      ([property]) =>
+        // Ignore three material "hidden" properties
+        property.charAt(0) !== '_' &&
+        // Ignore uuid since it should probably be unique?
+        property !== 'uuid' &&
+        // I'm not sure what three does with type under the hood, ignore it
+        property !== 'type' &&
+        // "precision" adds a precision preprocessor line
+        property !== 'precision' &&
+        // Ignore existing properties
+        !(property in initialProperties) &&
+        // Ignore STANDARD and PHYSICAL defines to the top of the shader in
+        // WebGLProgram
+        // https://github.com/mrdoob/three.js/blob/e7042de7c1a2c70e38654a04b6fd97d9c978e781/src/renderers/webgl/WebGLProgram.js#L392
+        // which occurs if we set isMeshPhysicalMaterial/isMeshStandardMaterial
+        property !== 'defines'
+    )
+    .reduce(
+      (acc, [key, value]) => ({
+        ...acc,
+        [key]: value,
+      }),
+      {}
+    );
+
+  const material = new RawShaderMaterial(initialProperties);
+
+  // This prevents a deluge of warnings from three on the constructor saying
+  // that each of these properties is not a property of the material
+  Object.entries(additionalProperties).forEach(([key, value]) => {
+    // @ts-ignore
+    material[key] = value;
+  });
+
+  return material;
 };
