@@ -5,6 +5,7 @@ import {
   Vector3,
   Vector4,
   Color,
+  GLSLVersion,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
@@ -598,8 +599,13 @@ export const createMaterial = (
     },
     transparent: true,
     opacity: 1.0,
-    vertexShader: compileResult?.vertexResult,
-    fragmentShader: compileResult?.fragmentResult,
+    // See https://github.com/mrdoob/three.js/pull/26809
+    glslVersion: '300 es' as GLSLVersion,
+    vertexShader: compileResult?.vertexResult.replace('#version 300 es', ''),
+    fragmentShader: compileResult?.fragmentResult.replace(
+      '#version 300 es',
+      ''
+    ),
   };
 
   const additionalProperties = Object.entries({
