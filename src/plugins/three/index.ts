@@ -1,3 +1,3 @@
-import { threngine } from './threngine';
+import { createMaterial, threngine } from './threngine';
 
-export { threngine as engine };
+export { createMaterial, threngine as engine };
