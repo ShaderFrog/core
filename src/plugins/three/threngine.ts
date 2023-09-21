@@ -5,7 +5,7 @@ import {
   Vector3,
   Vector4,
   Color,
-  GLSLVersion,
+  GLSL3,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
@@ -600,7 +600,7 @@ export const createMaterial = (
     transparent: true,
     opacity: 1.0,
     // See https://github.com/mrdoob/three.js/pull/26809
-    glslVersion: '300 es' as GLSLVersion,
+    glslVersion: GLSL3,
     vertexShader: compileResult?.vertexResult.replace('#version 300 es', ''),
     fragmentShader: compileResult?.fragmentResult.replace(
       '#version 300 es',
