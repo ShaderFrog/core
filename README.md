@@ -1,12 +1,19 @@
 # Shaderfrog Core
 
 🚨 This library is experimental! 🚨
+
 🚨 The API can change at any time! 🚨
 
 The core graph API that powers Shaderfrog. This API, built on top of the
 [@Shaderfrog/glsl-parser](https://github.com/ShaderFrog/glsl-parser), compiles
 Shaderfrog graphs into an intermediate result, which you then pass off to an
 _engine_ (aka a plugin), to create a running GLSL shader.
+
+### Examples
+
+See examples of using Core in your own projects [on Github](https://github.com/ShaderFrog/examples).
+
+- **Three.js:** [Live](https://codesandbox.io/s/great-hertz-sjh425?file=/src/index.js) - [Source](https://github.com/ShaderFrog/examples/tree/main/three)
 
 ### Graph
 
