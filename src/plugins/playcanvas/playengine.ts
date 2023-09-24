@@ -133,9 +133,10 @@ export const physicalNode = (
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
-    name,
+    name: 'StandardMaterial',
     groupId,
     position,
+    engine: true,
     type: EngineNodeType.physical,
     config: {
       uniforms,
@@ -239,6 +240,7 @@ export const toonNode = (
     name,
     groupId,
     position,
+    engine: true,
     type: EngineNodeType.toon,
     config: {
       uniforms,
@@ -504,6 +506,7 @@ const evaluateNode = (node: DataNode) => {
 
 export const playengine: Engine = {
   name: 'playcanvas',
+  displayName: 'PlayCanvas',
   importers,
   mergeOptions: {
     includePrecisions: true,

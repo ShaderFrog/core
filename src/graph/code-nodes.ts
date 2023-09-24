@@ -55,6 +55,7 @@ export enum SourceType {
 
 export interface CodeNode extends CoreNode {
   config: NodeConfig;
+  engine: boolean;
   source: string;
   sourceType?: SourceType;
   stage: ShaderStage | undefined;

@@ -25,6 +25,18 @@ export enum EngineNodeType {
   binary = 'binary',
 }
 
+// This sucks, why did I do it this way? Seems like there should just be a
+// default engine node constuctor type
+export type PhongNodeConstructor = (
+  id: string,
+  name: string,
+  groupId: string | null | undefined,
+  position: NodePosition,
+  uniforms: UniformDataType[],
+  stage: ShaderStage | undefined,
+  nextStageNodeId?: string
+) => CodeNode;
+
 export type PhysicalNodeConstructor = (
   id: string,
   name: string,
@@ -47,6 +59,7 @@ export type ToonNodeConstructor = (
 
 export interface Engine {
   name: string;
+  displayName: string;
   preserve: Set<string>;
   mergeOptions: MergeOptions;
   // Component: FunctionComponent<{ engine: Engine; parsers: NodeParsers }>;
@@ -55,8 +68,9 @@ export interface Engine {
   importers: EngineImporters;
   evaluateNode: (node: DataNode) => any;
   constructors: {
-    [EngineNodeType.physical]: PhysicalNodeConstructor;
-    [EngineNodeType.toon]: ToonNodeConstructor;
+    [EngineNodeType.phong]?: PhongNodeConstructor;
+    [EngineNodeType.physical]?: PhysicalNodeConstructor;
+    [EngineNodeType.toon]?: ToonNodeConstructor;
   };
 }
 

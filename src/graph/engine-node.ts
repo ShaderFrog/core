@@ -38,6 +38,7 @@ export const sourceNode = (
   name,
   groupId: undefined,
   type: NodeType.SOURCE,
+  engine: false,
   config,
   position,
   inputs: [],
@@ -65,6 +66,7 @@ export const outputNode = (
   position,
   groupId: undefined,
   type: NodeType.OUTPUT,
+  engine: false,
   config: {
     version: 3,
     mangle: false,
@@ -120,6 +122,7 @@ export const expressionNode = (
   name,
   position,
   type: NodeType.SOURCE,
+  engine: false,
   sourceType: SourceType.EXPRESSION,
   groupId: undefined,
   stage: undefined,
@@ -141,81 +144,12 @@ export const expressionNode = (
   source,
 });
 
-export const phongNode = (
-  id: string,
-  name: string,
-  groupId: string,
-  position: NodePosition,
-  stage: ShaderStage,
-  nextStageNodeId?: string
-): CodeNode =>
-  prepopulatePropertyInputs({
-    id,
-    name,
-    groupId,
-    position,
-    type: EngineNodeType.phong,
-    config: {
-      version: 3,
-      uniforms: [],
-      preprocess: true,
-      mangle: false,
-      properties: [
-        property('Color', 'color', 'rgb', 'uniform_diffuse'),
-        property('Emissive', 'emissive', 'rgb', 'uniform_emissive'),
-        property(
-          'Emissive Map',
-          'emissiveMap',
-          'texture',
-          'filler_emissiveMap'
-        ),
-        property(
-          'Emissive Intensity',
-          'emissiveIntensity',
-          'number',
-          'uniform_emissive'
-        ),
-        property('Texture', 'map', 'texture', 'filler_map'),
-        property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
-        property('Normal Scale', 'normalScale', 'vector2'),
-        property('Shininess', 'shininess', 'number'),
-        property('Reflectivity', 'reflectivity', 'number'),
-        property('Refraction Ratio', 'refractionRatio', 'number'),
-        property('Specular', 'specular', 'rgb', 'uniform_specular'),
-        property(
-          'Specular Map',
-          'specularMap',
-          'texture',
-          'filler_specularMap'
-        ),
-        property('Displacement Map', 'displacementMap', 'texture'),
-        property('Env Map', 'envMap', 'samplerCube'),
-      ],
-      strategies: [
-        uniformStrategy(),
-        stage === 'fragment'
-          ? texture2DStrategy()
-          : namedAttributeStrategy('position'),
-      ],
-    },
-    inputs: [],
-    outputs: [
-      {
-        name: 'vector4',
-        category: 'data',
-        id: '1',
-      },
-    ],
-    source: '',
-    stage,
-    nextStageNodeId,
-  });
-
 export const addNode = (id: string, position: NodePosition): BinaryNode => ({
   id,
   name: 'add',
   position,
   type: NodeType.BINARY,
+  engine: false,
   groupId: undefined,
   stage: undefined,
   config: {
@@ -246,6 +180,7 @@ export const multiplyNode = (
   id,
   name: 'multiply',
   type: NodeType.BINARY,
+  engine: false,
   groupId: undefined,
   stage: undefined,
   position,

@@ -37,6 +37,78 @@ import { NodeParser } from '../../graph/parsers';
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[35m(three)\x1b[0m', ...args);
 
+export const phongNode = (
+  id: string,
+  name: string,
+  groupId: string | null | undefined,
+  position: NodePosition,
+  uniforms: UniformDataType[],
+  stage: ShaderStage | undefined,
+  nextStageNodeId?: string
+): CodeNode =>
+  prepopulatePropertyInputs({
+    id,
+    name: 'MeshPhongMaterial',
+    groupId,
+    position,
+    engine: true,
+    type: EngineNodeType.phong,
+    config: {
+      version: 3,
+      uniforms,
+      preprocess: true,
+      mangle: false,
+      properties: [
+        property('Color', 'color', 'rgb', 'uniform_diffuse'),
+        property('Emissive', 'emissive', 'rgb', 'uniform_emissive'),
+        property(
+          'Emissive Map',
+          'emissiveMap',
+          'texture',
+          'filler_emissiveMap'
+        ),
+        property(
+          'Emissive Intensity',
+          'emissiveIntensity',
+          'number',
+          'uniform_emissive'
+        ),
+        property('Texture', 'map', 'texture', 'filler_map'),
+        property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
+        property('Normal Scale', 'normalScale', 'vector2'),
+        property('Shininess', 'shininess', 'number'),
+        property('Reflectivity', 'reflectivity', 'number'),
+        property('Refraction Ratio', 'refractionRatio', 'number'),
+        property('Specular', 'specular', 'rgb', 'uniform_specular'),
+        property(
+          'Specular Map',
+          'specularMap',
+          'texture',
+          'filler_specularMap'
+        ),
+        property('Displacement Map', 'displacementMap', 'texture'),
+        property('Env Map', 'envMap', 'samplerCube'),
+      ],
+      strategies: [
+        uniformStrategy(),
+        stage === 'fragment'
+          ? texture2DStrategy()
+          : namedAttributeStrategy('position'),
+      ],
+    },
+    inputs: [],
+    outputs: [
+      {
+        name: 'vector4',
+        category: 'data',
+        id: '1',
+      },
+    ],
+    source: '',
+    stage,
+    nextStageNodeId,
+  });
+
 export const physicalNode = (
   id: string,
   name: string,
@@ -48,9 +120,10 @@ export const physicalNode = (
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
-    name,
+    name: 'MeshPhysicalMaterial',
     groupId,
     position,
+    engine: true,
     type: EngineNodeType.physical,
     config: {
       uniforms,
@@ -377,9 +450,10 @@ export const toonNode = (
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
-    name,
+    name: 'MeshToonMaterial',
     groupId,
     position,
+    engine: true,
     type: EngineNodeType.toon,
     config: {
       uniforms,
@@ -422,6 +496,7 @@ export const toonNode = (
 
 export const threngine: Engine = {
   name: 'three',
+  displayName: 'Three.js',
   importers,
   mergeOptions: {
     includePrecisions: true,
@@ -429,6 +504,7 @@ export const threngine: Engine = {
   },
   evaluateNode,
   constructors: {
+    [EngineNodeType.phong]: phongNode,
     [EngineNodeType.physical]: physicalNode,
     [EngineNodeType.toon]: toonNode,
   },

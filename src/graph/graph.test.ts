@@ -53,6 +53,7 @@ const constructor: PhysicalNodeConstructor = () => ({
   },
   id: '1',
   name: '1',
+  engine: true,
   type: '',
   inputs: [],
   outputs: [],

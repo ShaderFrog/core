@@ -76,9 +76,10 @@ export const physicalNode = (
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
-    name,
+    name: 'PBRMaterial',
     groupId,
     position,
+    engine: true,
     type: EngineNodeType.physical,
     config: {
       uniforms,
@@ -162,6 +163,7 @@ export const toonNode = (
     name,
     groupId,
     position,
+    engine: true,
     type: EngineNodeType.toon,
     config: {
       uniforms,
@@ -520,6 +522,7 @@ const evaluateNode = (node: DataNode) => {
 
 export const babylengine: Engine = {
   name: 'babylon',
+  displayName: 'Babylon.js',
   importers,
   mergeOptions: {
     includePrecisions: true,
