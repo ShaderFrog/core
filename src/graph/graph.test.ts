@@ -65,6 +65,7 @@ const constructor: PhysicalNodeConstructor = () => ({
 
 const engine: Engine = {
   name: 'three',
+  displayName: 'Three.js',
   evaluateNode: (node) => {
     if (node.type === 'number') {
       return parseFloat(node.value);
