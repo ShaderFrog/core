@@ -10,7 +10,6 @@ import { Edge } from './graph/edge';
 import groupBy from 'lodash.groupby';
 import { NodeContext } from './graph/context';
 import { NodeParser } from './graph/parsers';
-import { type } from 'os';
 import { collectNodeProperties } from './graph/graph';
 import { evaluateNode } from './graph/evaluate';
 

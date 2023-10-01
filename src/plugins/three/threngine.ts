@@ -6,6 +6,11 @@ import {
   Vector4,
   Color,
   GLSL3,
+  Light,
+  Texture,
+  MeshPhongMaterial,
+  MeshPhysicalMaterial,
+  MeshToonMaterial,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
@@ -313,10 +318,10 @@ const programCacheKey = (
   // The megashader source is dependent on scene information, like the number
   // and type of lights in the scene. This kinda sucks - it's duplicating
   // three's material cache key, and is coupled to how three builds shaders
-  const { three, scene } = engineContext.runtime;
+  const { scene } = engineContext.runtime;
   const lights: string[] = [];
   scene.traverse((obj: any) => {
-    if (obj instanceof three.Light) {
+    if (obj instanceof Light) {
       lights.push(obj.type as string);
     }
   });
@@ -333,20 +338,19 @@ const programCacheKey = (
   );
 };
 
-export const defaultPropertySetting = (three: any, property: NodeProperty) => {
+export const defaultPropertySetting = (property: NodeProperty) => {
   if (property.type === 'texture') {
-    return new three.Texture();
+    return new Texture();
   } else if (property.type === 'number') {
     return 0.5;
   } else if (property.type === 'rgb') {
-    return new three.Color(1, 1, 1);
+    return new Color(1, 1, 1);
   } else if (property.type === 'rgba') {
-    return new three.Color(1, 1, 1, 1);
+    return new Vector4(1, 1, 1, 1);
   }
 };
 
 const threeMaterialProperties = (
-  three: any,
   graph: Graph,
   node: SourceNode,
   sibling?: SourceNode
@@ -372,7 +376,7 @@ const threeMaterialProperties = (
         ) as NodeProperty;
 
         // Initialize the property on the material
-        acc[property.property] = defaultPropertySetting(three, property);
+        acc[property.property] = defaultPropertySetting(property);
       }
       return acc;
     }, {});
@@ -382,7 +386,6 @@ export type ThreeRuntime = {
   scene: any;
   camera: any;
   renderer: any;
-  three: any;
   sceneData: any;
   engineMaterial: any;
   index: number;
@@ -599,13 +602,13 @@ export const threngine: Engine = {
     },
     [EngineNodeType.phong]: {
       onBeforeCompile: async (graph, engineContext, node, sibling) => {
-        const { three } = engineContext.runtime;
         cacher(engineContext, graph, node, sibling as SourceNode, () =>
           onBeforeCompileMegaShader(
             engineContext,
-            new three.MeshPhongMaterial({
+            new MeshPhongMaterial({
+              // @ts-ignore
               isMeshPhongMaterial: true,
-              ...threeMaterialProperties(three, graph, node, sibling),
+              ...threeMaterialProperties(graph, node, sibling),
             })
           )
         );
@@ -614,19 +617,15 @@ export const threngine: Engine = {
     },
     [EngineNodeType.physical]: {
       onBeforeCompile: async (graph, engineContext, node, sibling) => {
-        const { three } = engineContext.runtime;
-
         cacher(engineContext, graph, node, sibling as SourceNode, () =>
           onBeforeCompileMegaShader(
             engineContext,
-            new three.MeshPhysicalMaterial({
+            new MeshPhysicalMaterial({
               // These properties are copied onto the runtime RawShaderMaterial.
               // These exist on the MeshPhysicalMaterial but only in the
               // prototype. We have to hard code them for Object.keys() to work
               ...node.config.hardCodedProperties,
-              ...threeMaterialProperties(three, graph, node, sibling),
-              iridescence: 1.0,
-              iridescenceIOR: 2.0,
+              ...threeMaterialProperties(graph, node, sibling),
             })
           )
         );
@@ -635,15 +634,14 @@ export const threngine: Engine = {
     },
     [EngineNodeType.toon]: {
       onBeforeCompile: async (graph, engineContext, node, sibling) => {
-        const { three } = engineContext.runtime;
-
         cacher(engineContext, graph, node, sibling as SourceNode, () =>
           onBeforeCompileMegaShader(
             engineContext,
-            new three.MeshToonMaterial({
-              gradientMap: new three.Texture(),
+            new MeshToonMaterial({
+              gradientMap: new Texture(),
+              // @ts-ignore
               isMeshToonMaterial: true,
-              ...threeMaterialProperties(three, graph, node, sibling),
+              ...threeMaterialProperties(graph, node, sibling),
             })
           )
         );
