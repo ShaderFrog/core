@@ -663,6 +663,7 @@ export const createMaterial = (
     ...ShaderLib.toon.uniforms,
     ...ShaderLib.physical.uniforms,
     time: { value: 0 },
+    cameraPosition: { value: new Vector3(1.0) },
   };
 
   const initialProperties = {

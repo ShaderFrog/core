@@ -1,20 +1,6 @@
-import { EngineNodeType } from '../engine';
-import { prepopulatePropertyInputs } from './graph';
 import { NodeType, ShaderStage } from './graph-types';
-import {
-  assignemntToStrategy,
-  namedAttributeStrategy,
-  texture2DStrategy,
-  uniformStrategy,
-  variableStrategy,
-} from '../strategy';
-import {
-  BinaryNode,
-  CodeNode,
-  NodeConfig,
-  SourceType,
-  property,
-} from './code-nodes';
+import { assignemntToStrategy, variableStrategy } from '../strategy';
+import { BinaryNode, CodeNode, NodeConfig, SourceType } from './code-nodes';
 import { NodePosition } from './base-node';
 
 /**

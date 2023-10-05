@@ -163,7 +163,7 @@ export const physicalNode = (
         ),
         property('Bumpiness', 'bumpiness', 'number'),
         property('Specular', 'specular', 'rgb'),
-        property('Glosiness', 'gloss', 'number'),
+        property('Glossiness', 'gloss', 'number'),
         property('Opacity', 'opacity', 'number'),
         property('Opacity Map', 'opacityMap', 'texture'),
         property('Metalness', 'metalness', 'number'),
