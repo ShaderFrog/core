@@ -524,6 +524,7 @@ export const threngine: Engine = {
     'normal',
     'uv',
     'uv2',
+    'tangent',
     // Varyings
     'vUv',
     'vUv2',
