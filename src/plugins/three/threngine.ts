@@ -202,7 +202,7 @@ const cacher = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode,
+  sibling: SourceNode | undefined,
   newValue: (...args: any[]) => any
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
@@ -220,8 +220,12 @@ const cacher = (
   // TODO: We mutate the nodes here, can we avoid that later?
   node.source =
     node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  sibling.source =
-    sibling.stage === 'fragment' ? materialData.fragment : materialData.vertex;
+  if (sibling) {
+    sibling.source =
+      sibling.stage === 'fragment'
+        ? materialData.fragment
+        : materialData.vertex;
+  }
 };
 
 const onBeforeCompileMegaShader = (
@@ -313,7 +317,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode
+  sibling?: SourceNode
 ) => {
   // The megashader source is dependent on scene information, like the number
   // and type of lights in the scene. This kinda sucks - it's duplicating
@@ -327,7 +331,8 @@ const programCacheKey = (
   });
 
   return (
-    [node, sibling]
+    ([node, sibling] as SourceNode[])
+      .filter((n) => !!n)
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((n) => nodeCacheKey(graph, n))
       .join('-') +
@@ -603,7 +608,7 @@ export const threngine: Engine = {
     },
     [EngineNodeType.phong]: {
       onBeforeCompile: async (graph, engineContext, node, sibling) => {
-        cacher(engineContext, graph, node, sibling as SourceNode, () =>
+        cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
             engineContext,
             new MeshPhongMaterial({
@@ -618,7 +623,7 @@ export const threngine: Engine = {
     },
     [EngineNodeType.physical]: {
       onBeforeCompile: async (graph, engineContext, node, sibling) => {
-        cacher(engineContext, graph, node, sibling as SourceNode, () =>
+        cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
             engineContext,
             new MeshPhysicalMaterial({
@@ -635,7 +640,7 @@ export const threngine: Engine = {
     },
     [EngineNodeType.toon]: {
       onBeforeCompile: async (graph, engineContext, node, sibling) => {
-        cacher(engineContext, graph, node, sibling as SourceNode, () =>
+        cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
             engineContext,
             new MeshToonMaterial({

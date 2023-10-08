@@ -305,7 +305,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode
+  sibling?: SourceNode
 ) => {
   const app = engineContext.runtime.app as pc.Application;
   const lights = app.root
@@ -313,7 +313,8 @@ const programCacheKey = (
     .map((l) => (l as pc.LightComponent).type);
 
   return (
-    [node, sibling]
+    ([node, sibling] as SourceNode[])
+      .filter((n) => !!n)
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((n) => nodeCacheKey(graph, n))
       .join('-') +
@@ -328,7 +329,7 @@ const cacher = async (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode,
+  sibling: SourceNode | undefined,
   newValue: (...args: any[]) => Promise<any>
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
@@ -348,15 +349,19 @@ const cacher = async (
   // TODO: We mutate the nodes here, can we avoid that later?
   node.source =
     node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  sibling.source =
-    sibling.stage === 'fragment' ? materialData.fragment : materialData.vertex;
+  if (sibling) {
+    sibling.source =
+      sibling.stage === 'fragment'
+        ? materialData.fragment
+        : materialData.vertex;
+  }
 };
 
 const onBeforeCompileMegaShader = async (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode
+  sibling?: SourceNode
 ): Promise<{
   material: pc.Material;
   fragment: string;
@@ -371,7 +376,7 @@ const onBeforeCompileMegaShader = async (
 
   const newProperties = {
     ...(node.config.hardCodedProperties ||
-      sibling.config.hardCodedProperties ||
+      sibling?.config?.hardCodedProperties ||
       {}),
   };
   Object.assign(shaderMaterial, newProperties);
@@ -554,13 +559,8 @@ export const playengine: Engine = {
     },
     [EngineNodeType.physical]: {
       onBeforeCompile: (graph, engineContext, node, sibling) =>
-        cacher(engineContext, graph, node, sibling as SourceNode, () =>
-          onBeforeCompileMegaShader(
-            engineContext,
-            graph,
-            node,
-            sibling as SourceNode
-          )
+        cacher(engineContext, graph, node, sibling, () =>
+          onBeforeCompileMegaShader(engineContext, graph, node, sibling)
         ),
       manipulateAst: megaShaderMainpulateAst,
     },

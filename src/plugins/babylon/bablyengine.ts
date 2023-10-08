@@ -270,7 +270,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode
+  sibling?: SourceNode
 ) => {
   // The megashader source is dependent on scene information, like the number
   // and type of lights in the scene. This kinda sucks - it's duplicating
@@ -279,7 +279,8 @@ const programCacheKey = (
   const lights = scene.getNodes().filter((n) => n instanceof Light);
 
   return (
-    [node, sibling]
+    ([node, sibling] as SourceNode[])
+      .filter((n) => !!n)
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((n) => nodeCacheKey(graph, n))
       .join('-') +
@@ -294,7 +295,7 @@ const cacher = async (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode,
+  sibling: SourceNode | undefined,
   newValue: (...args: any[]) => Promise<any>
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
@@ -314,15 +315,19 @@ const cacher = async (
   // TODO: We mutate the nodes here, can we avoid that later?
   node.source =
     node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  sibling.source =
-    sibling.stage === 'fragment' ? materialData.fragment : materialData.vertex;
+  if (sibling) {
+    sibling.source =
+      sibling.stage === 'fragment'
+        ? materialData.fragment
+        : materialData.vertex;
+  }
 };
 
 const onBeforeCompileMegaShader = async (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling: SourceNode
+  sibling?: SourceNode
 ): Promise<{
   material: Material;
   fragment: string;
@@ -337,7 +342,7 @@ const onBeforeCompileMegaShader = async (
   shaderMaterial.subSurface.isRefractionEnabled = true;
   const newProperties = {
     ...(node.config.hardCodedProperties ||
-      sibling.config.hardCodedProperties ||
+      sibling?.config?.hardCodedProperties ||
       {}),
     ...babylonMaterialProperties(scene, graph, node, sibling),
   };
@@ -427,13 +432,13 @@ const onBeforeCompileMegaShader = async (
       if (node.stage === 'fragment') {
         node.source = fragmentSource;
       }
-      if (sibling.stage === 'fragment') {
+      if (sibling?.stage === 'fragment') {
         sibling.source = fragmentSource;
       }
       if (node.stage === 'vertex') {
         node.source = vertexSource;
       }
-      if (sibling.stage === 'vertex') {
+      if (sibling?.stage === 'vertex') {
         sibling.source = vertexSource;
       }
 
@@ -661,13 +666,8 @@ export const babylengine: Engine = {
     },
     [EngineNodeType.physical]: {
       onBeforeCompile: (graph, engineContext, node, sibling) =>
-        cacher(engineContext, graph, node, sibling as SourceNode, () =>
-          onBeforeCompileMegaShader(
-            engineContext,
-            graph,
-            node,
-            sibling as SourceNode
-          )
+        cacher(engineContext, graph, node, sibling, () =>
+          onBeforeCompileMegaShader(engineContext, graph, node, sibling)
         ),
       manipulateAst: megaShaderMainpulateAst,
     },
