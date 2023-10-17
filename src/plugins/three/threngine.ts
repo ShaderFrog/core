@@ -480,6 +480,7 @@ export const toonNode = (
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
         property('Displacement Map', 'displacementMap', 'texture'),
+        property('Displacement Scale', 'displacementScale', 'texture'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
       strategies: [
