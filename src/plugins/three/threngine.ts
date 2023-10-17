@@ -92,6 +92,7 @@ export const phongNode = (
           'filler_specularMap'
         ),
         property('Displacement Map', 'displacementMap', 'texture'),
+        property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
       strategies: [
@@ -149,6 +150,7 @@ export const physicalNode = (
           'filler_roughnessMap'
         ),
         property('Displacement Map', 'displacementMap', 'texture'),
+        property('Displacement Scale', 'displacementScale', 'number'),
         // MeshPhysicalMaterial gets envMap from the scene. MeshStandardMaterial
         // gets it from the material
         // property('Env Map', 'envMap', 'samplerCube'),
@@ -161,7 +163,9 @@ export const physicalNode = (
         ),
         property('Thickness', 'thickness', 'number'),
         property('Index of Refraction', 'ior', 'number'),
-        property('Sheen', 'sheen', 'number'),
+        // Sheen only works with directional lights?
+        // https://discourse.threejs.org/t/meshphysicalmaterial-s-sheen/31901/6
+        // property('Sheen', 'sheen', 'number'),
         property('Reflectivity', 'reflectivity', 'number'),
         property('Clearcoat', 'clearcoat', 'number'),
         property('Iridescence', 'iridescence', 'number'),
@@ -480,7 +484,7 @@ export const toonNode = (
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
         property('Displacement Map', 'displacementMap', 'texture'),
-        property('Displacement Scale', 'displacementScale', 'texture'),
+        property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
       strategies: [
