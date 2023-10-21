@@ -524,21 +524,20 @@ export const playengine: Engine = {
   },
   // TODO: Move into core based on engine shader scrape
   preserve: new Set<string>([
-    // Ugh I gotta stop doing this
-    'vPositionW',
+    'matrix_model',
+    'matrix_normal',
+    'matrix_viewProjection',
+    'time',
+    'vertex_color',
     'vertex_normal',
     'vertex_position',
+    'vertex_tangent',
+    'vertex_tangent',
     'vertex_texCoord0',
     'vertex_texCoord1',
-    'matrix_model',
-    'matrix_viewProjection',
-    'matrix_normal',
-    'normal',
-    'uv',
-    'uv2',
-    // varyings
+    'vNormalW',
+    'vPositionW',
     'vUv0',
-    'time',
   ]),
   parsers: {
     [NodeType.SOURCE]: {
