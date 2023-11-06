@@ -48,9 +48,9 @@ export const property = (
 });
 
 export enum SourceType {
+  SHADER_PROGRAM = 'Shader Program',
   EXPRESSION = 'Expression',
   FN_BODY_FRAGMENT = 'Function Body Fragment',
-  SHADER_FRAGMENT = 'Shader Fragment',
 }
 
 export interface CodeNode extends CoreNode {

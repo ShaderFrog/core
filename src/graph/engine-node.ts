@@ -24,6 +24,7 @@ export const sourceNode = (
   name,
   groupId: undefined,
   type: NodeType.SOURCE,
+  sourceType: SourceType.SHADER_PROGRAM,
   engine: false,
   config,
   position,
@@ -52,6 +53,7 @@ export const outputNode = (
   position,
   groupId: undefined,
   type: NodeType.OUTPUT,
+  sourceType: SourceType.SHADER_PROGRAM,
   engine: false,
   config: {
     version: 3,
