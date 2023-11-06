@@ -139,6 +139,7 @@ export const physicalNode = (
       properties: [
         property('Color', 'color', 'rgb', 'uniform_diffuse'),
         property('Texture', 'map', 'texture', 'filler_map'),
+        property('Opacity', 'opacity', 'number'),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
         property('Metalness', 'metalness', 'number', 'uniform_metalness'),
@@ -677,14 +678,13 @@ export const createMaterial = (
     cameraPosition: { value: new Vector3(1.0) },
   };
 
+  // Also the ThreeComponent's sceneConfig properties modify the material
   const initialProperties = {
     name: 'ShaderFrog Material',
     lights: true,
     uniforms: {
       ...finalUniforms,
     },
-    transparent: true,
-    opacity: 1.0,
     // See https://github.com/mrdoob/three.js/pull/26809
     glslVersion: GLSL3,
     vertexShader: compileResult?.vertexResult.replace('#version 300 es', ''),
