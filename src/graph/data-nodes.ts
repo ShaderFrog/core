@@ -1,4 +1,4 @@
-import { CoreNode, NodeInput, NodeOutput, NodePosition } from './base-node';
+import { BaseNode, NodeInput, NodeOutput, NodePosition } from './base-node';
 
 type ArrayType = 'array';
 type Vector = 'vector2' | 'vector3' | 'vector4';
@@ -26,7 +26,7 @@ export type GraphDataType =
   | 'number'
   | ArrayType;
 
-export interface NumberNode extends CoreNode {
+export interface NumberNode extends BaseNode {
   type: 'number';
   value: string;
   range?: [number, number];
@@ -54,6 +54,7 @@ export const numberNode = (
     {
       name: 'float',
       id: '1',
+      dataType: 'number',
       category: 'data',
     },
   ],
@@ -79,7 +80,7 @@ export const numberUniformData = (
   stepper,
 });
 
-export interface TextureNode extends CoreNode {
+export interface TextureNode extends BaseNode {
   type: 'texture';
   value: string;
 }
@@ -99,6 +100,7 @@ export const textureNode = (
     {
       name: 'texture',
       id: '1',
+      dataType: 'vector4',
       category: 'data',
     },
   ],
@@ -114,7 +116,7 @@ export const textureUniformData = (
   value: string
 ): TextureDataUniform => ({ type: 'texture', name, value });
 
-export interface SamplerCubeNode extends CoreNode {
+export interface SamplerCubeNode extends BaseNode {
   type: 'samplerCube';
   value: string;
 }
@@ -134,6 +136,7 @@ export const samplerCubeNode = (
     {
       name: 'samplerCube',
       id: '1',
+      dataType: 'vector4',
       category: 'data',
     },
   ],
@@ -151,7 +154,7 @@ export const samplerCubeUniformData = (
 
 export type ArrayValue = string[];
 
-export interface ArrayNode extends CoreNode {
+export interface ArrayNode extends BaseNode {
   type: 'array';
   dimensions: number;
   value: ArrayValue;
@@ -172,6 +175,7 @@ export function arrayNode(
       {
         name: 'array',
         id: '1',
+        dataType: 'array',
         category: 'data',
       },
     ],
@@ -185,17 +189,17 @@ export type Vector2 = [string, string];
 export type Vector3 = [string, string, string];
 export type Vector4 = [string, string, string, string];
 
-export interface Vector2Node extends CoreNode {
+export interface Vector2Node extends BaseNode {
   type: 'vector2';
   dimensions: 2;
   value: Vector2;
 }
-export interface Vector3Node extends CoreNode {
+export interface Vector3Node extends BaseNode {
   type: 'vector3';
   dimensions: 3;
   value: Vector3;
 }
-export interface Vector4Node extends CoreNode {
+export interface Vector4Node extends BaseNode {
   type: 'vector4';
   dimensions: 4;
   value: Vector4;
@@ -207,6 +211,8 @@ export function vectorNode(
   position: NodePosition,
   value: Vector2 | Vector3 | Vector4
 ): Vector2Node | Vector3Node | Vector4Node {
+  const dataType =
+    value.length === 2 ? 'vector2' : value.length === 3 ? 'vector3' : 'vector4';
   return {
     id,
     name,
@@ -217,8 +223,10 @@ export function vectorNode(
         name: `vector${value.length}`,
         id: '1',
         category: 'data',
+        dataType,
       },
     ],
+    // Have to specify dimensions and type together to avoid type errors!
     ...(value.length === 2
       ? { value, dimensions: 2, type: 'vector2' }
       : value.length === 3
@@ -267,12 +275,12 @@ export const vectorUniformData = (
     : { value, dimensions: 4, type: 'vector4' }),
 });
 
-export interface RgbNode extends CoreNode {
+export interface RgbNode extends BaseNode {
   type: 'rgb';
   dimensions: 3;
   value: Vector3;
 }
-export interface RgbaNode extends CoreNode {
+export interface RgbaNode extends BaseNode {
   type: 'rgba';
   dimensions: 4;
   value: Vector4;
@@ -284,6 +292,7 @@ export function colorNode(
   position: NodePosition,
   value: Vector3 | Vector4
 ): RgbNode | RgbaNode {
+  const dataType = value.length === 3 ? 'rgb' : 'rgba';
   return {
     id,
     name,
@@ -291,8 +300,9 @@ export function colorNode(
     inputs: [],
     outputs: [
       {
-        name: value.length === 3 ? 'rgb' : 'rgba',
+        name: dataType,
         id: '1',
+        dataType,
         category: 'data',
       },
     ],

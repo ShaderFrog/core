@@ -93,18 +93,40 @@ export const mangleMainFn = (ast: Program, node: SourceNode) => {
 };
 
 type Predicates = {
-  node?: (node: GraphNode, inputEdges: Edge[]) => boolean;
+  node?: (
+    node: GraphNode,
+    inputEdges: Edge[],
+    lastResult: SearchResult
+  ) => boolean;
+  edge?: (
+    input: NodeInput,
+    node: GraphNode,
+    inputEdge: Edge | undefined,
+    fromNode: GraphNode | undefined,
+    lastResult: SearchResult
+  ) => boolean;
   input?: (
     input: NodeInput,
     node: GraphNode,
     inputEdge: Edge | undefined,
-    fromNode: GraphNode | undefined
+    fromNode: GraphNode | undefined,
+    lastResult: SearchResult
   ) => boolean;
 };
 export type SearchResult = {
+  // Grouped by node id
   nodes: Record<string, GraphNode>;
+  // Grouped by node id since inputs are attached to a node
   inputs: Record<string, NodeInput[]>;
+  // Edges aren't grouped because consumers might need to look up by from/to,
+  // we don't know here
+  edges: Edge[];
 };
+const consSearchResult = (): SearchResult => ({
+  nodes: {},
+  inputs: {},
+  edges: [],
+});
 
 /**
  * Create the inputs on a node from the properties. This used to be done at
@@ -131,9 +153,7 @@ export const prepopulatePropertyInputs = (node: CodeNode): CodeNode => ({
 
 /**
  * Recursively filter the graph, starting from a specific node, looking for
- * nodes and edges that match predicates. This function returns the inputs for
- * matched edges, not the edges themselves, as a convenience for the only
- * consumer of this function, which is finding input names to use as uniforms.
+ * nodes and edges that match predicates.
  *
  * Inputs can only be filtered if the graph context has been computed, since
  * inputs aren't created until then.
@@ -142,55 +162,73 @@ export const filterGraphFromNode = (
   graph: Graph,
   node: GraphNode,
   predicates: Predicates,
-  depth = Infinity
+  depth = Infinity,
+  lastResult = consSearchResult()
 ): SearchResult => {
   const { inputs } = node;
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
   const nodeAcc = {
-    ...(predicates.node && predicates.node(node, inputEdges)
+    ...(predicates.node && predicates.node(node, inputEdges, lastResult)
       ? { [node.id]: node }
       : {}),
   };
+  const accumulatedResult = {
+    ...lastResult,
+    nodes: { ...lastResult.nodes, ...nodeAcc },
+  };
 
-  return inputEdges.reduce<SearchResult>(
-    (acc, inputEdge) => {
-      const input = inputs.find((i) => i.id === inputEdge.input);
-      const fromNode = inputEdge
-        ? ensure(graph.nodes.find(({ id }) => id === inputEdge.from))
-        : undefined;
+  return inputEdges.reduce<SearchResult>((acc, inputEdge) => {
+    // Find the input for the edge going to this node. The return below should
+    // be impossobile
+    const input = inputs.find((i) => i.id === inputEdge.input);
+    if (!input) {
+      return acc;
+    }
+    const fromNode = inputEdge
+      ? ensure(graph.nodes.find(({ id }) => id === inputEdge.from))
+      : undefined;
 
-      const inputAcc = {
-        ...acc.inputs,
-        ...(input &&
-        predicates.input &&
-        predicates.input(input, node, inputEdge, fromNode)
-          ? { [node.id]: [...(acc.inputs[node.id] || []), input] }
-          : {}),
-      };
+    const inputAcc = {
+      ...acc.inputs,
+      ...(predicates.input &&
+      predicates.input(input, node, inputEdge, fromNode, lastResult)
+        ? { [node.id]: [...(acc.inputs[node.id] || []), input] }
+        : {}),
+    };
+    const edgeAcc = [
+      ...acc.edges,
+      ...(predicates.edge &&
+      predicates.edge(input, node, inputEdge, fromNode, lastResult)
+        ? [inputEdge]
+        : []),
+    ];
 
-      if (inputEdge && fromNode && depth > 1) {
-        const result = filterGraphFromNode(
-          graph,
-          fromNode,
-          predicates,
-          depth - 1
-        );
-        return {
-          nodes: { ...acc.nodes, ...result.nodes },
-          inputs: { ...acc.inputs, ...inputAcc, ...result.inputs },
-        };
-      }
+    // Add in the latest result of edges and inputs so that when we recurse into
+    // the next node, it has the latest accumulator
+    const intermediateAcc = {
+      ...acc,
+      inputs: inputAcc,
+      edges: edgeAcc,
+    };
+
+    if (inputEdge && fromNode && depth > 1) {
+      const result = filterGraphFromNode(
+        graph,
+        fromNode,
+        predicates,
+        depth - 1,
+        intermediateAcc
+      );
       return {
-        ...acc,
-        inputs: {
-          ...acc.inputs,
-          ...inputAcc,
-        },
+        nodes: { ...intermediateAcc.nodes, ...result.nodes },
+        inputs: { ...intermediateAcc.inputs, ...result.inputs },
+        edges: [...intermediateAcc.edges, ...result.edges],
       };
-    },
-    { inputs: {}, nodes: nodeAcc }
-  );
+    } else {
+      return intermediateAcc;
+    }
+  }, accumulatedResult);
 };
 
 export const collectConnectedNodes = (graph: Graph, node: GraphNode): NodeIds =>
@@ -202,19 +240,14 @@ export const filterGraphNodes = (
   filter: Predicates,
   depth = Infinity
 ) =>
-  nodes.reduce<SearchResult>(
-    (acc, node) => {
-      const result = filterGraphFromNode(graph, node, filter, depth);
-      return {
-        nodes: { ...acc.nodes, ...result.nodes },
-        inputs: { ...acc.inputs, ...result.inputs },
-      };
-    },
-    {
-      nodes: {},
-      inputs: {},
-    }
-  );
+  nodes.reduce<SearchResult>((acc, node) => {
+    const result = filterGraphFromNode(graph, node, filter, depth);
+    return {
+      nodes: { ...acc.nodes, ...result.nodes },
+      inputs: { ...acc.inputs, ...result.inputs },
+      edges: { ...acc.edges, ...result.edges },
+    };
+  }, consSearchResult());
 
 type NodeIds = Record<string, GraphNode>;
 
@@ -544,6 +577,7 @@ export const collectNodeProperties = (graph: Graph): SearchResult => {
   return {
     nodes: { ...fragProperties.nodes, ...vertProperties.nodes },
     inputs: { ...fragProperties.inputs, ...vertProperties.inputs },
+    edges: { ...fragProperties.edges, ...vertProperties.edges },
   };
 };
 

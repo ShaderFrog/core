@@ -32,6 +32,7 @@ export const sourceNode = (
   outputs: [
     {
       name: 'vector4',
+      dataType: 'vector4',
       category: 'data',
       id: '1',
     },

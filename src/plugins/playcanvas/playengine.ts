@@ -197,6 +197,7 @@ export const physicalNode = (
     outputs: [
       {
         name: 'vector4',
+        dataType: 'vector4',
         category: 'data',
         id: '1',
       },
@@ -272,6 +273,7 @@ export const toonNode = (
     outputs: [
       {
         name: 'vector4',
+        dataType: 'vector4',
         category: 'data',
         id: '1',
       },

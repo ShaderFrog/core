@@ -1,7 +1,7 @@
 import { ShaderStage } from './graph-types';
 import { Strategy } from '../strategy';
 import { GraphDataType, UniformDataType } from './data-nodes';
-import { CoreNode, NodeInput } from './base-node';
+import { BaseNode, NodeInput } from './base-node';
 
 export const mapInputName = (
   node: CodeNode,
@@ -53,7 +53,7 @@ export enum SourceType {
   FN_BODY_FRAGMENT = 'Function Body Fragment',
 }
 
-export interface CodeNode extends CoreNode {
+export interface CodeNode extends BaseNode {
   config: NodeConfig;
   engine: boolean;
   source: string;

@@ -37,13 +37,18 @@ export const nodeInput = (
 export interface NodeOutput {
   name: string;
   id: string;
+  // Optional because not all outputs have known data types - like expressions
+  // and multiply nodes. Maybe in the future I can infer this - although there
+  // can be ambiguous/multi-type GLSL expressions
+  dataType?: GraphDataType;
   category: InputCategory;
 }
 
 export type NodePosition = { x: number; y: number };
 
-export interface CoreNode {
+export interface BaseNode {
   id: string;
+  parentId?: string;
   name: string;
   type: string;
   inputs: NodeInput[];
