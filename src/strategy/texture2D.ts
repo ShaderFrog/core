@@ -70,7 +70,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
           `filler_${iName}`,
           'filler',
           'vector4', // Data type for what plugs into this filler
-          new Set<InputCategory>(['code', 'data']),
+          ['code', 'data'],
           false
         ),
         (fillerAst) => {

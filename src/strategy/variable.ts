@@ -57,7 +57,7 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
               `filler_${identifier}`,
               'filler',
               undefined, // Data type for what plugs into this filler
-              new Set<InputCategory>(['code', 'data']),
+              ['code', 'data'],
               false
             ),
             replacer,

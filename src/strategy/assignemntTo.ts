@@ -35,7 +35,7 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
             `filler_${name}`,
             'filler',
             undefined, // Data type for what plugs into this filler
-            new Set<InputCategory>(['code', 'data']),
+            ['code', 'data'],
             false
           ),
           (fillerAst) => {

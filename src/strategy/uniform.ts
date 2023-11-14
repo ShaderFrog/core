@@ -168,7 +168,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           `uniform_${name}`,
           'uniform',
           graphDataType,
-          new Set<InputCategory>(['code', 'data']),
+          ['code', 'data'],
           true
         ),
         (filler) => {

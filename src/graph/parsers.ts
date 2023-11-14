@@ -208,7 +208,7 @@ export const coreParsers: CoreParser = {
             `filler_${MAGIC_OUTPUT_STMTS}`,
             'filler',
             'rgba',
-            new Set<InputCategory>(['code']),
+            ['code'],
             false
           ),
           (fillerAst) => {
@@ -251,7 +251,7 @@ export const coreParsers: CoreParser = {
               letter,
               'filler',
               undefined,
-              new Set<InputCategory>(['data', 'code']),
+              ['data', 'code'],
               false
             ),
             (fillerAst) => {
