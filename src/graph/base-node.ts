@@ -11,7 +11,7 @@ export interface NodeInput {
   id: string;
   type: InputType;
   dataType?: GraphDataType;
-  accepts: Set<InputCategory>;
+  accepts: InputCategory[];
   baked?: boolean;
   bakeable: boolean;
   property?: string;
@@ -21,7 +21,7 @@ export const nodeInput = (
   id: string,
   type: InputType,
   dataType: GraphDataType | undefined,
-  accepts: Set<InputCategory>,
+  accepts: InputCategory[],
   bakeable: boolean,
   property?: string
 ): NodeInput => ({
