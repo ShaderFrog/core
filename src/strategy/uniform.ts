@@ -1,4 +1,3 @@
-import { generate } from '@shaderfrog/glsl-parser';
 import {
   Program,
   DeclarationStatementNode,
@@ -6,7 +5,7 @@ import {
   DeclaratorListNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { mangleName } from '../graph/graph';
-import { InputCategory, nodeInput } from '../graph/base-node';
+import { nodeInput } from '../graph/base-node';
 import { GraphDataType } from '../graph/data-nodes';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { ComputedInput } from '../graph/parsers';

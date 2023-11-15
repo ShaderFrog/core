@@ -62,9 +62,9 @@ export const numberNode = (
   stepper: optionals?.stepper,
 });
 
-export type NumberDataUniform = Omit<
+export type NumberDataUniform = Pick<
   NumberNode,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'type' | 'value' | 'name' | 'range' | 'stepper'
 >;
 
 export const numberUniformData = (
@@ -106,10 +106,7 @@ export const textureNode = (
   ],
 });
 
-export type TextureDataUniform = Omit<
-  TextureNode,
-  'id' | 'inputs' | 'outputs' | 'position'
->;
+export type TextureDataUniform = Pick<TextureNode, 'type' | 'value' | 'name'>;
 
 export const textureUniformData = (
   name: string,
@@ -142,9 +139,9 @@ export const samplerCubeNode = (
   ],
 });
 
-export type SamplerCubeDataUniform = Omit<
+export type SamplerCubeDataUniform = Pick<
   SamplerCubeNode,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'type' | 'value' | 'name'
 >;
 
 export const samplerCubeUniformData = (
@@ -235,9 +232,9 @@ export function vectorNode(
   };
 }
 
-export type ArrayDataUniform = Omit<
+export type ArrayDataUniform = Pick<
   ArrayNode,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'type' | 'value' | 'name' | 'dimensions'
 >;
 
 export const arrayUniformData = (
@@ -250,17 +247,17 @@ export const arrayUniformData = (
   type: 'array',
 });
 
-export type Vector2DataUniform = Omit<
+export type Vector2DataUniform = Pick<
   Vector2Node,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'type' | 'value' | 'name' | 'dimensions'
 >;
-export type Vector3DataUniform = Omit<
+export type Vector3DataUniform = Pick<
   Vector3Node,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'type' | 'value' | 'name' | 'dimensions'
 >;
-export type Vector4DataUniform = Omit<
+export type Vector4DataUniform = Pick<
   Vector4Node,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'type' | 'value' | 'name' | 'dimensions'
 >;
 
 export const vectorUniformData = (
@@ -314,11 +311,11 @@ export function colorNode(
 
 export type RgbDataUniform = Omit<
   RgbNode,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'id' | 'inputs' | 'outputs' | 'position' | 'parentId'
 >;
 export type RgbaDataUniform = Omit<
   RgbaNode,
-  'id' | 'inputs' | 'outputs' | 'position'
+  'id' | 'inputs' | 'outputs' | 'position' | 'parentId'
 >;
 
 export const colorUniformData = (

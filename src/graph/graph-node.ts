@@ -3,13 +3,6 @@ import { assignemntToStrategy, variableStrategy } from '../strategy';
 import { BinaryNode, CodeNode, NodeConfig, SourceType } from './code-nodes';
 import { NodePosition } from './base-node';
 
-/**
- * TODO: These definitions should live outside of core since I'm trying to
- * refactor out this core folder to only know about nodes with config config,
- * where nodes like output/phong/physical are all configured at the
- * implementation level. "phong" shouldn't be in the core
- */
-
 export const sourceNode = (
   id: string,
   name: string,
@@ -22,7 +15,6 @@ export const sourceNode = (
 ): CodeNode => ({
   id,
   name,
-  groupId: undefined,
   type: NodeType.SOURCE,
   sourceType: SourceType.SHADER_PROGRAM,
   engine: false,
@@ -52,7 +44,6 @@ export const outputNode = (
   id,
   name,
   position,
-  groupId: undefined,
   type: NodeType.OUTPUT,
   sourceType: SourceType.SHADER_PROGRAM,
   engine: false,
@@ -113,7 +104,6 @@ export const expressionNode = (
   type: NodeType.SOURCE,
   engine: false,
   sourceType: SourceType.EXPRESSION,
-  groupId: undefined,
   stage: undefined,
   config: {
     uniforms: [],
@@ -139,7 +129,6 @@ export const addNode = (id: string, position: NodePosition): BinaryNode => ({
   position,
   type: NodeType.BINARY,
   engine: false,
-  groupId: undefined,
   stage: undefined,
   config: {
     mangle: false,
@@ -170,7 +159,6 @@ export const multiplyNode = (
   name: 'multiply',
   type: NodeType.BINARY,
   engine: false,
-  groupId: undefined,
   stage: undefined,
   position,
   config: {

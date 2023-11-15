@@ -4,7 +4,7 @@ import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
 import { Graph } from './graph-types';
-import { addNode } from './engine-node';
+import { addNode } from './graph-node';
 
 import {
   shaderSectionsToProgram,
