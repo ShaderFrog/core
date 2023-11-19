@@ -77,10 +77,10 @@ export const nodeName = (node: GraphNode): string =>
 export const mangleName = (
   name: string,
   node: GraphNode,
-  nextSibling: GraphNode
+  nextSibling?: GraphNode
 ) => {
   // Mangle names by using the next stage id, if present
-  const id = nextSibling.id || node.id;
+  const id = nextSibling?.id || node.id;
   return `${name}_${id}`;
 };
 
