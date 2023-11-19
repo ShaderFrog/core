@@ -15,6 +15,14 @@ import { SourceNode } from './code-nodes';
 
 export type ShaderStage = 'fragment' | 'vertex';
 
+export enum EdgeLink {
+  NEXT_STAGE = 'next_stage',
+}
+export enum LinkHandle {
+  NEXT_STAGE = 'next_stage',
+  PREVIOUS_STAGE = 'next_stage',
+}
+
 export enum NodeType {
   OUTPUT = 'output',
   BINARY = 'binary',

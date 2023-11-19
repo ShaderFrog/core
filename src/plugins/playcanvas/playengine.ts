@@ -125,16 +125,13 @@ const applyPlayMaterialProperties = (
 export const physicalNode = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
     name: 'StandardMaterial',
-    groupId,
     position,
     engine: true,
     type: EngineNodeType.physical,
@@ -204,7 +201,6 @@ export const physicalNode = (
     ],
     source: '',
     stage,
-    nextStageNodeId,
   });
 
 export type RuntimeContext = {
@@ -230,16 +226,13 @@ export type RuntimeContext = {
 export const toonNode = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
     name,
-    groupId,
     position,
     engine: true,
     type: EngineNodeType.toon,
@@ -280,7 +273,6 @@ export const toonNode = (
     ],
     source: '',
     stage,
-    nextStageNodeId,
   });
 
 export let mIdx = 0;
@@ -448,9 +440,10 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   engineContext,
   engine,
   graph,
-  node,
   ast,
-  inputEdges
+  inputEdges,
+  node,
+  sibling
 ) => {
   const programAst = ast as Program;
   const mainName = 'main' || nodeName(node);
@@ -465,7 +458,7 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
 
   // We specify engine nodes are mangle: false, which is the graph step that
   // handles renaming the main fn, so we have to do it ourselves
-  mangleMainFn(programAst, node);
+  mangleMainFn(programAst, node, sibling);
   return programAst;
 };
 
@@ -543,7 +536,15 @@ export const playengine: Engine = {
   ]),
   parsers: {
     [NodeType.SOURCE]: {
-      manipulateAst: (engineContext, engine, graph, node, ast, inputEdges) => {
+      manipulateAst: (
+        engineContext,
+        engine,
+        graph,
+        ast,
+        inputEdges,
+        node,
+        sibling
+      ) => {
         const programAst = ast as Program;
         const mainName = 'main' || nodeName(node);
 

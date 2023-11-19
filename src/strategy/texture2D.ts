@@ -18,9 +18,10 @@ export const texture2DStrategy = (): Texture2DStrategy => ({
 });
 
 export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
-  node,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) => {
   let texture2Dcalls: [string, AstNode, string, AstNode[]][] = [];
   const seen: { [key: string]: number } = {};

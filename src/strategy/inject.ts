@@ -66,9 +66,10 @@ const transferWhitespace = (to: AstNode, from: AstNode): [AstNode, AstNode] => {
 };
 
 export const applyInjectStrategy: ApplyStrategy<InjectStrategy> = (
-  graphNode,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) => {
   const program = (ast as Program).program;
   const { find, count, insert } = strategy.config;

@@ -60,7 +60,6 @@ const constructor: PhysicalNodeConstructor = () => ({
   position: { x: 0, y: 0 },
   source: '',
   stage: undefined,
-  groupId: null,
 });
 
 const engine: Engine = {

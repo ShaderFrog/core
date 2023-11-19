@@ -5,14 +5,17 @@ import { Engine, EngineContext } from '../engine';
 import { ShaderSections } from './shader-sections';
 import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
 import { NodeInput } from './base-node';
-import { Graph, GraphNode, NodeType } from './graph-types';
+import { EdgeLink, Graph, GraphNode, NodeType } from './graph-types';
 import {
   collectConnectedNodes,
   filterGraphFromNode,
+  findLinkedNode,
+  findLinkedVertexNodes,
   isSourceNode,
   mangleEntireProgram,
 } from './graph';
 import { InputFillers, coreParsers } from './parsers';
+import { Edge } from './edge';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a
@@ -61,14 +64,10 @@ const computeNodeContext = async (
     ...(coreParsers[node.type] || coreParsers[NodeType.SOURCE]),
     ...(engine.parsers[node.type] || {}),
   };
+  const sibling = findLinkedNode(graph, node.id);
 
   const { onBeforeCompile, manipulateAst } = parser;
   if (onBeforeCompile) {
-    const { groupId } = node as SourceNode;
-    const sibling = graph.nodes.find(
-      (n) =>
-        n !== node && 'groupId' in n && (n as SourceNode).groupId === groupId
-    );
     await onBeforeCompile(
       graph,
       engineContext,
@@ -83,7 +82,15 @@ const computeNodeContext = async (
   try {
     ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
     if (manipulateAst) {
-      ast = manipulateAst(engineContext, engine, graph, node, ast, inputEdges);
+      ast = manipulateAst(
+        engineContext,
+        engine,
+        graph,
+        ast,
+        inputEdges,
+        node,
+        sibling as SourceNode
+      );
     }
   } catch (error) {
     console.error('Error parsing source code!', { error, node });
@@ -111,9 +118,10 @@ const computeNodeContext = async (
   // and copy the input data onto the node, and the fillers onto the context
   const computedInputs = parser.findInputs(
     engineContext,
-    node,
     ast,
-    inputEdges
+    inputEdges,
+    node,
+    sibling as SourceNode
   );
 
   node.inputs = collapseNodeInputs(
@@ -152,7 +160,12 @@ const computeNodeContext = async (
     node.sourceType !== SourceType.EXPRESSION &&
     node.sourceType !== SourceType.FN_BODY_FRAGMENT
   ) {
-    mangleEntireProgram(ast as Program, node, engine);
+    mangleEntireProgram(
+      engine,
+      ast as Program,
+      node,
+      findLinkedNode(graph, node.id) as SourceNode
+    );
   }
 
   return nodeContext;
@@ -226,19 +239,14 @@ export const computeGraphContext = async (
 
   const vertexIds = collectConnectedNodes(graph, outputVert);
   const fragmentIds = collectConnectedNodes(graph, outputFrag);
-  const additionalIds = graph.nodes.filter(
-    (node) =>
-      isSourceNode(node) &&
-      node.stage === 'vertex' &&
-      node.nextStageNodeId &&
-      fragmentIds[node.nextStageNodeId] &&
-      !vertexIds[node.id]
-  );
+
+  // Find any unconnected vertex nodes linked to collected fragment nodes
+  const unlinkedNodes = findLinkedVertexNodes(graph, vertexIds);
 
   await computeContextForNodes(engineContext, engine, graph, [
     outputVert,
     ...Object.values(vertexIds).filter((node) => node.id !== outputVert.id),
-    ...additionalIds,
+    ...unlinkedNodes,
   ]);
   await computeContextForNodes(engineContext, engine, graph, [
     outputFrag,

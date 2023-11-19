@@ -14,9 +14,10 @@ export const variableStrategy = (): VariableStrategy => ({
 });
 
 export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
-  node,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) => {
   const program = ast as Program;
   return Object.values(

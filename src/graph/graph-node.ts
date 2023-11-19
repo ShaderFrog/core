@@ -10,8 +10,7 @@ export const sourceNode = (
   config: NodeConfig,
   source: string,
   stage: ShaderStage,
-  originalEngine?: string,
-  nextStageNodeId?: string
+  originalEngine?: string
 ): CodeNode => ({
   id,
   name,
@@ -32,7 +31,6 @@ export const sourceNode = (
   source,
   stage,
   originalEngine,
-  nextStageNodeId,
 });
 
 export const outputNode = (

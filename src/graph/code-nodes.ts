@@ -60,8 +60,6 @@ export interface CodeNode extends BaseNode {
   sourceType?: SourceType;
   stage?: ShaderStage;
   biStage?: boolean;
-  nextStageNodeId?: string;
-  prevStageNodeId?: string;
   originalEngine?: string;
 }
 

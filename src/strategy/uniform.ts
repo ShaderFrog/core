@@ -125,9 +125,10 @@ const mapUniformType = (type: string): GraphDataType | undefined => {
 };
 
 export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
-  graphNode,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) => {
   const program = ast as Program;
   return (program.program || []).flatMap<ComputedInput>((node) => {
@@ -171,7 +172,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           true
         ),
         (filler) => {
-          const mangledName = mangleName(name, graphNode);
+          const mangledName = mangleName(name, graphNode, siblingNode);
           // Remove the declaration line, or the declared uniform
           if (declarations.length === 1) {
             program.program.splice(program.program.indexOf(node), 1);

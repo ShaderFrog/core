@@ -1,7 +1,8 @@
-import { ShaderStage } from './graph-types';
+import { EdgeLink, LinkHandle, ShaderStage } from './graph-types';
 import { GraphDataType } from './data-nodes';
 
-export type EdgeType = ShaderStage | GraphDataType;
+export type EdgeType = ShaderStage | GraphDataType | EdgeLink;
+
 export type Edge = {
   id: string;
   from: string;
@@ -23,3 +24,17 @@ export const makeEdge = (
   input: string,
   type?: EdgeType
 ): Edge => ({ id, from, to, output, input, type });
+
+export const linkFromVertToFrag = (
+  id: string,
+  vertId: string,
+  fragId: string
+) =>
+  makeEdge(
+    id,
+    vertId,
+    fragId,
+    LinkHandle.NEXT_STAGE,
+    LinkHandle.PREVIOUS_STAGE,
+    EdgeLink.NEXT_STAGE
+  );

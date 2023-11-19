@@ -45,16 +45,13 @@ const log = (...args: any[]) =>
 export const phongNode = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
     name: 'MeshPhongMaterial',
-    groupId,
     position,
     engine: true,
     type: EngineNodeType.phong,
@@ -113,22 +110,18 @@ export const phongNode = (
     ],
     source: '',
     stage,
-    nextStageNodeId,
   });
 
 export const physicalNode = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
     name: 'MeshPhysicalMaterial',
-    groupId,
     position,
     engine: true,
     type: EngineNodeType.physical,
@@ -202,7 +195,6 @@ export const physicalNode = (
     ],
     source: '',
     stage,
-    nextStageNodeId,
   });
 
 const cacher = (
@@ -283,9 +275,10 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   engineContext,
   engine,
   graph,
-  node,
   ast,
-  inputEdges
+  inputEdges,
+  node,
+  sibling
 ) => {
   const programAst = ast as Program;
   const mainName = 'main' || nodeName(node);
@@ -299,7 +292,7 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
 
   // We specify engine nodes are mangle: false, which is the graph step that
   // handles renaming the main fn, so we have to do it ourselves
-  mangleMainFn(programAst, node);
+  mangleMainFn(programAst, node, sibling);
   return programAst;
 };
 
@@ -457,16 +450,13 @@ const evaluateNode = (node: DataNode) => {
 export const toonNode = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
     name: 'MeshToonMaterial',
-    groupId,
     position,
     engine: true,
     type: EngineNodeType.toon,
@@ -508,7 +498,6 @@ export const toonNode = (
     ],
     source: '',
     stage,
-    nextStageNodeId,
   });
 
 export const threngine: Engine = {
@@ -600,7 +589,15 @@ export const threngine: Engine = {
   ]),
   parsers: {
     [NodeType.SOURCE]: {
-      manipulateAst: (engineContext, engine, graph, node, ast, inputEdges) => {
+      manipulateAst: (
+        engineContext,
+        engine,
+        graph,
+        ast,
+        inputEdges,
+        node,
+        sibling
+      ) => {
         const programAst = ast as Program;
         const mainName = 'main' || nodeName(node);
 

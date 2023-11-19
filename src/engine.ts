@@ -29,31 +29,25 @@ export enum EngineNodeType {
 export type PhongNodeConstructor = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ) => CodeNode;
 
 export type PhysicalNodeConstructor = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ) => CodeNode;
 
 export type ToonNodeConstructor = (
   id: string,
   name: string,
-  groupId: string | null | undefined,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
-  nextStageNodeId?: string
+  stage: ShaderStage | undefined
 ) => CodeNode;
 
 export interface Engine {
@@ -166,11 +160,9 @@ export const convertToEngine = (
           (newEngine.constructors[source.type] as PhysicalNodeConstructor)(
             source.id,
             source.name,
-            source.groupId,
             source.position,
             source.config.uniforms,
-            source.stage,
-            source.nextStageNodeId
+            source.stage
           );
         // Bail if no conversion
       } else {

@@ -20,9 +20,10 @@ export const assignemntToStrategy = (
 
 // Apply the strategy
 export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
-  node,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) => {
   const assignNode = findAssignmentTo(ast, strategy.config.assignTo);
 

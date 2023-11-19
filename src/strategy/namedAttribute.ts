@@ -18,7 +18,7 @@ export interface NamedAttributeStrategy extends BaseStrategy {
 
 export const applyNamedAttributeStrategy: ApplyStrategy<
   NamedAttributeStrategy
-> = (node, ast, strategy) => {
+> = (strategy, ast, graphNode, siblingNode) => {
   const program = ast as Program;
   const { attributeName } = strategy.config;
   return [

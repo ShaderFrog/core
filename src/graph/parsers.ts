@@ -69,9 +69,10 @@ export type ManipulateAst = (
   engineContext: EngineContext,
   engine: Engine,
   graph: Graph,
-  node: SourceNode,
   ast: AstNode | Program,
-  inputEdges: Edge[]
+  inputEdges: Edge[],
+  node: SourceNode,
+  sibling: SourceNode
 ) => AstNode | Program;
 
 export type NodeParser = {
@@ -92,9 +93,10 @@ export type NodeParser = {
 
 export type FindInputs = (
   engineContext: EngineContext,
-  node: SourceNode,
   ast: Program | AstNode,
-  inputEdges: Edge[]
+  inputEdges: Edge[],
+  node: SourceNode,
+  sibling: SourceNode
 ) => ComputedInput[];
 
 export type ProduceNodeFiller = (
@@ -171,10 +173,10 @@ export const coreParsers: CoreParser = {
 
       return ast;
     },
-    findInputs: (engineContext, node, ast) => {
+    findInputs: (engineContext, ast, edges, node, sibling) => {
       let seen = new Set<string>();
       return node.config.strategies
-        .flatMap((strategy) => applyStrategy(strategy, node, ast))
+        .flatMap((strategy) => applyStrategy(strategy, ast, node, sibling))
         .filter(([input, _]) => {
           if (!seen.has(input.id)) {
             seen.add(input.id);
@@ -197,10 +199,10 @@ export const coreParsers: CoreParser = {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {
       return parser.parse(node.source);
     },
-    findInputs: (engineContext, node, ast) => {
+    findInputs: (engineContext, ast, edges, node, sibling) => {
       return [
         ...node.config.strategies.flatMap((strategy) =>
-          applyStrategy(strategy, node, ast)
+          applyStrategy(strategy, ast, node, sibling)
         ),
         [
           nodeInput(
@@ -240,7 +242,7 @@ export const coreParsers: CoreParser = {
           ')'
       );
     },
-    findInputs: (engineContext, node, ast, inputEdges) => {
+    findInputs: (engineContext, ast, inputEdges, node, sibling) => {
       return new Array(Math.max(inputEdges.length + 1, 2))
         .fill(0)
         .map((_, index) => {

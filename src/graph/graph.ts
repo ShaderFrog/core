@@ -25,7 +25,13 @@ import { InputCategory, nodeInput, NodeInput } from './base-node';
 import { makeId } from '../util/id';
 import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
-import { Graph, GraphNode, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
+import {
+  EdgeLink,
+  Graph,
+  GraphNode,
+  MAGIC_OUTPUT_STMTS,
+  NodeType,
+} from './graph-types';
 import { generate } from '@shaderfrog/glsl-parser';
 
 const log = (...args: any[]) =>
@@ -66,29 +72,77 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
 export const nodeName = (node: GraphNode): string =>
   'main_' + node.name.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
 
-export const mangleName = (name: string, node: GraphNode) => {
+export const mangleName = (
+  name: string,
+  node: GraphNode,
+  nextSibling: GraphNode
+) => {
   // Mangle names by using the next stage id, if present
-  const id = ('nextStageNodeId' in node && node.nextStageNodeId) || node.id;
+  const id = nextSibling.id || node.id;
   return `${name}_${id}`;
 };
 
-export const mangleVar = (name: string, engine: Engine, node: GraphNode) =>
-  engine.preserve.has(name) ? name : mangleName(name, node);
+export const mangleVar = (
+  name: string,
+  engine: Engine,
+  node: GraphNode,
+  sibling: GraphNode
+) => (engine.preserve.has(name) ? name : mangleName(name, node, sibling));
 
 export const mangleEntireProgram = (
+  engine: Engine,
   ast: Program,
-  node: SourceNode,
-  engine: Engine
+  node: GraphNode,
+  sibling: GraphNode
 ) => {
   renameBindings(ast.scopes[0], (name, n) =>
-    (n as any).doNotDescope ? name : mangleVar(name, engine, node)
+    (n as any).doNotDescope ? name : mangleVar(name, engine, node, sibling)
   );
-  mangleMainFn(ast, node);
+  mangleMainFn(ast, node, sibling);
 };
 
-export const mangleMainFn = (ast: Program, node: SourceNode) => {
+export const mangleMainFn = (
+  ast: Program,
+  node: GraphNode,
+  sibling: GraphNode
+) => {
   renameFunctions(ast.scopes[0], (name) =>
-    name === 'main' ? nodeName(node) : mangleName(name, node)
+    name === 'main' ? nodeName(node) : mangleName(name, node, sibling)
+  );
+};
+
+export const findLinkedNode = (graph: Graph, id: string) => {
+  const edgeLink = graph.edges.find(
+    (e) => e.type === EdgeLink.NEXT_STAGE && (e.from === id || e.to === id)
+  );
+  const otherId = edgeLink?.from === id ? edgeLink?.to : edgeLink?.from;
+  return graph.nodes.find((node) => node.id === otherId);
+};
+
+/**
+ * Find any unconnected vertex nodes linked to collected fragment nodes
+ */
+export const findLinkedVertexNodes = (
+  graph: Graph,
+  existingIds: NodeIds = {}
+) => {
+  // Group edges by where they point
+  const edgeLinks = graph.edges
+    .filter((e) => e.type === EdgeLink.NEXT_STAGE)
+    .reduce<Record<string, Edge>>(
+      (edges, edge) => ({ ...edges, [edge.to]: edge, [edge.from]: edge }),
+      {}
+    );
+
+  return graph.nodes.filter(
+    (node) =>
+      // If this is a vertex node
+      isSourceNode(node) &&
+      node.stage === 'vertex' &&
+      // That's linked
+      node.id in edgeLinks &&
+      // And not already captured (this should probably just be a set)
+      !existingIds[node.id]
   );
 };
 
@@ -498,14 +552,7 @@ export const compileGraph = (
   // given edges in the graph. Build invisible edges from these vertex nodes to
   // the hidden "mainStmts" input on the output node, which inlines the function
   // calls to those vertex main() statements and includes them in the output
-  const orphanNodes = graph.nodes.filter(
-    (node) =>
-      isSourceNode(node) &&
-      node.stage === 'vertex' &&
-      node.nextStageNodeId &&
-      fragmentIds[node.nextStageNodeId] &&
-      !vertexIds[node.id]
-  );
+  const orphanNodes = findLinkedVertexNodes(graph, vertexIds);
 
   const orphanEdges: Edge[] = orphanNodes.map((node) => ({
     id: makeId(),

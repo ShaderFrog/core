@@ -17,9 +17,10 @@ export interface DeclarationOfStrategy extends BaseStrategy {
 }
 
 export const constApplyDeclarationOf: ApplyStrategy<DeclarationOfStrategy> = (
-  node,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) => {
   const declaration = findDeclarationOf(ast, strategy.config.declarationOf);
   const name = strategy.config.declarationOf;

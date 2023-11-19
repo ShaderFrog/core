@@ -17,9 +17,10 @@ export const hardCodeStrategy = (inputs: NodeInput[]): HardCodeStrategy => ({
 });
 
 export const applyHardCodeStrategy: ApplyStrategy<HardCodeStrategy> = (
-  graphNode,
+  strategy,
   ast,
-  strategy
+  graphNode,
+  siblingNode
 ) =>
   strategy.config.inputs.map((input) => {
     // Broken out into two lines to enforce type checking on the array.
