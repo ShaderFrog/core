@@ -35,8 +35,9 @@ void main() {
         attributeName: 'replaceThisAtrribute',
       },
     },
+    ast,
     { source } as SourceNode,
-    ast
+    {} as SourceNode
   );
 
   expect(fillers.length).toBe(1);
@@ -77,8 +78,9 @@ re(x, y, z);
         count: Infinity,
       },
     },
+    ast,
     { source } as SourceNode,
-    ast
+    {} as SourceNode
   );
 
   expect(fillers.length).toBe(1);
@@ -128,8 +130,9 @@ re(x, y, z);
         count: Infinity,
       },
     },
+    ast,
     { source } as SourceNode,
-    ast
+    {} as SourceNode
   );
 
   expect(fillers.length).toBe(1);
@@ -178,8 +181,9 @@ void main() {
   );
   const fillers = applyStrategy(
     { type: StrategyType.UNIFORM, config: {} },
+    ast,
     {} as SourceNode,
-    ast
+    {} as SourceNode
   );
 
   // It should find uniforms with simple types, excluding sampler2D
@@ -229,8 +233,9 @@ void main() {
   expect(
     applyStrategy(
       { type: StrategyType.TEXTURE_2D, config: {} },
+      ast,
       {} as SourceNode,
-      ast
+      {} as SourceNode
     ).map(([{ displayName: name }]) => name)
   ).toEqual(['noiseImage']);
 });
@@ -247,8 +252,9 @@ void main() {
   expect(
     applyStrategy(
       { type: StrategyType.TEXTURE_2D, config: {} },
+      ast,
       {} as SourceNode,
-      ast
+      {} as SourceNode
     ).map(([{ displayName: name }]) => name)
   ).toEqual(['noiseImage_0', 'noiseImage_1']);
 });
@@ -273,8 +279,9 @@ void getNormal() {
   expect(
     applyStrategy(
       { type: StrategyType.TEXTURE_2D, config: {} },
+      ast,
       {} as SourceNode,
-      ast
+      {} as SourceNode
     ).map(([{ displayName: name }]) => name)
   ).toEqual(['normalMapx']);
 });
