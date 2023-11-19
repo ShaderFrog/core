@@ -34,7 +34,7 @@ export const linkFromVertToFrag = (
     id,
     vertId,
     fragId,
-    LinkHandle.NEXT_STAGE,
-    LinkHandle.PREVIOUS_STAGE,
+    LinkHandle.NEXT_STAGE, // output from next_stage
+    LinkHandle.PREVIOUS_STAGE, // input to previous_stage
     EdgeLink.NEXT_STAGE
   );

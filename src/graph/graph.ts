@@ -21,7 +21,7 @@ import { ensure } from '../util/ensure';
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
 import { CodeNode, SourceNode, SourceType } from './code-nodes';
-import { InputCategory, nodeInput, NodeInput } from './base-node';
+import { nodeInput, NodeInput } from './base-node';
 import { makeId } from '../util/id';
 import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
@@ -47,7 +47,9 @@ export const findNode = (graph: Graph, id: string): GraphNode =>
   ensure(graph.nodes.find((node) => node.id === id));
 
 export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
-  const edges = graph.edges.filter((edge) => edge.from === node.id);
+  const edges = graph.edges.filter(
+    (edge) => edge.type !== EdgeLink.NEXT_STAGE && edge.from === node.id
+  );
   if (edges.length === 0) {
     return false;
   }
@@ -363,6 +365,7 @@ export const compileNode = (
   if (inputEdges.length) {
     let continuation = emptyShaderSections();
     inputEdges
+      .filter((edge) => edge.type !== EdgeLink.NEXT_STAGE)
       .map((edge) => ({
         edge,
         fromNode: ensure(

@@ -312,7 +312,6 @@ export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
     visit(assign, {
       function_call: {
         enter: (path) => {
-          log('returnGlPositionVec3Right', path.node);
           const { node } = path;
           if (
             ((node?.identifier as TypeSpecifierNode)?.specifier as KeywordNode)

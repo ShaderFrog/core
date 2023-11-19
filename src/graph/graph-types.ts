@@ -15,12 +15,19 @@ import { SourceNode } from './code-nodes';
 
 export type ShaderStage = 'fragment' | 'vertex';
 
+/**
+ * The type applied to the edge representing a link between node stages
+ */
 export enum EdgeLink {
   NEXT_STAGE = 'next_stage',
 }
+
+/**
+ * The handle types for links. These become <Handle /> ids
+ */
 export enum LinkHandle {
   NEXT_STAGE = 'next_stage',
-  PREVIOUS_STAGE = 'next_stage',
+  PREVIOUS_STAGE = 'previous_stage',
 }
 
 export enum NodeType {
