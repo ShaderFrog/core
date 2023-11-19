@@ -79,8 +79,12 @@ export const mangleName = (
   node: GraphNode,
   nextSibling?: GraphNode
 ) => {
-  // Mangle names by using the next stage id, if present
-  const id = nextSibling?.id || node.id;
+  // Mangle a name to its next stage node, so the vertex suffix becomes the
+  // fragment id, but not the other way around.
+  const id =
+    (nextSibling as SourceNode)?.stage === 'fragment'
+      ? nextSibling?.id
+      : node.id;
   return `${name}_${id}`;
 };
 
@@ -88,14 +92,14 @@ export const mangleVar = (
   name: string,
   engine: Engine,
   node: GraphNode,
-  sibling: GraphNode
+  sibling?: GraphNode
 ) => (engine.preserve.has(name) ? name : mangleName(name, node, sibling));
 
 export const mangleEntireProgram = (
   engine: Engine,
   ast: Program,
   node: GraphNode,
-  sibling: GraphNode
+  sibling?: GraphNode
 ) => {
   renameBindings(ast.scopes[0], (name, n) =>
     (n as any).doNotDescope ? name : mangleVar(name, engine, node, sibling)
@@ -106,7 +110,7 @@ export const mangleEntireProgram = (
 export const mangleMainFn = (
   ast: Program,
   node: GraphNode,
-  sibling: GraphNode
+  sibling?: GraphNode
 ) => {
   renameFunctions(ast.scopes[0], (name) =>
     name === 'main' ? nodeName(node) : mangleName(name, node, sibling)

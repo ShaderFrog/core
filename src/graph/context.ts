@@ -2,10 +2,9 @@ import groupBy from 'lodash.groupby';
 
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
-import { ShaderSections } from './shader-sections';
 import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
 import { NodeInput } from './base-node';
-import { EdgeLink, Graph, GraphNode, NodeType } from './graph-types';
+import { Graph, GraphNode, NodeType } from './graph-types';
 import {
   collectConnectedNodes,
   filterGraphFromNode,
@@ -15,7 +14,6 @@ import {
   mangleEntireProgram,
 } from './graph';
 import { InputFillers, coreParsers } from './parsers';
-import { Edge } from './edge';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a
@@ -164,7 +162,7 @@ const computeNodeContext = async (
       engine,
       ast as Program,
       node,
-      findLinkedNode(graph, node.id) as SourceNode
+      findLinkedNode(graph, node.id)
     );
   }
 
