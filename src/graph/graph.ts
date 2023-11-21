@@ -159,7 +159,7 @@ type Predicates = {
     lastResult: SearchResult
   ) => boolean;
   edge?: (
-    input: NodeInput,
+    input: NodeInput | undefined,
     node: GraphNode,
     inputEdge: Edge | undefined,
     fromNode: GraphNode | undefined,
@@ -239,19 +239,16 @@ export const filterGraphFromNode = (
   };
 
   return inputEdges.reduce<SearchResult>((acc, inputEdge) => {
-    // Find the input for the edge going to this node. The return below should
-    // be impossobile
     const input = inputs.find((i) => i.id === inputEdge.input);
-    if (!input) {
-      return acc;
-    }
+
     const fromNode = inputEdge
       ? ensure(graph.nodes.find(({ id }) => id === inputEdge.from))
       : undefined;
 
     const inputAcc = {
       ...acc.inputs,
-      ...(predicates.input &&
+      ...(input &&
+      predicates.input &&
       predicates.input(input, node, inputEdge, fromNode, lastResult)
         ? { [node.id]: [...(acc.inputs[node.id] || []), input] }
         : {}),
