@@ -379,9 +379,11 @@ export const compileNode = (
         ),
         input: ensure(
           inputs.find(({ id }) => id == edge.input),
-          `GraphNode "${node.name}" has no input ${
-            edge.input
-          }!\nAvailable:${inputs.map(({ id }) => id).join(', ')}`
+          `GraphNode "${node.name}"${
+            (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
+          } has no input ${edge.input}!\nAvailable:${inputs
+            .map(({ id }) => id)
+            .join(', ')}`
         ),
       }))
       .filter(({ input }) => !isDataInput(input))
@@ -425,7 +427,13 @@ export const compileNode = (
               fillerName,
             });
             throw new Error(
-              `Node "${node.name}" has no filler for input "${input.displayName}" named ${fillerName}`
+              `Node "${node.name}"${
+                (node as SourceNode).stage
+                  ? ` (${(node as SourceNode).stage})`
+                  : ''
+              } has no filler for input "${
+                input.displayName
+              }" named ${fillerName}`
             );
           }
 
