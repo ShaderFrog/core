@@ -152,7 +152,7 @@ export const findLinkedVertexNodes = (
   );
 };
 
-type Predicates = {
+export type Predicates = {
   node?: (
     node: GraphNode,
     inputEdges: Edge[],
@@ -182,10 +182,18 @@ export type SearchResult = {
   // we don't know here
   edges: Edge[];
 };
-const consSearchResult = (): SearchResult => ({
+export const consSearchResult = (): SearchResult => ({
   nodes: {},
   inputs: {},
   edges: [],
+});
+export const mergeSearchResults = (
+  a: SearchResult,
+  b: SearchResult
+): SearchResult => ({
+  nodes: { ...a.nodes, ...b.nodes },
+  inputs: { ...a.inputs, ...b.inputs },
+  edges: [...a.edges, ...b.edges],
 });
 
 /**
@@ -277,11 +285,7 @@ export const filterGraphFromNode = (
         depth - 1,
         intermediateAcc
       );
-      return {
-        nodes: { ...intermediateAcc.nodes, ...result.nodes },
-        inputs: { ...intermediateAcc.inputs, ...result.inputs },
-        edges: [...intermediateAcc.edges, ...result.edges],
-      };
+      return mergeSearchResults(intermediateAcc, result);
     } else {
       return intermediateAcc;
     }
