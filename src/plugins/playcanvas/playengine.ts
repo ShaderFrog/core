@@ -521,6 +521,7 @@ export const playengine: Engine = {
   preserve: new Set<string>([
     'matrix_model',
     'matrix_normal',
+    'matrix_view',
     'matrix_viewProjection',
     'time',
     'vertex_color',
