@@ -117,6 +117,27 @@ export const mangleMainFn = (
   );
 };
 
+export const resetGraphIds = (graph: Graph): Graph => {
+  const idMap: Record<string, string> = {};
+  const map = (id: string) => {
+    idMap[id] = idMap[id] || makeId();
+    return idMap[id];
+  };
+  return {
+    nodes: graph.nodes.map((n) => ({
+      ...n,
+      id: map(n.id),
+      ...(n.parentId ? { parentId: map(n.parentId) } : {}),
+    })),
+    edges: graph.edges.map((e) => ({
+      ...e,
+      id: map(e.id),
+      from: map(e.from),
+      to: map(e.to),
+    })),
+  };
+};
+
 export const findLinkedNode = (graph: Graph, id: string) => {
   const edgeLink = graph.edges.find(
     (e) => e.type === EdgeLink.NEXT_STAGE && (e.from === id || e.to === id)
