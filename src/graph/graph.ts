@@ -117,6 +117,12 @@ export const mangleMainFn = (
   );
 };
 
+export const ensureFromNode = (graph: Graph, inputEdge: Edge) =>
+  ensure(
+    graph.nodes.find(({ id }) => id === inputEdge.from),
+    `Orphaned edge! There is an edge fro "${inputEdge.from}" to "${inputEdge.to}", but from node ${inputEdge.from} does not exist in the graph.`
+  );
+
 export const resetGraphIds = (graph: Graph): Graph => {
   const idMap: Record<string, string> = {};
   const map = (id: string) => {
@@ -270,9 +276,7 @@ export const filterGraphFromNode = (
   return inputEdges.reduce<SearchResult>((acc, inputEdge) => {
     const input = inputs.find((i) => i.id === inputEdge.input);
 
-    const fromNode = inputEdge
-      ? ensure(graph.nodes.find(({ id }) => id === inputEdge.from))
-      : undefined;
+    const fromNode = inputEdge ? ensureFromNode(graph, inputEdge) : undefined;
 
     const inputAcc = {
       ...acc.inputs,
