@@ -51,7 +51,7 @@ export type ToonNodeConstructor = (
 ) => CodeNode;
 
 export interface Engine {
-  name: string;
+  name: 'three' | 'babylon' | 'playcanvas';
   displayName: string;
   preserve: Set<string>;
   mergeOptions: MergeOptions;
