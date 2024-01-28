@@ -1,5 +1,7 @@
 import groupBy from 'lodash.groupby';
 
+import type { GlslSyntaxError } from '@shaderfrog/glsl-parser';
+
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
@@ -32,12 +34,22 @@ export type NodeContext = {
   errors?: NodeErrors;
 };
 
-type NodeErrors = { type: 'errors'; errors: any[] };
-const makeError = (...errors: any[]): NodeErrors => ({
+export type NodeErrors = {
+  type: 'errors';
+  nodeId: string;
+  errors: (GlslSyntaxError | string)[];
+};
+const makeError = (
+  nodeId: string,
+  ...errors: (GlslSyntaxError | string)[]
+): NodeErrors => ({
   type: 'errors',
+  nodeId,
   errors,
 });
-const isError = (test: any): test is NodeErrors => test?.type === 'errors';
+
+export const isError = (test: any): test is NodeErrors =>
+  test?.type === 'errors';
 
 // Merge existing node inputs, and inputs based on properties, with new ones
 // found from the source code, using the *id* as the uniqueness key. Any filler input gets
@@ -92,7 +104,7 @@ const computeNodeContext = async (
     }
   } catch (error) {
     console.error('Error parsing source code!', { error, node });
-    return makeError(error);
+    return makeError(node.id, error as GlslSyntaxError);
   }
 
   // Find all the inputs of this node where a "source" code node flows into it,
@@ -184,19 +196,19 @@ export const computeContextForNodes = async (
           return context;
         }
 
-        let nodeContext = await computeNodeContext(
+        let nodeContextOrError = await computeNodeContext(
           engineContext,
           engine,
           graph,
           node
         );
-        if (isError(nodeContext)) {
-          return makeError(nodeContext);
+        if (isError(nodeContextOrError)) {
+          return nodeContextOrError;
         }
 
         context[node.id] = {
           ...(context[node.id] || {}),
-          ...nodeContext,
+          ...nodeContextOrError,
         };
         return context;
       },
@@ -207,11 +219,21 @@ export const computeContextForNodes = async (
  * Compute the context for every node in the graph, done on initial graph load
  * to compute the inputs/outputs for every node
  */
-export const computeAllContexts = (
+export const computeAllContexts = async (
   engineContext: EngineContext,
   engine: Engine,
   graph: Graph
-) => computeContextForNodes(engineContext, engine, graph, graph.nodes);
+) => {
+  const result = await computeContextForNodes(
+    engineContext,
+    engine,
+    graph,
+    graph.nodes
+  );
+  if (isError(result)) {
+    return result;
+  }
+};
 
 /**
  * Compute the contexts for nodes starting from the outputs, working backwards.
@@ -241,13 +263,29 @@ export const computeGraphContext = async (
   // Find any unconnected vertex nodes linked to collected fragment nodes
   const unlinkedNodes = findLinkedVertexNodes(graph, vertexIds);
 
-  await computeContextForNodes(engineContext, engine, graph, [
-    outputVert,
-    ...Object.values(vertexIds).filter((node) => node.id !== outputVert.id),
-    ...unlinkedNodes,
-  ]);
-  await computeContextForNodes(engineContext, engine, graph, [
-    outputFrag,
-    ...Object.values(fragmentIds).filter((node) => node.id !== outputFrag.id),
-  ]);
+  const vertNodesOrError = await computeContextForNodes(
+    engineContext,
+    engine,
+    graph,
+    [
+      outputVert,
+      ...Object.values(vertexIds).filter((node) => node.id !== outputVert.id),
+      ...unlinkedNodes,
+    ]
+  );
+  if (isError(vertNodesOrError)) {
+    return vertNodesOrError;
+  }
+  const fragNodesOrError = await computeContextForNodes(
+    engineContext,
+    engine,
+    graph,
+    [
+      outputFrag,
+      ...Object.values(fragmentIds).filter((node) => node.id !== outputFrag.id),
+    ]
+  );
+  if (isError(fragNodesOrError)) {
+    return fragNodesOrError;
+  }
 };

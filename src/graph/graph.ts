@@ -8,7 +8,12 @@ import {
   ParameterDeclarationNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
-import { NodeContext, computeGraphContext } from './context';
+import {
+  NodeContext,
+  NodeErrors,
+  computeGraphContext,
+  isError,
+} from './context';
 import {
   emptyShaderSections,
   findShaderSections,
@@ -683,8 +688,11 @@ export const compileSource = async (
   graph: Graph,
   engine: Engine,
   ctx: EngineContext
-): Promise<CompileResult> => {
-  await computeGraphContext(ctx, engine, graph);
+): Promise<CompileResult | NodeErrors> => {
+  const result = await computeGraphContext(ctx, engine, graph);
+  if (isError(result)) {
+    return result;
+  }
   const compileResult = compileGraph(ctx, engine, graph);
 
   const fragmentResult = generate(
