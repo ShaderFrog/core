@@ -79,6 +79,12 @@ export const phongNode = (
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
         property('AO Map', 'aoMap', 'texture', 'filler_aoMap'),
+        property(
+          'AO Intensity',
+          'aoMapIntensity',
+          'number',
+          'filler_aoMapIntensity'
+        ),
         property('Shininess', 'shininess', 'number'),
         property('Reflectivity', 'reflectivity', 'number'),
         property('Refraction Ratio', 'refractionRatio', 'number'),
@@ -138,6 +144,12 @@ export const physicalNode = (
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
         property('AO Map', 'aoMap', 'texture', 'filler_aoMap'),
+        property(
+          'AO Intensity',
+          'aoMapIntensity',
+          'number',
+          'filler_aoMapIntensity'
+        ),
         property('Metalness', 'metalness', 'number', 'uniform_metalness'),
         property('Roughness', 'roughness', 'number', 'uniform_roughness'),
         property(
@@ -479,6 +491,12 @@ export const toonNode = (
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
         property('AO Map', 'aoMap', 'texture', 'filler_aoMap'),
+        property(
+          'AO Intensity',
+          'aoMapIntensity',
+          'number',
+          'filler_aoMapIntensity'
+        ),
         property('Displacement Map', 'displacementMap', 'texture'),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
