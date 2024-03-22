@@ -82,13 +82,14 @@ export const numberUniformData = (
 
 export interface TextureNode extends BaseNode {
   type: 'texture';
-  value: string;
+  // Allow for legacy string name and new number id
+  value: string | number;
 }
 export const textureNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value: string
+  value: string | number
 ): TextureNode => ({
   type: 'texture',
   id,
@@ -110,7 +111,7 @@ export type TextureDataUniform = Pick<TextureNode, 'type' | 'value' | 'name'>;
 
 export const textureUniformData = (
   name: string,
-  value: string
+  value: string | number
 ): TextureDataUniform => ({ type: 'texture', name, value });
 
 export interface SamplerCubeNode extends BaseNode {
