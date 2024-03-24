@@ -95,7 +95,12 @@ export const phongNode = (
           'texture',
           'filler_specularMap'
         ),
-        property('Displacement Map', 'displacementMap', 'texture'),
+        property(
+          'Displacement Map',
+          'displacementMap',
+          'texture',
+          'filler_displacementMap'
+        ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
@@ -158,7 +163,12 @@ export const physicalNode = (
           'texture',
           'filler_roughnessMap'
         ),
-        property('Displacement Map', 'displacementMap', 'texture'),
+        property(
+          'Displacement Map',
+          'displacementMap',
+          'texture',
+          'filler_displacementMap'
+        ),
         property('Displacement Scale', 'displacementScale', 'number'),
         // MeshPhysicalMaterial gets envMap from the scene. MeshStandardMaterial
         // gets it from the material
@@ -497,7 +507,12 @@ export const toonNode = (
           'number',
           'filler_aoMapIntensity'
         ),
-        property('Displacement Map', 'displacementMap', 'texture'),
+        property(
+          'Displacement Map',
+          'displacementMap',
+          'texture',
+          'filler_displacementMap'
+        ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
