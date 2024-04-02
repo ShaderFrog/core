@@ -1,6 +1,6 @@
 {
   "name": "@shaderfrog/core",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Shaderfrog core",
   "scripts": {
     "prepare": "npm run build && ./prepublish.sh",
