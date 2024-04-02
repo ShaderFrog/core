@@ -1,9 +1,10 @@
 {
   "name": "@shaderfrog/core",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Shaderfrog core",
   "scripts": {
     "prepare": "npm run build && ./prepublish.sh",
+    "postpublish": "./postbuild.sh",
     "build": "./build.sh",
     "watch-test": "jest --watch",
     "test": "jest --colors"
@@ -15,7 +16,14 @@
   "author": "Andrew Ray",
   "license": "ISC",
   "files": [
-    "dist"
+    "engine.d.ts",
+    "engine.js",
+    "graph",
+    "index.d.ts",
+    "index.js",
+    "plugins",
+    "strategy",
+    "util"
   ],
   "bugs": {
     "url": "https://github.com/ShaderFrog/core/issues"
