@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# Clean the output dir
-rm -rf dist/
-mkdir -p dist
+# https://evertpot.com/universal-commonjs-esm-typescript-packages/
+npx tsc --module commonjs --outDir cjs/
+echo '{"type": "commonjs"}' > cjs/package.json
 
-# Compile the typescript project
-npx tsc
+npx tsc --module es2022 --outDir esm/
+echo '{"type": "module"}' > esm/package.json
