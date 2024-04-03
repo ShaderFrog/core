@@ -1,7 +1,15 @@
 {
   "name": "@shaderfrog/core",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Shaderfrog core",
+  "exports": {
+    "require": "./cjs/index.js",
+    "import": "./esm/index.js"
+  },
+  "files": [
+    "cjs",
+    "esm"
+  ],
   "scripts": {
     "prepare": "npm run build && ./prepublish.sh",
     "postpublish": "./postbuild.sh",
@@ -15,16 +23,6 @@
   },
   "author": "Andrew Ray",
   "license": "ISC",
-  "files": [
-    "engine.d.ts",
-    "engine.js",
-    "graph",
-    "index.d.ts",
-    "index.js",
-    "plugins",
-    "strategy",
-    "util"
-  ],
   "bugs": {
     "url": "https://github.com/ShaderFrog/core/issues"
   },
