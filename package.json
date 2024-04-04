@@ -1,6 +1,6 @@
 {
   "name": "@shaderfrog/core",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Shaderfrog core",
   "type": "module",
   "files": [
