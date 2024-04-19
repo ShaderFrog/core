@@ -80,16 +80,20 @@ export const numberUniformData = (
   stepper,
 });
 
+export type AssetVersionNodeData = { assetId: number; versionId: number };
+export type TextureNodeData = string | number | AssetVersionNodeData;
 export interface TextureNode extends BaseNode {
   type: 'texture';
   // Allow for legacy string name and new number id
-  value: string | number;
+  // These are specific to the shaderfrog site and should probably be refactored
+  // out. Maybe a separate TextureSiteNode and friends? Open to ideas here.
+  value: TextureNodeData;
 }
 export const textureNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value: string | number
+  value: TextureNodeData
 ): TextureNode => ({
   type: 'texture',
   id,
@@ -111,7 +115,7 @@ export type TextureDataUniform = Pick<TextureNode, 'type' | 'value' | 'name'>;
 
 export const textureUniformData = (
   name: string,
-  value: string | number
+  value: TextureNodeData
 ): TextureDataUniform => ({ type: 'texture', name, value });
 
 export interface SamplerCubeNode extends BaseNode {
