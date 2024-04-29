@@ -29,8 +29,9 @@ export type GraphDataType =
 export interface NumberNode extends BaseNode {
   type: 'number';
   value: string;
-  range?: [number, number];
-  stepper?: number;
+  range?: [string | number, string | number];
+  stepper?: string | number;
+  isRandom?: boolean;
 }
 export const numberNode = (
   id: string,
@@ -38,8 +39,9 @@ export const numberNode = (
   position: NodePosition,
   value: string,
   optionals?: {
-    range?: [number, number];
-    stepper?: number;
+    range?: [string | number, string | number];
+    stepper?: string | number;
+    isRandom?: boolean;
     inputs?: NodeInput[];
     outputs?: NodeOutput[];
   }
@@ -60,6 +62,7 @@ export const numberNode = (
   ],
   range: optionals?.range,
   stepper: optionals?.stepper,
+  isRandom: optionals?.isRandom,
 });
 
 export type NumberDataUniform = Pick<
@@ -83,10 +86,9 @@ export const numberUniformData = (
 export type AssetVersionNodeData = { assetId: number; versionId: number };
 export interface TextureNode extends BaseNode {
   type: 'texture';
-  // Allow for legacy string name and new number id
-  // These are specific to the shaderfrog site and should probably be refactored
+  // This is specific to the shaderfrog site and should probably be refactored
   // out. Maybe a separate TextureSiteNode and friends? Open to ideas here.
-  value: AssetVersionNodeData;
+  value?: AssetVersionNodeData;
 }
 export const textureNode = (
   id: string,
@@ -194,6 +196,7 @@ export interface Vector2Node extends BaseNode {
   type: 'vector2';
   dimensions: 2;
   value: Vector2;
+  range?: [string, string, string, string];
 }
 export interface Vector3Node extends BaseNode {
   type: 'vector3';
