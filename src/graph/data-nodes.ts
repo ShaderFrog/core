@@ -73,8 +73,8 @@ export type NumberDataUniform = Pick<
 export const numberUniformData = (
   name: string,
   value: string,
-  range?: [number, number],
-  stepper?: number
+  range?: [string | number, string | number],
+  stepper?: string | number
 ): NumberDataUniform => ({
   type: 'number',
   name,
