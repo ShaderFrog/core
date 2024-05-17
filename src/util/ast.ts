@@ -46,11 +46,8 @@ export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   return parent;
 };
 
-export const findAssignmentTo = (
-  ast: AstNode | Program,
-  assignTo: string
-): ExpressionStatementNode | undefined => {
-  let assign: ExpressionStatementNode | undefined;
+export const findAssignmentTo = (ast: AstNode | Program, assignTo: string) => {
+  let assign: ExpressionStatementNode | DeclarationNode | undefined;
   const visitors: NodeVisitors = {
     expression_statement: {
       enter: (path) => {
@@ -59,6 +56,19 @@ export const findAssignmentTo = (
             ?.identifier === assignTo
         ) {
           assign = path.node;
+        }
+        path.skip();
+      },
+    },
+    declaration_statement: {
+      enter: (path) => {
+        const foundDecl = (
+          path.node.declaration as DeclaratorListNode
+        )?.declarations?.find(
+          (decl) => decl?.identifier?.identifier === assignTo
+        );
+        if (foundDecl?.initializer) {
+          assign = foundDecl;
         }
         path.skip();
       },

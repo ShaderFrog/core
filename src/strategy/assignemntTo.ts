@@ -40,8 +40,12 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
             false
           ),
           (fillerAst) => {
-            (assignNode.expression as AssignmentNode).right =
-              fillerAst as AstNode;
+            if ('expression' in assignNode) {
+              (assignNode.expression as AssignmentNode).right =
+                fillerAst as AstNode;
+            } else {
+              assignNode.initializer = fillerAst as AstNode;
+            }
             return ast;
           },
         ],
