@@ -17,10 +17,12 @@ import {
   TypeSpecifierNode,
   DeclaratorListNode,
   FloatConstantNode,
+  DoStatementNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { ShaderStage } from '../graph/graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
+import { addFnStmtWithIndent } from './whitespace';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.manipulate)\x1b[0m', ...args);
@@ -46,8 +48,13 @@ export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   return parent;
 };
 
-export const findAssignmentTo = (ast: AstNode | Program, assignTo: string) => {
+export const findAssignmentTo = (
+  ast: AstNode | Program,
+  assignTo: string,
+  nth = 1,
+) => {
   let assign: ExpressionStatementNode | DeclarationNode | undefined;
+  let foundth = 0;
   const visitors: NodeVisitors = {
     expression_statement: {
       enter: (path) => {
@@ -55,7 +62,11 @@ export const findAssignmentTo = (ast: AstNode | Program, assignTo: string) => {
           ((path.node.expression as AssignmentNode)?.left as IdentifierNode)
             ?.identifier === assignTo
         ) {
-          assign = path.node;
+          foundth++;
+          if (foundth === nth) {
+            assign = path.node;
+            path.stop();
+          }
         }
         path.skip();
       },
@@ -65,10 +76,14 @@ export const findAssignmentTo = (ast: AstNode | Program, assignTo: string) => {
         const foundDecl = (
           path.node.declaration as DeclaratorListNode
         )?.declarations?.find(
-          (decl) => decl?.identifier?.identifier === assignTo
+          (decl) => decl?.identifier?.identifier === assignTo,
         );
         if (foundDecl?.initializer) {
-          assign = foundDecl;
+          foundth++;
+          if (foundth === nth) {
+            assign = foundDecl;
+            path.stop();
+          }
         }
         path.skip();
       },
@@ -80,7 +95,7 @@ export const findAssignmentTo = (ast: AstNode | Program, assignTo: string) => {
 
 export const findDeclarationOf = (
   ast: AstNode | Program,
-  declarationOf: string
+  declarationOf: string,
 ): DeclarationNode | undefined => {
   let declaration: DeclarationNode | undefined;
   const visitors: NodeVisitors = {
@@ -89,7 +104,7 @@ export const findDeclarationOf = (
         const foundDecl = (
           path.node.declaration as DeclaratorListNode
         )?.declarations?.find(
-          (decl) => decl?.identifier?.identifier === declarationOf
+          (decl) => decl?.identifier?.identifier === declarationOf,
         );
         if (foundDecl) {
           declaration = foundDecl;
@@ -112,7 +127,7 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
   // });
   if (stage === 'fragment') {
     ast.program.unshift(
-      makeStatement(`out vec4 ${glOut}`) as DeclarationStatementNode
+      makeStatement(`out vec4 ${glOut}`) as DeclarationStatementNode,
     );
   }
   visit(ast, {
@@ -186,7 +201,7 @@ export const makeStatement = (stmt: string): AstNode => {
     ast = parser.parse(
       `${stmt};
 `,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ stmt, error });
@@ -199,20 +214,17 @@ export const makeStatement = (stmt: string): AstNode => {
 export const makeFnStatement = (fnStmt: string): AstNode => {
   let ast;
   try {
-    ast = parser.parse(
-      `
-  void main() {
-      ${fnStmt};
-    }`,
-      { quiet: true }
-    );
+    // Create a statement with no trailing nor leading whitespace
+    ast = parser.parse(`void main() {${fnStmt};}`, { quiet: true });
   } catch (error: any) {
     console.error({ fnStmt, error });
     throw new Error(`Error parsing fnStmt "${fnStmt}": ${error?.message}`);
   }
 
   // log(util.inspect(ast, false, null, true));
-  return (ast.program[0] as FunctionNode).body.statements[0];
+  const n = (ast.program[0] as FunctionNode).body.statements[0];
+  (n as ExpressionStatementNode).semi.whitespace = '';
+  return n;
 };
 
 export const makeExpression = (expr: string): AstNode => {
@@ -222,7 +234,7 @@ export const makeExpression = (expr: string): AstNode => {
       `void main() {
           a = ${expr};
         }`,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ expr, error });
@@ -238,7 +250,7 @@ export const makeExpression = (expr: string): AstNode => {
 };
 
 export const makeExpressionWithScopes = (
-  expr: string
+  expr: string,
 ): {
   scope: Scope;
   expression: AstNode;
@@ -249,7 +261,7 @@ export const makeExpressionWithScopes = (
       `void main() {
           ${expr};
         }`,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ expr, error });
@@ -267,7 +279,7 @@ export const makeExpressionWithScopes = (
 };
 
 export const makeFnBodyStatementWithScopes = (
-  body: string
+  body: string,
 ): {
   scope: Scope;
   statements: AstNode[];
@@ -278,7 +290,7 @@ export const makeFnBodyStatementWithScopes = (
       `void main() {
 ${body}
         }`,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ body, error });
@@ -292,28 +304,31 @@ ${body}
   };
 };
 
-export const findFn = (ast: Program, name: string): FunctionNode | undefined =>
-  ast.program.find(
-    (stmt): stmt is FunctionNode =>
-      stmt.type === 'function' && stmt.prototype.header.name.identifier === name
-  );
+export const findFn =
+  (name: string) =>
+  (ast: Program): FunctionNode | undefined =>
+    ast.program.find(
+      (stmt): stmt is FunctionNode =>
+        stmt.type === 'function' &&
+        stmt.prototype.header.name.identifier === name,
+    );
 
 export const returnGlPosition = (fnName: string, ast: Program): void =>
   convertVertexMain(
     fnName,
     ast,
     'vec4',
-    (assign) => (assign.expression as AssignmentNode).right
+    (assign) => (assign.expression as AssignmentNode).right,
   );
 
 export const returnGlPositionHardCoded = (
   fnName: string,
   ast: Program,
   returnType: string,
-  hardCodedReturn: string
+  hardCodedReturn: string,
 ): void =>
   convertVertexMain(fnName, ast, returnType, () =>
-    makeExpression(hardCodedReturn)
+    makeExpression(hardCodedReturn),
   );
 
 export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
@@ -336,7 +351,7 @@ export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
     if (!found) {
       console.error(generate(ast));
       throw new Error(
-        'Could not find position assignment to convert to return!'
+        'Could not find position assignment to convert to return!',
       );
     }
     return found;
@@ -346,11 +361,11 @@ const convertVertexMain = (
   fnName: string,
   ast: Program,
   returnType: string,
-  generateRight: (positionAssign: ExpressionStatementNode) => AstNode
+  generateRight: (positionAssign: ExpressionStatementNode) => AstNode,
 ) => {
   const mainReturnVar = `frogOut`;
 
-  const main = findFn(ast, fnName);
+  const main = findFn(fnName)(ast);
   if (!main) {
     throw new Error(`No ${fnName} fn found!`);
   }
@@ -364,20 +379,23 @@ const convertVertexMain = (
     (stmt: AstNode): stmt is ExpressionStatementNode =>
       stmt.type === 'expression_statement' &&
       ((stmt.expression as AssignmentNode).left as IdentifierNode)
-        ?.identifier === 'gl_Position'
+        ?.identifier === 'gl_Position',
   );
   if (!assign) {
     throw new Error(`No gl position assign found in main fn!`);
   }
 
   const rtnStmt = makeFnStatement(
-    `${returnType} ${mainReturnVar} = 1.0`
+    `${returnType} ${mainReturnVar} = 1.0`,
   ) as DeclarationStatementNode;
   (rtnStmt.declaration as DeclaratorListNode).declarations[0].initializer =
     generateRight(assign);
 
   main.body.statements.splice(main.body.statements.indexOf(assign), 1, rtnStmt);
-  main.body.statements.push(makeFnStatement(`return ${mainReturnVar}`));
+  main.body.statements = addFnStmtWithIndent(
+    main,
+    makeFnStatement(`return ${mainReturnVar}`),
+  );
 };
 
 export const convert300MainToReturn = (suffix: string, ast: Program): void => {
@@ -391,7 +409,7 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
     if (
       // line.type === 'declaration_statement' &&
       declaration?.specified_type?.qualifiers?.find(
-        (n) => (n as KeywordNode).token === 'out'
+        (n) => (n as KeywordNode).token === 'out',
       ) &&
       (declaration.specified_type.specifier.specifier as KeywordNode).token ===
         'vec4'
@@ -408,7 +426,7 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
   }
 
   ast.program.unshift(
-    makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode
+    makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode,
   );
 
   visit(ast, {
@@ -428,8 +446,10 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
             path.node.prototype.header.returnType.specifier
               .specifier as KeywordNode
           ).token = 'vec4';
-          path.node.body.statements.push(
-            makeFnStatement(`return ${mainReturnVar}`)
+
+          path.node.body.statements = addFnStmtWithIndent(
+            path.node,
+            makeFnStatement(`return ${mainReturnVar}`),
           );
         }
       },

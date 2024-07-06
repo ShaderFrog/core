@@ -55,14 +55,14 @@ export type ProduceAst = (
   engine: Engine,
   graph: Graph,
   node: SourceNode,
-  inputEdges: Edge[]
+  inputEdges: Edge[],
 ) => AstNode | Program;
 
 export type OnBeforeCompile = (
   graph: Graph,
   engineContext: EngineContext,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => Promise<void>;
 
 export type ManipulateAst = (
@@ -72,7 +72,7 @@ export type ManipulateAst = (
   ast: AstNode | Program,
   inputEdges: Edge[],
   node: SourceNode,
-  sibling: SourceNode
+  sibling: SourceNode,
 ) => AstNode | Program;
 
 export type NodeParser = {
@@ -96,12 +96,12 @@ export type FindInputs = (
   ast: Program | AstNode,
   inputEdges: Edge[],
   node: SourceNode,
-  sibling: SourceNode
+  sibling: SourceNode,
 ) => ComputedInput[];
 
 export type ProduceNodeFiller = (
   node: SourceNode,
-  ast: Program | AstNode
+  ast: Program | AstNode,
   // TODO: I returned AstNode[] from the return type here, see same note over
   // CompileNodeResult
 ) => Filler;
@@ -129,7 +129,7 @@ export const coreParsers: CoreParser = {
 
       if (node.sourceType === SourceType.FN_BODY_FRAGMENT) {
         const { statements, scope } = makeFnBodyStatementWithScopes(
-          node.source
+          node.source,
         );
         ast = {
           type: 'program',
@@ -159,9 +159,6 @@ export const coreParsers: CoreParser = {
 
         if (node.config.version === 2 && node.stage) {
           from2To3(ast, node.stage);
-          log('converted ', node, 'to version 3', {
-            code: generate(ast),
-          });
         }
 
         // This assumes that expressionOnly nodes don't have a stage and that all
@@ -189,8 +186,8 @@ export const coreParsers: CoreParser = {
       return node.sourceType === SourceType.EXPRESSION
         ? ((ast as Program).program[0] as AstNode)
         : node.sourceType === SourceType.FN_BODY_FRAGMENT
-        ? ((ast as Program).program as AstNode[])
-        : (makeExpression(`${nodeName(node)}()`) as AstNode);
+          ? ((ast as Program).program as AstNode[])
+          : (makeExpression(`${nodeName(node)}()`) as AstNode);
     },
   },
   // TODO: Output node assumes strategies are still passed in on node creation,
@@ -202,7 +199,7 @@ export const coreParsers: CoreParser = {
     findInputs: (engineContext, ast, edges, node, sibling) => {
       return [
         ...node.config.strategies.flatMap((strategy) =>
-          applyStrategy(strategy, ast, node, sibling)
+          applyStrategy(strategy, ast, node, sibling),
         ),
         [
           nodeInput(
@@ -211,14 +208,14 @@ export const coreParsers: CoreParser = {
             'filler',
             'rgba',
             ['code'],
-            false
+            false,
           ),
           (fillerAst) => {
             const fn = (ast as Program).program.find(
-              (stmt): stmt is FunctionNode => stmt.type === 'function'
+              (stmt): stmt is FunctionNode => stmt.type === 'function',
             );
             fn?.body.statements.unshift(
-              makeFnStatement(generateFiller(fillerAst))
+              makeFnStatement(generateFiller(fillerAst)),
             );
             return ast;
           },
@@ -239,7 +236,7 @@ export const coreParsers: CoreParser = {
                 .map((_, index) => alphabet.charAt(index))
                 .join(` ${node.operator} `)
             : `a ${node.operator} b`) +
-          ')'
+          ')',
       );
     },
     findInputs: (engineContext, ast, inputEdges, node, sibling) => {
@@ -254,7 +251,7 @@ export const coreParsers: CoreParser = {
               'filler',
               undefined,
               ['data', 'code'],
-              false
+              false,
             ),
             (fillerAst) => {
               let foundPath: Path<any> | undefined;
@@ -270,7 +267,7 @@ export const coreParsers: CoreParser = {
               visit(ast, visitors);
               if (!foundPath) {
                 throw new Error(
-                  `Im drunk and I think this case is impossible, no "${letter}" found in binary node?`
+                  `Im drunk and I think this case is impossible, no "${letter}" found in binary node?`,
                 );
               }
 
@@ -301,7 +298,7 @@ export const coreParsers: CoreParser = {
           return num / next;
         }
         throw new Error(
-          `Don't know how to evaluate ${operator} for node ${node.name} (${node.id})`
+          `Don't know how to evaluate ${operator} for node ${node.name} (${node.id})`,
         );
       });
     },

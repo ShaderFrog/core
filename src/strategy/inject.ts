@@ -2,6 +2,7 @@ import { generate } from '@shaderfrog/glsl-parser';
 import { Program, AstNode } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import { transferWhitespace } from 'src/util/whitespace';
 
 export interface InjectStrategy extends BaseStrategy {
   type: StrategyType.INJECT;
@@ -17,59 +18,17 @@ export interface InjectStrategy extends BaseStrategy {
  * operates on statements right now
  */
 export const injectStrategy = (
-  config: InjectStrategy['config']
+  config: InjectStrategy['config'],
 ): InjectStrategy => ({
   type: StrategyType.INJECT,
   config,
 });
 
-// Typescript fucked up flat https://stackoverflow.com/a/61420611/743464
-const combineWs = (a: string | string[], b: string | string[]): string[] =>
-  [a, b].flat(<20>Infinity);
-
-// Move whitespace from one node to another. Since whitespace is trailing, if a
-// node is injected after a previous node, move the whitespace from the earlier
-// node to the later one. This keeps comments in the same place
-const transferWhitespace = (to: AstNode, from: AstNode): [AstNode, AstNode] => {
-  return 'semi' in to && 'semi' in from
-    ? [
-        {
-          ...to,
-          semi: {
-            ...to.semi,
-            whitespace: from.semi.whitespace,
-          },
-        },
-        {
-          ...from,
-          semi: {
-            ...from.semi,
-            whitespace: '\n',
-          },
-        },
-      ]
-    : 'whitespace' in to && 'semi' in from
-    ? [
-        {
-          ...to,
-          whitespace: combineWs(to.whitespace, from.semi.whitespace),
-        },
-        {
-          ...from,
-          semi: {
-            ...from.semi,
-            whitespace: '\n',
-          },
-        },
-      ]
-    : [to, from];
-};
-
 export const applyInjectStrategy: ApplyStrategy<InjectStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode
+  siblingNode,
 ) => {
   const program = (ast as Program).program;
   const { find, count, insert } = strategy.config;
@@ -95,12 +54,12 @@ export const applyInjectStrategy: ApplyStrategy<InjectStrategy> = (
               ...(generated.includes(find) ? [triple] : []),
             ];
           },
-          []
+          [],
         );
       }
       return [...matches, ...newMatches];
     },
-    []
+    [],
   );
 
   const name = `Inject ${strategy.config.insert}`;
@@ -113,7 +72,7 @@ export const applyInjectStrategy: ApplyStrategy<InjectStrategy> = (
         'filler',
         undefined, // Data type for what plugs into this filler
         ['code', 'data'],
-        false
+        false,
       ),
       (fillerAst) => {
         const toInsert = Array.isArray(fillerAst)

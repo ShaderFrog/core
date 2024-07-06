@@ -1,10 +1,12 @@
+import { expect, describe, it } from 'vitest';
+
 import util from 'util';
 
 import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
-import { Graph } from './graph-types';
-import { addNode } from './graph-node';
+import { Graph, ShaderStage } from './graph-types';
+import { addNode, outputNode, sourceNode } from './graph-node';
 
 import {
   shaderSectionsToProgram,
@@ -14,8 +16,11 @@ import {
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { numberNode } from './data-nodes';
 import { makeEdge } from './edge';
-import { Engine, PhysicalNodeConstructor } from '../engine';
+import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
+import { compileGraph, compileSource } from './graph';
+import { texture2DStrategy } from 'src/strategy';
+import { isError } from './context';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));
@@ -28,7 +33,7 @@ const mergeBlocks = (ast1: Program, ast2: Program): string => {
     shaderSectionsToProgram(merged, {
       includePrecisions: true,
       includeVersion: true,
-    })
+    }),
   );
 };
 
@@ -37,7 +42,7 @@ const dedupe = (code: string) =>
     shaderSectionsToProgram(findShaderSections(parser.parse(code)), {
       includePrecisions: true,
       includeVersion: true,
-    })
+    }),
   );
 
 let counter = 0;
@@ -83,6 +88,103 @@ const engine: Engine = {
   preserve: new Set<string>(),
   parsers: {},
 };
+
+const makeSourceNode = (
+  id: string,
+  source: string,
+  stage: ShaderStage,
+  strategies = [texture2DStrategy()],
+) =>
+  sourceNode(
+    id,
+    `Shader ${id}`,
+    p,
+    {
+      version: 2,
+      preprocess: false,
+      strategies,
+      uniforms: [],
+    },
+    source,
+    stage,
+  );
+
+// TODO: You just improved the indentation of the return frog statements.
+// up next is mangling after the whole graph?
+it('graph HORGUSSS', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+  const imageReplacemMe = makeSourceNode(
+    id(),
+    `uniform sampler2D image1;
+uniform sampler2D image2;
+void main() {
+  vec3 col = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
+  vec3 col = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+}
+`,
+    'fragment',
+  );
+  const input1 = makeSourceNode(
+    id(),
+    `void main() {
+  return vec4(0.0);
+}
+`,
+    'fragment',
+  );
+  const input2 = makeSourceNode(
+    id(),
+    `void main() {
+  return vec4(1.0);
+}
+`,
+    'fragment',
+  );
+
+  const graph: Graph = {
+    nodes: [outV, outF, imageReplacemMe, input1, input2],
+    edges: [
+      makeEdge(
+        id(),
+        imageReplacemMe.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input1.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image1',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input2.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image2',
+        'fragment',
+      ),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+  console.log(result.fragmentResult);
+  expect(result.fragmentResult).toBe('hi');
+});
 
 // it('graph compiler arbitrary helper test', () => {
 //   const graph: Graph = {
@@ -201,6 +303,6 @@ uniform vec3 a;
 
   // Verify these lines are preserved (they go through dedupeUniforms)
   expect(dedupe(`layout(std140,column_major) uniform;`)).toEqual(
-    `layout(std140,column_major) uniform;`
+    `layout(std140,column_major) uniform;`,
   );
 });

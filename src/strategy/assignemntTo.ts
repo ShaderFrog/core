@@ -7,15 +7,17 @@ export interface AssignemntToStrategy extends BaseStrategy {
   type: StrategyType.ASSIGNMENT_TO;
   config: {
     assignTo: string;
+    nth?: number;
   };
 }
 
 // Constructor
 export const assignemntToStrategy = (
-  assignTo: string
+  assignTo: string,
+  nth = 1
 ): AssignemntToStrategy => ({
   type: StrategyType.ASSIGNMENT_TO,
-  config: { assignTo },
+  config: { assignTo, nth },
 });
 
 // Apply the strategy
@@ -25,7 +27,11 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
   graphNode,
   siblingNode
 ) => {
-  const assignNode = findAssignmentTo(ast, strategy.config.assignTo);
+  const assignNode = findAssignmentTo(
+    ast,
+    strategy.config.assignTo,
+    strategy.config.nth || 1
+  );
 
   const name = strategy.config.assignTo;
   return assignNode
