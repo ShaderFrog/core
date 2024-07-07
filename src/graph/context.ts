@@ -1,6 +1,5 @@
 import groupBy from 'lodash.groupby';
-
-import type { GlslSyntaxError } from '@shaderfrog/glsl-parser';
+import { type GlslSyntaxError } from '@shaderfrog/glsl-parser';
 
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
@@ -88,7 +87,7 @@ const computeNodeContext = async (
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
-  let ast;
+  let ast: ReturnType<typeof parser.produceAst>;
   try {
     ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
     if (manipulateAst) {

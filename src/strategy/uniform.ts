@@ -151,9 +151,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
     ) {
       // Capture all the declared names, removing mangling suffix
       const { declarations } = node.declaration;
-      const names = declarations.map(
-        (d: any) => d.identifier.identifier,
-      ) as string[];
+      const names = declarations.map((d) => d.identifier.identifier);
 
       // Tricky code warning: The flow of preparing a node for the graph is:
       // 1. Produce/mangle the AST (with unmangled names)
@@ -172,24 +170,23 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           true,
         ),
         (filler) => {
-          const mangledName = mangleName(name, graphNode, siblingNode);
           // Remove the declaration line, or the declared uniform
           if (declarations.length === 1) {
             program.program.splice(program.program.indexOf(node), 1);
           } else {
             const decl = node.declaration as DeclaratorListNode;
             decl.declarations = decl.declarations.filter(
-              (d) => d.identifier.identifier !== mangledName,
+              (d) => d.identifier.identifier !== name,
             );
           }
           // And rename all the references to said uniform
           program.scopes[0].bindings[name].references.forEach((ref) => {
-            if (ref.type === 'identifier' && ref.identifier === mangledName) {
+            if (ref.type === 'identifier' && ref.identifier === name) {
               ref.identifier = generateFiller(filler);
             } else if (
               ref.type === 'parameter_declaration' &&
               'identifier' in ref &&
-              ref.identifier.identifier === mangledName
+              ref.identifier.identifier === name
             ) {
               ref.identifier.identifier = generateFiller(filler);
             } else if ('identifier' in ref) {

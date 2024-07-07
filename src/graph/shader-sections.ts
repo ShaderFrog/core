@@ -61,7 +61,7 @@ export const highestPrecisions = (
     ([typeName, precision]) =>
       makeStatement(
         `precision ${precision} ${typeName}`,
-      ) as DeclarationStatementNode,
+      )[0] as DeclarationStatementNode,
   );
 
 export const dedupeQualifiedStatements = (
@@ -88,8 +88,11 @@ export const dedupeQualifiedStatements = (
       }),
       {} as { [key: string]: AstNode },
     ),
-  ).map(([type, varNames]) =>
-    makeStatement(`${qualifier} ${type} ${Object.keys(varNames).join(', ')}`),
+  ).map(
+    ([type, varNames]): AstNode =>
+      makeStatement(
+        `${qualifier} ${type} ${Object.keys(varNames).join(', ')}`,
+      )[0],
   );
 
 type UniformName = Record<string, { generated: string; hasInterface: boolean }>;
@@ -205,12 +208,12 @@ export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
     }, {}),
   );
 
-  return groupedByTypeName.map(([type, variables]) => {
+  return groupedByTypeName.map(([type, variables]): AstNode => {
     return makeStatement(
       `uniform ${type} ${Object.values(variables)
         .map((v) => v.generated)
         .join(', ')}`,
-    );
+    )[0];
   });
 };
 
@@ -332,11 +335,6 @@ export const findShaderSections = (ast: Program): ShaderSections => {
         (n) => 'token' in n && n.token === 'in',
       )
     ) {
-      if (generate(node).includes('main_Fireball')) {
-        console.log('findShaderSections\n', generate(ast));
-        console.log(`Tracking inStatement "${generate(node)}"`, node);
-        debugger;
-      }
       return {
         ...sections,
         inStatements: sections.inStatements.concat(node),

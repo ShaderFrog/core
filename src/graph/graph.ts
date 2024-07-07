@@ -21,7 +21,7 @@ import {
   ShaderSections,
   shaderSectionsToProgram,
 } from './shader-sections';
-import { makeExpression } from '../util/ast';
+import { FrogProgram, makeExpression } from '../util/ast';
 import { ensure } from '../util/ensure';
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
@@ -102,12 +102,12 @@ export const mangleVar = (
 
 export const mangleEntireProgram = (
   engine: Engine,
-  ast: Program,
+  ast: FrogProgram,
   node: GraphNode,
   sibling?: GraphNode,
 ) => {
-  renameBindings(ast.scopes[0], (name, n) =>
-    (n as any).doNotDescope ? name : mangleVar(name, engine, node, sibling),
+  ast.scopes[0].bindings = renameBindings(ast.scopes[0].bindings, (name) =>
+    name === ast.outVar ? name : mangleVar(name, engine, node, sibling),
   );
   mangleMainFn(ast, node, sibling);
 };
@@ -117,7 +117,7 @@ export const mangleMainFn = (
   node: GraphNode,
   sibling?: GraphNode,
 ) => {
-  renameFunctions(ast.scopes[0], (name) =>
+  ast.scopes[0].functions = renameFunctions(ast.scopes[0].functions, (name) =>
     name === 'main' ? nodeName(node) : mangleName(name, node, sibling),
   );
 };
@@ -502,11 +502,11 @@ export const compileNode = (
               ];
               // @ts-ignore
               const scope = fc.ast.scopes[0];
-              renameBindings(scope, (name, node) => {
-                return node.type !== 'declaration' && name === 'vUv'
-                  ? 'vv'
-                  : name;
-              });
+              // renameBindings(scope, (name, node) => {
+              //   return node.type !== 'declaration' && name === 'vUv'
+              //     ? 'vv'
+              //     : name;
+              // });
             }
             // })
           }

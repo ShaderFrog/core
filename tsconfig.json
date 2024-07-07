@@ -3,6 +3,7 @@
     "baseUrl": ".",
     "target": "es5",
     "lib": ["esnext"],
+    "strict": true,
     "allowJs": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
