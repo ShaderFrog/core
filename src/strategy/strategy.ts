@@ -49,7 +49,7 @@ export type ApplyStrategy<T> = (
   strategy: T,
   ast: AstNode | Program,
   node: SourceNode,
-  sibling: SourceNode,
+  sibling?: SourceNode,
 ) => ComputedInput[];
 
 type Strategies = Record<
@@ -75,5 +75,5 @@ export const applyStrategy = (
   strategy: Strategy,
   ast: AstNode | Program,
   node: SourceNode,
-  sibling: SourceNode,
+  sibling?: SourceNode,
 ) => strategyRunners[strategy.type](strategy, ast, node, sibling);

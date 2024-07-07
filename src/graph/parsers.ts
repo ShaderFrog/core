@@ -96,7 +96,7 @@ export type FindInputs = (
   ast: Program | AstNode,
   inputEdges: Edge[],
   node: SourceNode,
-  sibling: SourceNode,
+  sibling?: SourceNode,
 ) => ComputedInput[];
 
 export type ProduceNodeFiller = (
@@ -164,7 +164,7 @@ export const coreParsers: CoreParser = {
         // This assumes that expressionOnly nodes don't have a stage and that all
         // fragment source code shades have main function, which is probably wrong
         if (node.stage === 'fragment') {
-          convert300MainToReturn(node.id, ast);
+          convert300MainToReturn(ast);
         }
       }
 
@@ -215,7 +215,7 @@ export const coreParsers: CoreParser = {
               (stmt): stmt is FunctionNode => stmt.type === 'function',
             );
             fn?.body.statements.unshift(
-              makeFnStatement(generateFiller(fillerAst)),
+              makeFnStatement(generateFiller(fillerAst))[0],
             );
             return ast;
           },

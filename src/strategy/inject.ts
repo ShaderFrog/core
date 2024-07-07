@@ -2,7 +2,7 @@ import { generate } from '@shaderfrog/glsl-parser';
 import { Program, AstNode } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { transferWhitespace } from 'src/util/whitespace';
+import { transferWhitespace } from '../util/whitespace';
 
 export interface InjectStrategy extends BaseStrategy {
   type: StrategyType.INJECT;

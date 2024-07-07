@@ -3,6 +3,7 @@ import {
   DeclarationStatementNode,
   KeywordNode,
   DeclaratorListNode,
+  AstNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { mangleName } from '../graph/graph';
 import { nodeInput } from '../graph/base-node';
@@ -10,6 +11,9 @@ import { GraphDataType } from '../graph/data-nodes';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { ComputedInput } from '../graph/parsers';
 import { generateFiller } from '../util/ast';
+// TODO: Get this from glsl-parser root when you have internet access
+import { renameBinding } from '@shaderfrog/glsl-parser/parser/utils';
+import { ScopeEntry } from '@shaderfrog/glsl-parser/parser/scope';
 
 export interface UniformStrategy extends BaseStrategy {
   type: StrategyType.UNIFORM;
@@ -124,44 +128,50 @@ const mapUniformType = (type: string): GraphDataType | undefined => {
   // console.log(`Unknown uniform type, can't map to graph: ${type}`);
 };
 
+const isUniformDeclaration = (
+  node: Program['program'][0],
+): node is DeclarationStatementNode =>
+  node.type === 'declaration_statement' &&
+  node.declaration.type === 'declarator_list' &&
+  !!node.declaration?.specified_type?.qualifiers?.find(
+    (n) => (n as KeywordNode).token === 'uniform',
+  );
+// commented this out to allow for sampler2D uniforms to appear as inputs
+// && uniformType !== 'sampler2D'
+
 export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode,
 ) => {
   const program = ast as Program;
-  return (program.program || []).flatMap<ComputedInput>((node) => {
-    // The uniform declaration type, like vec4
-    const uniformType = (
-      ((node as DeclarationStatementNode).declaration as DeclaratorListNode)
-        ?.specified_type?.specifier?.specifier as KeywordNode
-    )?.token;
-    const graphDataType = mapUniformType(uniformType);
 
-    // If this is a uniform declaration line
-    if (
-      node.type === 'declaration_statement' &&
-      node.declaration.type === 'declarator_list' &&
-      node.declaration?.specified_type?.qualifiers?.find(
-        (n) => (n as KeywordNode).token === 'uniform',
-      )
-      // commented this out to allow for sampler2D uniforms to appear as inputs
-      // && uniformType !== 'sampler2D'
-    ) {
-      // Capture all the declared names, removing mangling suffix
-      const { declarations } = node.declaration;
-      const names = declarations.map(
-        (d: any) => d.identifier.identifier,
-      ) as string[];
+  return (program.program || [])
+    .filter(isUniformDeclaration)
+    .flatMap<ComputedInput>((node) => {
+      const declaration = node.declaration as DeclaratorListNode;
 
-      // Tricky code warning: The flow of preparing a node for the graph is:
-      // 1. Produce/mangle the AST (with unmangled names)
-      // 2. findInputs() (with unmangled names)
-      // 3. The AST is *then* mangled in graph.ts
-      // 4. Later, the inputs are filled in, and now, we have an input with
-      //    the name "x" but the ast now has the mangled name "x_1". So
-      //    here, we look for the *mangled* name in the strategy runner
+      // The uniform declaration type, like vec4
+      const uniformType = (
+        declaration?.specified_type?.specifier?.specifier as KeywordNode
+      )?.token;
+      const graphDataType = mapUniformType(uniformType);
+
+      const { declarations } = declaration;
+
+      // Capture the uniform names, and then capture their references in the
+      // closure. This allows the scope binding to be renamed when the AST is
+      // mangled, but this strategy can still find the original named variables
+      // to work with
+      const names = declarations.map((d) => d.identifier.identifier);
+      const references = names.reduce<Record<string, ScopeEntry>>(
+        (acc, name) => ({
+          ...acc,
+          [name]: program.scopes[0].bindings[name],
+        }),
+        {},
+      );
+
       return names.map<ComputedInput>((name) => [
         nodeInput(
           name,
@@ -172,41 +182,21 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           true,
         ),
         (filler) => {
-          const mangledName = mangleName(name, graphNode, siblingNode);
           // Remove the declaration line, or the declared uniform
           if (declarations.length === 1) {
             program.program.splice(program.program.indexOf(node), 1);
           } else {
             const decl = node.declaration as DeclaratorListNode;
             decl.declarations = decl.declarations.filter(
-              (d) => d.identifier.identifier !== mangledName,
+              (d) => d.identifier.identifier !== name,
             );
           }
-          // And rename all the references to said uniform
-          program.scopes[0].bindings[name].references.forEach((ref) => {
-            if (ref.type === 'identifier' && ref.identifier === mangledName) {
-              ref.identifier = generateFiller(filler);
-            } else if (
-              ref.type === 'parameter_declaration' &&
-              'identifier' in ref &&
-              ref.identifier.identifier === mangledName
-            ) {
-              ref.identifier.identifier = generateFiller(filler);
-            } else if ('identifier' in ref) {
-              ref.identifier = generateFiller(filler);
-            } else {
-              console.warn(
-                'Unknown uniform reference for',
-                graphNode.name,
-                'ref',
-              );
-            }
-          });
+
+          // Rename all the references to said uniform
+          renameBinding(references[name], generateFiller(filler));
 
           return ast;
         },
       ]);
-    }
-    return [];
-  });
+    });
 };

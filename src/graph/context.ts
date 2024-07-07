@@ -1,6 +1,5 @@
 import groupBy from 'lodash.groupby';
-
-import type { GlslSyntaxError } from '@shaderfrog/glsl-parser';
+import { type GlslSyntaxError } from '@shaderfrog/glsl-parser';
 
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
@@ -78,17 +77,12 @@ const computeNodeContext = async (
 
   const { onBeforeCompile, manipulateAst } = parser;
   if (onBeforeCompile) {
-    await onBeforeCompile(
-      graph,
-      engineContext,
-      node as SourceNode,
-      sibling as SourceNode,
-    );
+    await onBeforeCompile(graph, engineContext, node, sibling);
   }
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
-  let ast;
+  let ast: ReturnType<typeof parser.produceAst>;
   try {
     ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
     if (manipulateAst) {
@@ -131,7 +125,7 @@ const computeNodeContext = async (
     ast,
     inputEdges,
     node,
-    sibling as SourceNode,
+    sibling,
   );
 
   node.inputs = collapseNodeInputs(
@@ -257,11 +251,15 @@ export const computeGraphContext = async (
     throw new Error('No vertex output in graph');
   }
 
-  const vertexIds = collectConnectedNodes(graph, outputVert);
-  const fragmentIds = collectConnectedNodes(graph, outputFrag);
+  const vertexes = collectConnectedNodes(graph, outputVert);
+  const fragments = collectConnectedNodes(graph, outputFrag);
+
+  // collectConnectedNodes includes the link between fragment and vertex. To
+  // avoid duplicate context, track the vertex IDs and ignore them later.
+  const vertexIds = new Set(Object.keys(vertexes));
 
   // Find any unconnected vertex nodes linked to collected fragment nodes
-  const unlinkedNodes = findLinkedVertexNodes(graph, vertexIds);
+  const unlinkedNodes = findLinkedVertexNodes(graph, vertexes);
 
   const vertNodesOrError = await computeContextForNodes(
     engineContext,
@@ -269,7 +267,7 @@ export const computeGraphContext = async (
     graph,
     [
       outputVert,
-      ...Object.values(vertexIds).filter((node) => node.id !== outputVert.id),
+      ...Object.values(vertexes).filter((node) => node.id !== outputVert.id),
       ...unlinkedNodes,
     ],
   );
@@ -282,7 +280,9 @@ export const computeGraphContext = async (
     graph,
     [
       outputFrag,
-      ...Object.values(fragmentIds).filter((node) => node.id !== outputFrag.id),
+      ...Object.values(fragments).filter(
+        (node) => node.id !== outputFrag.id && !vertexIds.has(node.id),
+      ),
     ],
   );
   if (isError(fragNodesOrError)) {

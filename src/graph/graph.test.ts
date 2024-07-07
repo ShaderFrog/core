@@ -18,9 +18,10 @@ import { numberNode } from './data-nodes';
 import { makeEdge } from './edge';
 import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
-import { compileGraph, compileSource } from './graph';
-import { texture2DStrategy } from 'src/strategy';
+import { compileSource } from './graph';
+import { texture2DStrategy } from '../strategy';
 import { isError } from './context';
+import { fail } from '../test-util';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));
@@ -109,9 +110,7 @@ const makeSourceNode = (
     stage,
   );
 
-// TODO: You just improved the indentation of the return frog statements.
-// up next is mangling after the whole graph?
-it('graph HORGUSSS', async () => {
+it('compileSource() fragment produces inlined output', async () => {
   const outV = outputNode(id(), 'Output v', p, 'vertex');
   const outF = outputNode(id(), 'Output f', p, 'fragment');
   const imageReplacemMe = makeSourceNode(
@@ -119,24 +118,27 @@ it('graph HORGUSSS', async () => {
     `uniform sampler2D image1;
 uniform sampler2D image2;
 void main() {
-  vec3 col = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
-  vec3 col = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+  vec3 col1 = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
+  vec3 col2 = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+  gl_FragColor = vec4(col1 + col2, 1.0);
 }
 `,
     'fragment',
   );
   const input1 = makeSourceNode(
     id(),
-    `void main() {
-  return vec4(0.0);
+    `float a = 1.0;
+void main() {
+  gl_FragColor = vec4(0.0);
 }
 `,
     'fragment',
   );
   const input2 = makeSourceNode(
     id(),
-    `void main() {
-  return vec4(1.0);
+    `float a = 2.0;
+void main() {
+  gl_FragColor = vec4(1.0);
 }
 `,
     'fragment',
@@ -169,6 +171,14 @@ void main() {
         'filler_image2',
         'fragment',
       ),
+      makeEdge(
+        id(),
+        input2.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image2',
+        'fragment',
+      ),
     ],
   };
   const engineContext: EngineContext = {
@@ -182,65 +192,69 @@ void main() {
   if (isError(result)) {
     fail(result);
   }
-  console.log(result.fragmentResult);
-  expect(result.fragmentResult).toBe('hi');
+
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input1.id}() {`);
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input2.id}() {`);
+
+  const imgOut = `frogOut_${imageReplacemMe.id}`;
+
+  expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
+
+  expect(result.fragmentResult)
+    .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
+  vec3 col1 = main_Shader_${input1.id}().rgb + 1.0;
+  vec3 col2 = main_Shader_${input2.id}().rgb + 2.0;
+  ${imgOut} = vec4(col1 + col2, 1.0);
+  return ${imgOut};
+}`);
 });
 
-// it('graph compiler arbitrary helper test', () => {
-//   const graph: Graph = {
-//     nodes: [
-//       outputNode('0', 'Output v', p, 'vertex'),
-//       outputNode('1', 'Output f', p, 'fragment'),
-//       makeSourceNode(
-//         '2',
-//         `uniform sampler2D image1;
-// uniform sampler2D image2;
-// void main() {
-//   vec3 col = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
-//   vec3 col = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
-// }
-// `,
-//         'fragment'
-//       ),
-//       makeSourceNode(
-//         '3',
-//         `void main() {
-//     return vec4(0.0);
-// }
-// `,
-//         'fragment'
-//       ),
-//       makeSourceNode(
-//         '4',
-//         `void main() {
-//     return vec4(1.0);
-// }
-// `,
-//         'fragment'
-//       ),
-//     ],
-//     edges: [
-//       makeEdge(id(), '2', '1', 'out', 'filler_frogFragOut', 'fragment'),
-//       makeEdge(id(), '3', '2', 'out', 'filler_image1', 'fragment'),
-//       makeEdge(id(), '4', '2', 'out', 'filler_image2', 'fragment'),
-//     ],
-//   };
-//   const engineContext: EngineContext = {
-//     engine: 'three',
-//     nodes: {},
-//     runtime: {},
-//     debuggingNonsense: {},
-//   };
+it('compileSource() base case', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+  const imageReplacemMe = makeSourceNode(
+    id(),
+    `float a = 1.0;
+void main() {
+  gl_FragColor = vec4(1.0);
+}
+`,
+    'fragment',
+  );
 
-//   const result = compileGraph(engineContext, engine, graph);
-//   const built = generate(
-//     shaderSectionsToProgram(result.fragment, {
-//       includePrecisions: true,
-//       includeVersion: true,
-//     }).program
-//   );
-//   expect(built).toBe('hi');
-// });
+  const graph: Graph = {
+    nodes: [outV, outF, imageReplacemMe],
+    edges: [
+      makeEdge(
+        id(),
+        imageReplacemMe.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment',
+      ),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  const imgOut = `frogOut_${imageReplacemMe.id}`;
+  expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
+  expect(result.fragmentResult)
+    .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
+  ${imgOut} = vec4(1.0);
+  return ${imgOut};
+}`);
+});
 
 describe('evaluateNode()', () => {
   it('evaluates binary nodes', () => {

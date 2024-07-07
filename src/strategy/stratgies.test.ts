@@ -1,26 +1,16 @@
-import { beforeEach, afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
 import { applyStrategy, StrategyType } from '.';
-import * as graphModule from '../graph/graph';
 import { makeExpression } from '../util/ast';
 
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-
-// let orig: any;
-// beforeEach(() => {
-//   orig = graphModule.mangleName;
-//   // Terrible hack. in the real world, strategies are applied after mangling
-//   // @ts-ignore
-//   graphModule.mangleName = (name: string) => name;
-// });
-// afterEach(() => {
-//   // @ts-ignore
-//   graphModule.mangleName = orig;
-// });
+import { Engine, PhysicalNodeConstructor } from '../engine';
+import { GraphNode } from '../graph/graph-types';
+import { mangleEntireProgram } from 'src/graph';
 
 it('named attribute strategy`', () => {
   const source = `
@@ -163,6 +153,45 @@ re(x, y, z);
 }`);
 });
 
+const constructor: PhysicalNodeConstructor = () => ({
+  config: {
+    version: 3,
+    preprocess: false,
+    strategies: [],
+    uniforms: [],
+  },
+  id: '1',
+  name: '1',
+  engine: true,
+  type: '',
+  inputs: [],
+  outputs: [],
+  position: { x: 0, y: 0 },
+  source: '',
+  stage: undefined,
+});
+const engine: Engine = {
+  name: 'three',
+  displayName: 'Three.js',
+  evaluateNode: (node) => {
+    if (node.type === 'number') {
+      return parseFloat(node.value);
+    }
+    return node.value;
+  },
+  constructors: {
+    physical: constructor,
+    toon: constructor,
+  },
+  mergeOptions: {
+    includePrecisions: true,
+    includeVersion: true,
+  },
+  importers: {},
+  preserve: new Set<string>(),
+  parsers: {},
+};
+
 it('correctly fills with uniform strategy', () => {
   const ast = parser.parse(
     `
@@ -181,10 +210,10 @@ void main() {
 }`,
     { quiet: true },
   );
+
   const fillers = applyStrategy(
     { type: StrategyType.UNIFORM, config: {} },
     ast,
-    {} as SourceNode,
     {} as SourceNode,
   );
 
@@ -222,6 +251,52 @@ void main() {
   expect(result).toContain('uniform vec4 other;');
   // Should remove uniform lines
   expect(result).not.toContain('uniform vec4 zenput');
+});
+
+it('correctly fills with uniform strategy through mangling', () => {
+  const ast = parser.parse(
+    `
+uniform sampler2D image;
+uniform vec4 input, output;
+void main() {
+  vec4 computed = texture2D(image, uvPow * 1.0);
+  vec4 x = input;
+  vec4 y = output;
+}`,
+    { quiet: true },
+  );
+
+  const node = { id: '1', name: 'fake' } as SourceNode;
+
+  const fillers = applyStrategy(
+    { type: StrategyType.UNIFORM, config: {} },
+    ast,
+    node,
+  );
+
+  mangleEntireProgram(engine, ast, node);
+
+  // It should find uniforms with simple types, excluding sampler2D
+  expect(fillers.map(([{ displayName: name }]) => name)).toEqual([
+    'image',
+    'input',
+    'output',
+  ]);
+
+  fillers.find(([{ displayName: name }]) => name === 'input')?.[1](
+    makeExpression('a'),
+  );
+  fillers.find(([{ displayName: name }]) => name === 'output')?.[1](
+    makeExpression('b'),
+  );
+  const result = generate(ast);
+
+  // Should fill references
+  expect(result).toContain('vec4 x = a;');
+  expect(result).toContain('vec4 y = b;');
+
+  // Should preserve things it shouldn't touch
+  expect(result).toContain(`uniform sampler2D image_${node.id};`);
 });
 
 it('uses name without suffix for single call', () => {
@@ -285,5 +360,5 @@ void getNormal() {
       {} as SourceNode,
       {} as SourceNode,
     ).map(([{ displayName: name }]) => name),
-  ).toEqual(['normalMapx']);
+  ).toEqual(['normalMap']);
 });

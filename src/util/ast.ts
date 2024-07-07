@@ -1,7 +1,7 @@
 /**
  * Utility functions to work with ASTs
  */
-import { Filler } from '../graph/parsers';
+import util from 'util';
 import { parser, generate } from '@shaderfrog/glsl-parser';
 import {
   visit,
@@ -17,15 +17,25 @@ import {
   TypeSpecifierNode,
   DeclaratorListNode,
   FloatConstantNode,
-  DoStatementNode,
+  ReturnStatementNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { ShaderStage } from '../graph/graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 import { addFnStmtWithIndent } from './whitespace';
+import { Filler } from '../graph/parsers';
+import { SourceNode } from '../graph';
+import {
+  renameBinding,
+  renameBindings,
+} from '@shaderfrog/glsl-parser/parser/utils';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.manipulate)\x1b[0m', ...args);
+
+export interface FrogProgram extends Program {
+  outVar?: string;
+}
 
 export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   let parent: AstNode | undefined;
@@ -126,9 +136,11 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
   //   _: '\n',
   // });
   if (stage === 'fragment') {
-    ast.program.unshift(
-      makeStatement(`out vec4 ${glOut}`) as DeclarationStatementNode,
-    );
+    // Add in "out vec4 fragmentColor" to convert gl_FragColor to an out statement
+    const [outStmt, scope] = makeStatement(`out vec4 ${glOut}`);
+    ast.program.unshift(outStmt as DeclarationStatementNode);
+    // Add the out statement variable to the scope
+    ast.scopes[0] = addNewScope(ast.scopes[0], scope);
   }
   visit(ast, {
     function_call: {
@@ -146,6 +158,7 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
       enter: (path) => {
         if (path.node.identifier === 'gl_FragColor') {
           path.node.identifier = glOut;
+          ast.scopes[0].bindings[glOut].references.push(path.node);
         }
       },
     },
@@ -163,40 +176,9 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
   });
 };
 
-export const outDeclaration = (name: string): Object => ({
-  type: 'declaration_statement',
-  declaration: {
-    type: 'declarator_list',
-    specified_type: {
-      type: 'fully_specified_type',
-      qualifiers: [{ type: 'keyword', token: 'out', whitespace: ' ' }],
-      specifier: {
-        type: 'type_specifier',
-        specifier: { type: 'keyword', token: 'vec4', whitespace: ' ' },
-        quantifier: null,
-      },
-    },
-    declarations: [
-      {
-        type: 'declaration',
-        identifier: {
-          type: 'identifier',
-          identifier: name,
-          whitespace: undefined,
-        },
-        quantifier: null,
-        operator: undefined,
-        initializer: undefined,
-      },
-    ],
-    commas: [],
-  },
-  semi: { type: 'literal', literal: ';', whitespace: '\n    ' },
-});
-
-export const makeStatement = (stmt: string): AstNode => {
+export const makeStatement = (stmt: string) => {
   // log(`Parsing "${stmt}"`);
-  let ast;
+  let ast: Program;
   try {
     ast = parser.parse(
       `${stmt};
@@ -208,11 +190,11 @@ export const makeStatement = (stmt: string): AstNode => {
     throw new Error(`Error parsing stmt "${stmt}": ${error?.message}`);
   }
   // log(util.inspect(ast, false, null, true));
-  return ast.program[0];
+  return [ast.program[0], ast.scopes[0]] as const;
 };
 
-export const makeFnStatement = (fnStmt: string): AstNode => {
-  let ast;
+export const makeFnStatement = (fnStmt: string) => {
+  let ast: FrogProgram;
   try {
     // Create a statement with no trailing nor leading whitespace
     ast = parser.parse(`void main() {${fnStmt};}`, { quiet: true });
@@ -224,11 +206,31 @@ export const makeFnStatement = (fnStmt: string): AstNode => {
   // log(util.inspect(ast, false, null, true));
   const n = (ast.program[0] as FunctionNode).body.statements[0];
   (n as ExpressionStatementNode).semi.whitespace = '';
-  return n;
+  return [n, ast.scopes[1]] as const;
 };
 
+/**
+ * Add a new scope into an existing one. Meant to be used for adding net new
+ * lines of coe to an AST, and wanting to add the new scope generated from those
+ * lines.
+ *
+ * DO NOT USE THIS TO MERGE SCOPES! If both the left and right scope contain the
+ * same binding name, this will override the left scope outright, rather than
+ * merge the binding.references.
+ *
+ * One reason I chose not to make a full merge: What happens if both sides
+ * contain a binding.declaration?
+ */
+export const addNewScope = (left: Scope, right: Scope): Scope => ({
+  ...left,
+  // name, parent comes from left
+  bindings: { ...left.bindings, ...right.bindings },
+  types: { ...left.types, ...right.types },
+  functions: { ...left.functions, ...right.functions },
+});
+
 export const makeExpression = (expr: string): AstNode => {
-  let ast;
+  let ast: Program;
   try {
     ast = parser.parse(
       `void main() {
@@ -313,6 +315,16 @@ export const findFn =
         stmt.prototype.header.name.identifier === name,
     );
 
+export const findMain = findFn('main');
+
+export const findMainOrThrow = (ast: Program) => {
+  const main = findMain(ast);
+  if (!main) {
+    throw new Error('No main function found!');
+  }
+  return main;
+};
+
 export const returnGlPosition = (fnName: string, ast: Program): void =>
   convertVertexMain(
     fnName,
@@ -357,6 +369,8 @@ export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
     return found;
   });
 
+const replacedReturn = 'frogOut';
+
 const convertVertexMain = (
   fnName: string,
   ast: Program,
@@ -387,19 +401,25 @@ const convertVertexMain = (
 
   const rtnStmt = makeFnStatement(
     `${returnType} ${mainReturnVar} = 1.0`,
-  ) as DeclarationStatementNode;
+  )[0] as DeclarationStatementNode;
   (rtnStmt.declaration as DeclaratorListNode).declarations[0].initializer =
     generateRight(assign);
+  rtnStmt.semi.whitespace = '\n';
 
   main.body.statements.splice(main.body.statements.indexOf(assign), 1, rtnStmt);
-  main.body.statements = addFnStmtWithIndent(
-    main,
-    makeFnStatement(`return ${mainReturnVar}`),
-  );
+  main.body.statements = addFnStmtWithIndent(main, `return ${mainReturnVar}`);
 };
 
-export const convert300MainToReturn = (suffix: string, ast: Program): void => {
-  const mainReturnVar = `frogOut_${suffix}`;
+/**
+ * For either a fragment or vertex AST, convert the main() function that sets
+ * gl_FragColor, gl_Position, or "out vec4 ____" into a main() function that
+ * returns a vec4.
+ */
+export const convert300MainToReturn = (ast: FrogProgram): void => {
+  // Convert the main function to return a vec4
+  const main = findMainOrThrow(ast);
+  (main.prototype.header.returnType.specifier.specifier as KeywordNode).token =
+    'vec4';
 
   // Find the output variable, as in "pc_fragColor" from  "out highp vec4 pc_fragColor;"
   let outName: string | undefined;
@@ -414,8 +434,10 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
       (declaration.specified_type.specifier.specifier as KeywordNode).token ===
         'vec4'
     ) {
-      // Remove the out declaration
+      // Remove the out declaration. This does NOT yet remove the declaration
+      // from the scope, that's done below
       ast.program.splice(index, 1);
+
       outName = declaration.declarations[0].identifier.identifier;
       return true;
     }
@@ -425,36 +447,35 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
     throw new Error('No "out vec4" line found in the fragment shader');
   }
 
-  ast.program.unshift(
-    makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode,
+  // Store the variable to avoid descoping it later
+  ast.outVar = outName;
+
+  // Rename the scope entry of "out vec4 ___" to our return variable, and rename
+  // all references to our new variable
+  ast.scopes[0].bindings[replacedReturn] = renameBinding(
+    ast.scopes[0].bindings[outName],
+    replacedReturn,
+  );
+  delete ast.scopes[0].bindings[outName];
+
+  // Add the declaration of the return variable to the top of the program, and
+  // add it to the AST scope, including the declaration
+  const decl = makeStatement(
+    `vec4 ${replacedReturn}`,
+  )[0] as DeclarationStatementNode;
+  ast.program.unshift(decl);
+  ast.scopes[0].bindings[replacedReturn].declaration = decl;
+  ast.scopes[0].bindings[replacedReturn].references.push(
+    (decl.declaration as DeclaratorListNode).declarations[0],
   );
 
-  visit(ast, {
-    identifier: {
-      enter: (path) => {
-        if (path.node.identifier === outName) {
-          path.node.identifier = mainReturnVar;
-          // @ts-ignore
-          path.node.doNotDescope = true; // hack because this var is in the scope which gets renamed later
-        }
-      },
-    },
-    function: {
-      enter: (path) => {
-        if (path.node.prototype.header.name.identifier === 'main') {
-          (
-            path.node.prototype.header.returnType.specifier
-              .specifier as KeywordNode
-          ).token = 'vec4';
-
-          path.node.body.statements = addFnStmtWithIndent(
-            path.node,
-            makeFnStatement(`return ${mainReturnVar}`),
-          );
-        }
-      },
-    },
-  });
+  // Add a return statement to the main() function and add the return variable
+  // to scope
+  const rtn = makeFnStatement(
+    `return ${replacedReturn}`,
+  )[0] as ReturnStatementNode;
+  main.body.statements = addFnStmtWithIndent(main, rtn);
+  ast.scopes[0].bindings[replacedReturn].references.push(rtn.expression);
 };
 
 export const generateFiller = (filler: Filler) => {
