@@ -1,15 +1,13 @@
-import { beforeEach, afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { parser } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
 import { applyStrategy, StrategyType } from '.';
-import * as graphModule from '../graph/graph';
 import { makeExpression } from '../util/ast';
 
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-import { mangleEntireProgram } from '../graph/graph';
 import { Engine, PhysicalNodeConstructor } from 'src/engine';
 import { GraphNode } from 'src/graph/graph-types';
 
@@ -334,5 +332,5 @@ void getNormal() {
       {} as SourceNode,
       {} as SourceNode,
     ).map(([{ displayName: name }]) => name),
-  ).toEqual(['normalMapx']);
+  ).toEqual(['normalMap']);
 });

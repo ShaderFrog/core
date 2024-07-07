@@ -18,9 +18,10 @@ import { numberNode } from './data-nodes';
 import { makeEdge } from './edge';
 import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
-import { compileGraph, compileSource } from './graph';
+import { compileSource } from './graph';
 import { texture2DStrategy } from 'src/strategy';
 import { isError } from './context';
+import { outVar } from 'src/util/ast';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));
@@ -134,24 +135,27 @@ it('compileSource() produces inlined output', async () => {
     `uniform sampler2D image1;
 uniform sampler2D image2;
 void main() {
-  vec3 col = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
-  vec3 col = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+  vec3 col1 = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
+  vec3 col2 = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+  gl_FragColor = vec4(col1 + col2, 1.0);
 }
 `,
     'fragment',
   );
   const input1 = makeSourceNode(
     id(),
-    `void main() {
-  return vec4(0.0);
+    `float a = 1.0;
+void main() {
+  gl_FragColor = vec4(0.0);
 }
 `,
     'fragment',
   );
   const input2 = makeSourceNode(
     id(),
-    `void main() {
-  return vec4(1.0);
+    `float a = 2.0;
+void main() {
+  gl_FragColor = vec4(1.0);
 }
 `,
     'fragment',
@@ -198,13 +202,16 @@ void main() {
     fail(result);
   }
 
+  // what is this supposed to be? the code only conatins "fragmentColor"
+  console.log(result.fragmentResult);
+
   expect(result.fragmentResult).toContain(`vec4 main_Shader_${input1.id}() {`);
   expect(result.fragmentResult).toContain(`vec4 main_Shader_${input2.id}() {`);
   expect(result.fragmentResult)
     .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
   vec3 col = main_Shader_${input1.id}().rgb + 1.0;
   vec3 col = main_Shader_${input2.id}().rgb + 2.0;
-  return frogOut_${imageReplacemMe.id};
+  return ${outVar(imageReplacemMe)};
 }`);
 });
 

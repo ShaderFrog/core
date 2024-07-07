@@ -131,9 +131,12 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
   //   _: '\n',
   // });
   if (stage === 'fragment') {
+    // console.log('unshift!', glOut);
     ast.program.unshift(
       makeStatement(`out vec4 ${glOut}`) as DeclarationStatementNode,
     );
+    console.log(generate(ast));
+    console.log('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
   }
   visit(ast, {
     function_call: {
@@ -404,7 +407,7 @@ const convertVertexMain = (
 };
 
 const frogOutVar = `FROG_OUT`;
-export const outVar = (node: SourceNode) => `${frogOutVar}${node.id}`;
+export const outVar = (node: SourceNode) => `${frogOutVar}_${node.id}`;
 
 export const convert300MainToReturn = (
   mainReturnVar: string,
