@@ -17,6 +17,7 @@ import {
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
   makeFnStatement,
+  outVar,
 } from '../util/ast';
 import { applyStrategy } from '../strategy';
 import { Edge } from './edge';
@@ -164,7 +165,7 @@ export const coreParsers: CoreParser = {
         // This assumes that expressionOnly nodes don't have a stage and that all
         // fragment source code shades have main function, which is probably wrong
         if (node.stage === 'fragment') {
-          convert300MainToReturn(node.id, ast);
+          convert300MainToReturn(outVar(node), ast);
         }
       }
 

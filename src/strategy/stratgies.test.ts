@@ -9,18 +9,9 @@ import { makeExpression } from '../util/ast';
 
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-
-// let orig: any;
-// beforeEach(() => {
-//   orig = graphModule.mangleName;
-//   // Terrible hack. in the real world, strategies are applied after mangling
-//   // @ts-ignore
-//   graphModule.mangleName = (name: string) => name;
-// });
-// afterEach(() => {
-//   // @ts-ignore
-//   graphModule.mangleName = orig;
-// });
+import { mangleEntireProgram } from '../graph/graph';
+import { Engine, PhysicalNodeConstructor } from 'src/engine';
+import { GraphNode } from 'src/graph/graph-types';
 
 it('named attribute strategy`', () => {
   const source = `
@@ -163,6 +154,45 @@ re(x, y, z);
 }`);
 });
 
+const constructor: PhysicalNodeConstructor = () => ({
+  config: {
+    version: 3,
+    preprocess: false,
+    strategies: [],
+    uniforms: [],
+  },
+  id: '1',
+  name: '1',
+  engine: true,
+  type: '',
+  inputs: [],
+  outputs: [],
+  position: { x: 0, y: 0 },
+  source: '',
+  stage: undefined,
+});
+const engine: Engine = {
+  name: 'three',
+  displayName: 'Three.js',
+  evaluateNode: (node) => {
+    if (node.type === 'number') {
+      return parseFloat(node.value);
+    }
+    return node.value;
+  },
+  constructors: {
+    physical: constructor,
+    toon: constructor,
+  },
+  mergeOptions: {
+    includePrecisions: true,
+    includeVersion: true,
+  },
+  importers: {},
+  preserve: new Set<string>(),
+  parsers: {},
+};
+
 it('correctly fills with uniform strategy', () => {
   const ast = parser.parse(
     `
@@ -181,6 +211,25 @@ void main() {
 }`,
     { quiet: true },
   );
+
+  // TODO: Experimenting with strategy tests where we mangle in the test to
+  // avoid having to mangle in the strategy, in service of maybe mangling the
+  // AST as part of producing context. But as the test shows -
+  // mangleEntireProgram does NOT modify binding names
+  //
+  // You started updating binding names in the parser but realized that
+  // technically a mangler can produce different results for different nodes
+  // during the rename, since the parser takes in the node to mangle.
+  //
+  // which raised the question about why pass in the node at all to the mangler?
+  // looks like it's for "doNotDescope" hack to avoid renaming a specific
+  // varaible.
+  //
+  // But maybe that could be done here instead? And mangleEntireProgram could be
+  // aware of the output varaibles to ignore? Which means we need to track the
+  // output varialbe names somewhere... do we alredy?
+  const node = { name: 'fake', id: '1' } as GraphNode;
+  // mangleEntireProgram(engine, ast, node);
   const fillers = applyStrategy(
     { type: StrategyType.UNIFORM, config: {} },
     ast,

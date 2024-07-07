@@ -109,9 +109,24 @@ const makeSourceNode = (
     stage,
   );
 
-// TODO: You just improved the indentation of the return frog statements.
-// up next is mangling after the whole graph?
-it('graph HORGUSSS', async () => {
+/**
+ * What exactly am I doing here?
+ *
+ * I opened shaderfrog to start looking at the backfilling case and inlining
+ * function calls at the top of functions
+ *
+ * WHie doing that I found jest not to work well anyore and switched to vitest,
+ * which is fine, but with esm by default I can't stub the mangleName()
+ * function call, which means mangling happens as-is in the tests.
+ *
+ * Without changing the mangling strategy, the strategies.test.ts file fails
+ * because the uniform strategy looks for a mangled variable name, but the
+ * program itself isn't mangled.
+ *
+ * One way to fix this is to make fillers not have to care about mangling names,
+ * which would be simpler on the surface.
+ */
+it('compileSource() produces inlined output', async () => {
   const outV = outputNode(id(), 'Output v', p, 'vertex');
   const outF = outputNode(id(), 'Output f', p, 'fragment');
   const imageReplacemMe = makeSourceNode(
@@ -182,8 +197,15 @@ void main() {
   if (isError(result)) {
     fail(result);
   }
-  console.log(result.fragmentResult);
-  expect(result.fragmentResult).toBe('hi');
+
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input1.id}() {`);
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input2.id}() {`);
+  expect(result.fragmentResult)
+    .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
+  vec3 col = main_Shader_${input1.id}().rgb + 1.0;
+  vec3 col = main_Shader_${input2.id}().rgb + 2.0;
+  return frogOut_${imageReplacemMe.id};
+}`);
 });
 
 // it('graph compiler arbitrary helper test', () => {

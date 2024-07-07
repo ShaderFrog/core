@@ -1,7 +1,6 @@
 /**
  * Utility functions to work with ASTs
  */
-import { Filler } from '../graph/parsers';
 import { parser, generate } from '@shaderfrog/glsl-parser';
 import {
   visit,
@@ -23,9 +22,15 @@ import { Program } from '@shaderfrog/glsl-parser/ast';
 import { ShaderStage } from '../graph/graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 import { addFnStmtWithIndent } from './whitespace';
+import { Filler } from '../graph/parsers';
+import { SourceNode } from '../graph';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.manipulate)\x1b[0m', ...args);
+
+export interface FrogProgram extends Program {
+  outVar?: string;
+}
 
 export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
   let parent: AstNode | undefined;
@@ -398,9 +403,13 @@ const convertVertexMain = (
   );
 };
 
-export const convert300MainToReturn = (suffix: string, ast: Program): void => {
-  const mainReturnVar = `frogOut_${suffix}`;
+const frogOutVar = `FROG_OUT`;
+export const outVar = (node: SourceNode) => `${frogOutVar}${node.id}`;
 
+export const convert300MainToReturn = (
+  mainReturnVar: string,
+  ast: FrogProgram,
+): void => {
   // Find the output variable, as in "pc_fragColor" from  "out highp vec4 pc_fragColor;"
   let outName: string | undefined;
   ast.program.find((line, index) => {
@@ -425,20 +434,14 @@ export const convert300MainToReturn = (suffix: string, ast: Program): void => {
     throw new Error('No "out vec4" line found in the fragment shader');
   }
 
+  // @ts-ignore
+  ast.outVar = outName;
+
   ast.program.unshift(
     makeStatement(`vec4 ${mainReturnVar}`) as DeclarationStatementNode,
   );
 
   visit(ast, {
-    identifier: {
-      enter: (path) => {
-        if (path.node.identifier === outName) {
-          path.node.identifier = mainReturnVar;
-          // @ts-ignore
-          path.node.doNotDescope = true; // hack because this var is in the scope which gets renamed later
-        }
-      },
-    },
     function: {
       enter: (path) => {
         if (path.node.prototype.header.name.identifier === 'main') {
