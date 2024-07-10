@@ -17,8 +17,8 @@
     "prepare": "npm run build && ./prepublish.sh",
     "postpublish": "./postbuild.sh",
     "build": "./build.sh",
-    "watch-test": "jest --watch",
-    "test": "jest --colors"
+    "watch-test": "vitest --watch",
+    "test": "vitest"
   },
   "repository": {
     "type": "git",

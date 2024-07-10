@@ -74,8 +74,6 @@ void main() {
     fail(result);
   }
 
-  console.log(result.vertexResult);
-
   // Threngine has parsers for vertex shaders, make sure that is set properly
   expect(result.vertexResult).toContain(`vec4 main_Shader_${vertInput.id}() {
   vec4 frogOut = modelViewMatrix * vec4(position, 1.0);
