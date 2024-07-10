@@ -21,7 +21,6 @@ import { evaluateNode } from './evaluate';
 import { compileSource } from './graph';
 import { texture2DStrategy } from 'src/strategy';
 import { isError } from './context';
-import { outVar } from 'src/util/ast';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));
@@ -117,8 +116,8 @@ const makeSourceNode = (
  * function calls at the top of functions
  *
  * WHie doing that I found jest not to work well anyore and switched to vitest,
- * which is fine, but with esm by default I can't stub the mangleName()
- * function call, which means mangling happens as-is in the tests.
+ * which is fine, but with esm by default I can't stub the mangleName() function
+ * call, which means mangling happens as-is in the tests.
  *
  * Without changing the mangling strategy, the strategies.test.ts file fails
  * because the uniform strategy looks for a mangled variable name, but the
@@ -126,8 +125,13 @@ const makeSourceNode = (
  *
  * One way to fix this is to make fillers not have to care about mangling names,
  * which would be simpler on the surface.
+ *
+ * Then everything in the tests broke and you found out the reason why was
+ * trying to use scopes to rename things, and most of the ast manipulation steps
+ * don't modify scopes, so you made some of them modify scopes, and now things
+ * are fucked
  */
-it('compileSource() produces inlined output', async () => {
+it('compileSource() fragment produces inlined output', async () => {
   const outV = outputNode(id(), 'Output v', p, 'vertex');
   const outF = outputNode(id(), 'Output f', p, 'fragment');
   const imageReplacemMe = makeSourceNode(
@@ -188,6 +192,14 @@ void main() {
         'filler_image2',
         'fragment',
       ),
+      makeEdge(
+        id(),
+        input2.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image2',
+        'fragment',
+      ),
     ],
   };
   const engineContext: EngineContext = {
@@ -202,74 +214,68 @@ void main() {
     fail(result);
   }
 
-  // what is this supposed to be? the code only conatins "fragmentColor"
-  console.log(result.fragmentResult);
-
   expect(result.fragmentResult).toContain(`vec4 main_Shader_${input1.id}() {`);
   expect(result.fragmentResult).toContain(`vec4 main_Shader_${input2.id}() {`);
+
+  const imgOut = `frogOut_${imageReplacemMe.id}`;
+
+  expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
+
   expect(result.fragmentResult)
     .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
-  vec3 col = main_Shader_${input1.id}().rgb + 1.0;
-  vec3 col = main_Shader_${input2.id}().rgb + 2.0;
-  return ${outVar(imageReplacemMe)};
+  vec3 col1 = main_Shader_${input1.id}().rgb + 1.0;
+  vec3 col2 = main_Shader_${input2.id}().rgb + 2.0;
+  ${imgOut} = vec4(col1 + col2, 1.0);
+  return ${imgOut};
 }`);
 });
 
-// it('graph compiler arbitrary helper test', () => {
-//   const graph: Graph = {
-//     nodes: [
-//       outputNode('0', 'Output v', p, 'vertex'),
-//       outputNode('1', 'Output f', p, 'fragment'),
-//       makeSourceNode(
-//         '2',
-//         `uniform sampler2D image1;
-// uniform sampler2D image2;
-// void main() {
-//   vec3 col = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
-//   vec3 col = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
-// }
-// `,
-//         'fragment'
-//       ),
-//       makeSourceNode(
-//         '3',
-//         `void main() {
-//     return vec4(0.0);
-// }
-// `,
-//         'fragment'
-//       ),
-//       makeSourceNode(
-//         '4',
-//         `void main() {
-//     return vec4(1.0);
-// }
-// `,
-//         'fragment'
-//       ),
-//     ],
-//     edges: [
-//       makeEdge(id(), '2', '1', 'out', 'filler_frogFragOut', 'fragment'),
-//       makeEdge(id(), '3', '2', 'out', 'filler_image1', 'fragment'),
-//       makeEdge(id(), '4', '2', 'out', 'filler_image2', 'fragment'),
-//     ],
-//   };
-//   const engineContext: EngineContext = {
-//     engine: 'three',
-//     nodes: {},
-//     runtime: {},
-//     debuggingNonsense: {},
-//   };
+it('compileSource() base case', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+  const imageReplacemMe = makeSourceNode(
+    id(),
+    `float a = 1.0;
+void main() {
+  gl_FragColor = vec4(1.0);
+}
+`,
+    'fragment',
+  );
 
-//   const result = compileGraph(engineContext, engine, graph);
-//   const built = generate(
-//     shaderSectionsToProgram(result.fragment, {
-//       includePrecisions: true,
-//       includeVersion: true,
-//     }).program
-//   );
-//   expect(built).toBe('hi');
-// });
+  const graph: Graph = {
+    nodes: [outV, outF, imageReplacemMe],
+    edges: [
+      makeEdge(
+        id(),
+        imageReplacemMe.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment',
+      ),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  const imgOut = `frogOut_${imageReplacemMe.id}`;
+  expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
+  expect(result.fragmentResult)
+    .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
+  ${imgOut} = vec4(1.0);
+  return ${imgOut};
+}`);
+});
 
 describe('evaluateNode()', () => {
   it('evaluates binary nodes', () => {

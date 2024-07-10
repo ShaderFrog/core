@@ -106,9 +106,6 @@ export const mangleEntireProgram = (
   node: GraphNode,
   sibling?: GraphNode,
 ) => {
-  // renameBindings(ast.scopes[0], (name, n) =>
-  //   (n as any).doNotDescope ? name : mangleVar(name, engine, node, sibling)
-  // );
   ast.scopes[0].bindings = renameBindings(ast.scopes[0].bindings, (name) =>
     name === ast.outVar ? name : mangleVar(name, engine, node, sibling),
   );
@@ -120,9 +117,6 @@ export const mangleMainFn = (
   node: GraphNode,
   sibling?: GraphNode,
 ) => {
-  // renameFunctions(ast.scopes[0], (name) =>
-  //   name === 'main' ? nodeName(node) : mangleName(name, node, sibling),
-  // );
   ast.scopes[0].functions = renameFunctions(ast.scopes[0].functions, (name) =>
     name === 'main' ? nodeName(node) : mangleName(name, node, sibling),
   );

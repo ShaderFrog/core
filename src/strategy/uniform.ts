@@ -151,9 +151,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
     ) {
       // Capture all the declared names, removing mangling suffix
       const { declarations } = node.declaration;
-      const names = declarations.map(
-        (d: any) => d.identifier.identifier,
-      ) as string[];
+      const names = declarations.map((d) => d.identifier.identifier);
 
       // Tricky code warning: The flow of preparing a node for the graph is:
       // 1. Produce/mangle the AST (with unmangled names)
