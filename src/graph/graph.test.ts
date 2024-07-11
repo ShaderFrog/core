@@ -21,6 +21,7 @@ import { evaluateNode } from './evaluate';
 import { compileSource } from './graph';
 import { texture2DStrategy } from 'src/strategy';
 import { isError } from './context';
+import { fail } from 'src/test-util';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));

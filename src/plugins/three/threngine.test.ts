@@ -6,10 +6,11 @@ import { outputNode, sourceNode } from '../../graph/graph-node';
 import { makeEdge } from '../../graph/edge';
 import { EngineContext } from '../../engine';
 import { compileSource } from '../../graph/graph';
-import { texture2DStrategy } from 'src/strategy';
+import { texture2DStrategy } from '../../strategy';
 import { isError } from '../../graph/context';
 import { threngine } from './threngine';
-import { makeId } from 'src/util/id';
+import { makeId } from '../../util/id';
+import { fail } from '../../test-util';
 
 const p = { x: 0, y: 0 };
 
