@@ -8,8 +8,8 @@ import { makeExpression } from '../util/ast';
 
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-import { Engine, PhysicalNodeConstructor } from 'src/engine';
-import { GraphNode } from 'src/graph/graph-types';
+import { Engine, PhysicalNodeConstructor } from '../engine';
+import { GraphNode } from '../graph/graph-types';
 
 it('named attribute strategy`', () => {
   const source = `

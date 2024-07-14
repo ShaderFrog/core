@@ -317,6 +317,14 @@ export const findFn =
 
 export const findMain = findFn('main');
 
+export const findMainOrThrow = (ast: Program) => {
+  const main = findMain(ast);
+  if (!main) {
+    throw new Error('No main function found!');
+  }
+  return main;
+};
+
 export const returnGlPosition = (fnName: string, ast: Program): void =>
   convertVertexMain(
     fnName,
@@ -409,10 +417,7 @@ const convertVertexMain = (
  */
 export const convert300MainToReturn = (ast: FrogProgram): void => {
   // Convert the main function to return a vec4
-  const main = findMain(ast);
-  if (!main) {
-    throw new Error('No main function found!');
-  }
+  const main = findMainOrThrow(ast);
   (main.prototype.header.returnType.specifier.specifier as KeywordNode).token =
     'vec4';
 
