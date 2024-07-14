@@ -90,8 +90,8 @@ export const tryAddTrailingWhitespace = <T extends AstNode>(
 
 export const guessFnIndent = (fnBody: FunctionNode) =>
   getLiteralIndent(fnBody.body.lb) ||
-  fnBody.body.statements.reduce((ws, n) => {
-    return ws || getLiteralIndent((n as DoStatementNode).semi);
+  fnBody.body.statements.reduce<string>((ws, n) => {
+    return ws || getLiteralIndent((n as DoStatementNode).semi) || '';
   }, '');
 
 export const addFnStmtWithIndent = (
