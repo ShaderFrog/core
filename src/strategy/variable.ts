@@ -17,14 +17,14 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode
+  siblingNode,
 ) => {
   const program = ast as Program;
   return Object.values(
     (program.scopes as Scope[]).reduce<ScopeIndex>(
       (acc, scope) => ({ ...acc, ...scope.bindings }),
-      {}
-    )
+      {},
+    ),
   ).flatMap((binding: any) => {
     return (binding.references as AstNode[]).reduce<ComputedInput[]>(
       (acc, ref) => {
@@ -59,13 +59,13 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
               'filler',
               undefined, // Data type for what plugs into this filler
               ['code', 'data'],
-              false
+              false,
             ),
             replacer,
           ],
         ];
       },
-      []
+      [],
     );
   });
 };

@@ -21,7 +21,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode
+  siblingNode,
 ) => {
   let texture2Dcalls: [string, AstNode, string, AstNode[]][] = [];
   const seen: { [key: string]: number } = {};
@@ -37,7 +37,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
         ) {
           if (!path.parent) {
             throw new Error(
-              'This error is impossible. A function call always has a parent.'
+              'This error is impossible. A function call always has a parent.',
             );
           }
 
@@ -58,8 +58,8 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
   const names = new Set(
     Object.entries(seen).reduce<string[]>(
       (arr, [name, count]) => [...arr, ...(count > 1 ? [name] : [])],
-      []
-    )
+      [],
+    ),
   );
   const inputs = texture2Dcalls.map<ComputedInput>(
     ([name, parent, key, texture2dArgs], index) => {
@@ -72,7 +72,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
           'filler',
           'vector4', // Data type for what plugs into this filler
           ['code', 'data'],
-          false
+          false,
         ),
         (fillerAst) => {
           // @ts-ignore
@@ -81,7 +81,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
         },
         texture2dArgs,
       ];
-    }
+    },
   );
 
   return inputs;

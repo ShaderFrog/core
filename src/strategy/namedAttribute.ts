@@ -4,7 +4,7 @@ import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { generateFiller } from '../util/ast';
 
 export const namedAttributeStrategy = (
-  attributeName: string
+  attributeName: string,
 ): NamedAttributeStrategy => ({
   type: StrategyType.NAMED_ATTRIBUTE,
   config: { attributeName },
@@ -29,7 +29,7 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
         'filler',
         undefined, // Data type for what plugs into this filler
         ['code', 'data'],
-        true
+        true,
       ),
       (fillerAst) => {
         Object.entries(program.scopes[0].bindings).forEach(
@@ -45,7 +45,7 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
                 ref.identifier = generateFiller(fillerAst);
               }
             });
-          }
+          },
         );
         return ast;
       },

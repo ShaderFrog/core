@@ -128,7 +128,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode
+  siblingNode,
 ) => {
   const program = ast as Program;
   return (program.program || []).flatMap<ComputedInput>((node) => {
@@ -144,7 +144,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
       node.type === 'declaration_statement' &&
       node.declaration.type === 'declarator_list' &&
       node.declaration?.specified_type?.qualifiers?.find(
-        (n) => (n as KeywordNode).token === 'uniform'
+        (n) => (n as KeywordNode).token === 'uniform',
       )
       // commented this out to allow for sampler2D uniforms to appear as inputs
       // && uniformType !== 'sampler2D'
@@ -152,7 +152,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
       // Capture all the declared names, removing mangling suffix
       const { declarations } = node.declaration;
       const names = declarations.map(
-        (d: any) => d.identifier.identifier
+        (d: any) => d.identifier.identifier,
       ) as string[];
 
       // Tricky code warning: The flow of preparing a node for the graph is:
@@ -169,7 +169,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           'uniform',
           graphDataType,
           ['code', 'data'],
-          true
+          true,
         ),
         (filler) => {
           const mangledName = mangleName(name, graphNode, siblingNode);
@@ -179,7 +179,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           } else {
             const decl = node.declaration as DeclaratorListNode;
             decl.declarations = decl.declarations.filter(
-              (d) => d.identifier.identifier !== mangledName
+              (d) => d.identifier.identifier !== mangledName,
             );
           }
           // And rename all the references to said uniform
@@ -198,7 +198,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
               console.warn(
                 'Unknown uniform reference for',
                 graphNode.name,
-                'ref'
+                'ref',
               );
             }
           });

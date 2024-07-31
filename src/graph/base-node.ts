@@ -23,7 +23,7 @@ export const nodeInput = (
   dataType: GraphDataType | undefined,
   accepts: InputCategory[],
   bakeable: boolean,
-  property?: string
+  property?: string,
 ): NodeInput => ({
   displayName,
   id,

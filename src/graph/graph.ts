@@ -53,14 +53,14 @@ export const findNode = (graph: Graph, id: string): GraphNode =>
 
 export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
   const edges = graph.edges.filter(
-    (edge) => edge.type !== EdgeLink.NEXT_STAGE && edge.from === node.id
+    (edge) => edge.type !== EdgeLink.NEXT_STAGE && edge.from === node.id,
   );
   if (edges.length === 0) {
     return false;
   }
   return edges.reduce<boolean>((foundShader, edge: Edge) => {
     const upstreamNode = ensure(
-      graph.nodes.find((node) => node.id === edge.to)
+      graph.nodes.find((node) => node.id === edge.to),
     );
     return (
       foundShader ||
@@ -82,7 +82,7 @@ export const nodeName = (node: GraphNode): string =>
 export const mangleName = (
   name: string,
   node: GraphNode,
-  nextSibling?: GraphNode
+  nextSibling?: GraphNode,
 ) => {
   // Mangle a name to its next stage node, so the vertex suffix becomes the
   // fragment id, but not the other way around.
@@ -97,17 +97,17 @@ export const mangleVar = (
   name: string,
   engine: Engine,
   node: GraphNode,
-  sibling?: GraphNode
+  sibling?: GraphNode,
 ) => (engine.preserve.has(name) ? name : mangleName(name, node, sibling));
 
 export const mangleEntireProgram = (
   engine: Engine,
   ast: Program,
   node: GraphNode,
-  sibling?: GraphNode
+  sibling?: GraphNode,
 ) => {
   renameBindings(ast.scopes[0], (name, n) =>
-    (n as any).doNotDescope ? name : mangleVar(name, engine, node, sibling)
+    (n as any).doNotDescope ? name : mangleVar(name, engine, node, sibling),
   );
   mangleMainFn(ast, node, sibling);
 };
@@ -115,17 +115,17 @@ export const mangleEntireProgram = (
 export const mangleMainFn = (
   ast: Program,
   node: GraphNode,
-  sibling?: GraphNode
+  sibling?: GraphNode,
 ) => {
   renameFunctions(ast.scopes[0], (name) =>
-    name === 'main' ? nodeName(node) : mangleName(name, node, sibling)
+    name === 'main' ? nodeName(node) : mangleName(name, node, sibling),
   );
 };
 
 export const ensureFromNode = (graph: Graph, inputEdge: Edge) =>
   ensure(
     graph.nodes.find(({ id }) => id === inputEdge.from),
-    `Orphaned edge! There is an edge fro "${inputEdge.from}" to "${inputEdge.to}", but from node ${inputEdge.from} does not exist in the graph.`
+    `Orphaned edge! There is an edge fro "${inputEdge.from}" to "${inputEdge.to}", but from node ${inputEdge.from} does not exist in the graph.`,
   );
 
 export const resetGraphIds = (graph: Graph): Graph => {
@@ -151,7 +151,7 @@ export const resetGraphIds = (graph: Graph): Graph => {
 
 export const findLinkedNode = (graph: Graph, id: string) => {
   const edgeLink = graph.edges.find(
-    (e) => e.type === EdgeLink.NEXT_STAGE && (e.from === id || e.to === id)
+    (e) => e.type === EdgeLink.NEXT_STAGE && (e.from === id || e.to === id),
   );
   const otherId = edgeLink?.from === id ? edgeLink?.to : edgeLink?.from;
   return graph.nodes.find((node) => node.id === otherId);
@@ -162,15 +162,14 @@ export const findLinkedNode = (graph: Graph, id: string) => {
  */
 export const findLinkedVertexNodes = (
   graph: Graph,
-  existingIds: NodeIds = {}
+  existingIds: NodeIds = {},
 ) => {
   // Group edges by where they point
   const edgeLinks = graph.edges
     .filter((e) => e.type === EdgeLink.NEXT_STAGE)
-    .reduce<Record<string, Edge>>(
-      (edges, edge) => ({ ...edges, [edge.to]: edge, [edge.from]: edge }),
-      {}
-    );
+    .reduce<
+      Record<string, Edge>
+    >((edges, edge) => ({ ...edges, [edge.to]: edge, [edge.from]: edge }), {});
 
   return graph.nodes.filter(
     (node) =>
@@ -180,7 +179,7 @@ export const findLinkedVertexNodes = (
       // That's linked
       node.id in edgeLinks &&
       // And not already captured (this should probably just be a set)
-      !existingIds[node.id]
+      !existingIds[node.id],
   );
 };
 
@@ -188,21 +187,21 @@ export type Predicates = {
   node?: (
     node: GraphNode,
     inputEdges: Edge[],
-    lastResult: SearchResult
+    lastResult: SearchResult,
   ) => boolean;
   edge?: (
     input: NodeInput | undefined,
     node: GraphNode,
     inputEdge: Edge | undefined,
     fromNode: GraphNode | undefined,
-    lastResult: SearchResult
+    lastResult: SearchResult,
   ) => boolean;
   input?: (
     input: NodeInput,
     node: GraphNode,
     inputEdge: Edge | undefined,
     fromNode: GraphNode | undefined,
-    lastResult: SearchResult
+    lastResult: SearchResult,
   ) => boolean;
 };
 export type SearchResult = {
@@ -221,7 +220,7 @@ export const consSearchResult = (): SearchResult => ({
 });
 export const mergeSearchResults = (
   a: SearchResult,
-  b: SearchResult
+  b: SearchResult,
 ): SearchResult => ({
   nodes: { ...a.nodes, ...b.nodes },
   inputs: { ...a.inputs, ...b.inputs },
@@ -245,8 +244,8 @@ export const prepopulatePropertyInputs = (node: CodeNode): CodeNode => ({
         property.type,
         ['data'],
         !!property.fillerName, // bakeable
-        property.property
-      )
+        property.property,
+      ),
     ),
   ],
 });
@@ -263,7 +262,7 @@ export const filterGraphFromNode = (
   node: GraphNode,
   predicates: Predicates,
   depth = Infinity,
-  lastResult = consSearchResult()
+  lastResult = consSearchResult(),
 ): SearchResult => {
   const { inputs } = node;
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
@@ -313,7 +312,7 @@ export const filterGraphFromNode = (
         fromNode,
         predicates,
         depth - 1,
-        intermediateAcc
+        intermediateAcc,
       );
       return mergeSearchResults(intermediateAcc, result);
     } else {
@@ -329,7 +328,7 @@ export const filterGraphNodes = (
   graph: Graph,
   nodes: GraphNode[],
   filter: Predicates,
-  depth = Infinity
+  depth = Infinity,
 ) =>
   nodes.reduce<SearchResult>((acc, node) => {
     const result = filterGraphFromNode(graph, node, filter, depth);
@@ -351,7 +350,7 @@ export type CompileNodeResult = [
   filler: ReturnType<ProduceNodeFiller>,
   // All of the nodes compiled as dependencies of this node, continues to grow
   // as the graph is compiled.
-  compiledIds: NodeIds
+  compiledIds: NodeIds,
 ];
 
 // before data inputs were known by the input.category being node or data. I
@@ -366,7 +365,7 @@ export const compileNode = (
   edges: Edge[],
   engineContext: EngineContext,
   node: GraphNode,
-  activeIds: NodeIds = {}
+  activeIds: NodeIds = {},
 ): CompileNodeResult => {
   // THIS DUPLICATES OTHER LINE
   const parser = {
@@ -379,7 +378,7 @@ export const compileNode = (
   if (!parser) {
     console.error(node);
     throw new Error(
-      `No parser found for ${node.name} (${node.type}, id ${node.id})`
+      `No parser found for ${node.name} (${node.type}, id ${node.id})`,
     );
   }
 
@@ -387,7 +386,7 @@ export const compileNode = (
     ? null
     : ensure(
         engineContext.nodes[node.id],
-        `No node context found for "${node.name}" (id ${node.id})!`
+        `No node context found for "${node.name}" (id ${node.id})!`,
       );
   const { ast, inputFillers } = (nodeContext || {}) as NodeContext;
   if (!inputs) {
@@ -405,7 +404,7 @@ export const compileNode = (
         edge,
         fromNode: ensure(
           graph.nodes.find((node) => edge.from === node.id),
-          `GraphNode for edge ${edge.from} not found`
+          `GraphNode for edge ${edge.from} not found`,
         ),
         input: ensure(
           inputs.find(({ id }) => id == edge.input),
@@ -413,7 +412,7 @@ export const compileNode = (
             (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
           } has no input ${edge.input}!\nAvailable:${inputs
             .map(({ id }) => id)
-            .join(', ')}`
+            .join(', ')}`,
         ),
       }))
       .filter(({ input }) => !isDataInput(input))
@@ -424,11 +423,11 @@ export const compileNode = (
           edges,
           engineContext,
           fromNode,
-          activeIds
+          activeIds,
         );
         if (!fillerAst) {
           throw new TypeError(
-            `Expected a filler ast from node ID ${fromNode.id} (${fromNode.type}) but none was returned`
+            `Expected a filler ast from node ID ${fromNode.id} (${fromNode.type}) but none was returned`,
           );
         }
 
@@ -441,9 +440,9 @@ export const compileNode = (
           if (input.property) {
             fillerName = ensure(
               ((node as CodeNode).config.properties || []).find(
-                (p) => p.property === input.property
+                (p) => p.property === input.property,
               )?.fillerName,
-              `Node "${node.name}" has no property named "${input.property}" to find the filler for`
+              `Node "${node.name}" has no property named "${input.property}" to find the filler for`,
             );
             filler = inputFillers[fillerName];
           } else {
@@ -463,7 +462,7 @@ export const compileNode = (
                   : ''
               } has no filler for input "${
                 input.displayName
-              }" named ${fillerName}`
+              }" named ${fillerName}`,
             );
           }
 
@@ -496,7 +495,7 @@ export const compileNode = (
               // const fc = engineContext.nodes[sourceNode.id];
               const fc = engineContext.nodes[fromNode.id];
               const main = Object.values(
-                (fc.ast as Program).scopes[0].functions.main
+                (fc.ast as Program).scopes[0].functions.main,
               )[0].declaration as FunctionNode;
               main.prototype.parameters = [
                 'vec2 vv' as unknown as ParameterDeclarationNode,
@@ -527,7 +526,7 @@ export const compileNode = (
         (node as SourceNode).sourceType === SourceType.EXPRESSION ||
         (node as SourceNode).sourceType === SourceType.FN_BODY_FRAGMENT
         ? emptyShaderSections()
-        : findShaderSections(ast as Program)
+        : findShaderSections(ast as Program),
     );
 
     const filler = isDataNode(node)
@@ -566,12 +565,12 @@ export type CompileGraphResult = {
 export const compileGraph = (
   engineContext: EngineContext,
   engine: Engine,
-  graph: Graph
+  graph: Graph,
 ): CompileGraphResult => {
   // computeGraphContext(engineContext, engine, graph);
 
   const outputFrag = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'fragment'
+    (node) => node.type === 'output' && node.stage === 'fragment',
   );
   if (!outputFrag) {
     throw new Error('No fragment output in graph');
@@ -582,11 +581,11 @@ export const compileGraph = (
     graph,
     graph.edges,
     engineContext,
-    outputFrag
+    outputFrag,
   );
 
   const outputVert = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'vertex'
+    (node) => node.type === 'output' && node.stage === 'vertex',
   );
   if (!outputVert) {
     throw new Error('No vertex output in graph');
@@ -615,7 +614,7 @@ export const compileGraph = (
     graph,
     [...graph.edges, ...orphanEdges],
     engineContext,
-    outputVert
+    outputVert,
   );
 
   // Every compileNode returns the AST so far, as well as the filler for the
@@ -651,20 +650,20 @@ export const collectNodeProperties = (graph: Graph): SearchResult => {
   };
 
   const outputFrag = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'fragment'
+    (node) => node.type === 'output' && node.stage === 'fragment',
   ) as GraphNode;
   const outputVert = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'vertex'
+    (node) => node.type === 'output' && node.stage === 'vertex',
   ) as GraphNode;
   const fragProperties = filterGraphFromNode(
     graph,
     outputFrag,
-    nodesWithProperties
+    nodesWithProperties,
   );
   const vertProperties = filterGraphFromNode(
     graph,
     outputVert,
-    nodesWithProperties
+    nodesWithProperties,
   );
 
   return {
@@ -687,7 +686,7 @@ export type CompileResult = {
 export const compileSource = async (
   graph: Graph,
   engine: Engine,
-  ctx: EngineContext
+  ctx: EngineContext,
 ): Promise<CompileResult | NodeErrors> => {
   const result = await computeGraphContext(ctx, engine, graph);
   if (isError(result)) {
@@ -696,16 +695,17 @@ export const compileSource = async (
   const compileResult = compileGraph(ctx, engine, graph);
 
   const fragmentResult = generate(
-    shaderSectionsToProgram(compileResult.fragment, engine.mergeOptions).program
+    shaderSectionsToProgram(compileResult.fragment, engine.mergeOptions)
+      .program,
   );
   const vertexResult = generate(
-    shaderSectionsToProgram(compileResult.vertex, engine.mergeOptions).program
+    shaderSectionsToProgram(compileResult.vertex, engine.mergeOptions).program,
   );
 
   const dataInputs = filterGraphNodes(
     graph,
     [compileResult.outputFrag, compileResult.outputVert],
-    { input: isDataInput }
+    { input: isDataInput },
   ).inputs;
 
   // Find which nodes flow up into uniform inputs, for colorizing and for
@@ -715,7 +715,7 @@ export const compileSource = async (
   >((acc, [nodeId, inputs]) => {
     return inputs.reduce((iAcc, input) => {
       const fromEdge = graph.edges.find(
-        (edge) => edge.to === nodeId && edge.input === input.id
+        (edge) => edge.to === nodeId && edge.input === input.id,
       );
       const fromNode =
         fromEdge && graph.nodes.find((node) => node.id === fromEdge.from);

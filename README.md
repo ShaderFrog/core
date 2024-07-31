@@ -119,9 +119,9 @@ export interface Engine {
 
 Shaderfrog works by searching each node's AST for certain patterns, like
 `uniform` variables, and creating an interface where you can replace each
-`uniform` variable with the output of another node. 
+`uniform` variable with the output of another node.
 
-Each fillable part of the AST is called a __hole__. Holes are found by executing
+Each fillable part of the AST is called a **hole**. Holes are found by executing
 user defined _strategies_ against an AST. With a program such as:
 
 ```glsl

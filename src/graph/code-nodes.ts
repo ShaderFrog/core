@@ -5,7 +5,7 @@ import { BaseNode, NodeInput } from './base-node';
 
 export const mapInputName = (
   node: CodeNode,
-  { id, displayName }: NodeInput
+  { id, displayName }: NodeInput,
 ): string => node.config?.inputMapping?.[id] || displayName;
 
 export type InputMapping = { [original: string]: string };
@@ -38,7 +38,7 @@ export const property = (
   property: string,
   type: GraphDataType,
   fillerName?: string,
-  defaultValue?: any
+  defaultValue?: any,
 ): NodeProperty => ({
   displayName,
   type,

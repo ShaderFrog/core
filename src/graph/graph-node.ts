@@ -10,7 +10,7 @@ export const sourceNode = (
   config: NodeConfig,
   source: string,
   stage: ShaderStage,
-  originalEngine?: string
+  originalEngine?: string,
 ): CodeNode => ({
   id,
   name,
@@ -37,7 +37,7 @@ export const outputNode = (
   id: string,
   name: string,
   position: NodePosition,
-  stage: ShaderStage
+  stage: ShaderStage,
 ): CodeNode => ({
   id,
   name,
@@ -60,7 +60,7 @@ export const outputNode = (
           },
     strategies: [
       assignemntToStrategy(
-        stage === 'fragment' ? 'frogFragOut' : 'gl_Position'
+        stage === 'fragment' ? 'frogFragOut' : 'gl_Position',
       ),
     ],
   },
@@ -94,7 +94,7 @@ export const expressionNode = (
   id: string,
   name: string,
   position: NodePosition,
-  source: string
+  source: string,
 ): CodeNode => ({
   id,
   name,
@@ -151,7 +151,7 @@ export const addNode = (id: string, position: NodePosition): BinaryNode => ({
 
 export const multiplyNode = (
   id: string,
-  position: NodePosition
+  position: NodePosition,
 ): BinaryNode => ({
   id,
   name: 'multiply',

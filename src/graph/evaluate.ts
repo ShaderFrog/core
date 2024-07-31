@@ -10,7 +10,7 @@ export type Evaluate = (
   node: SourceNode,
   inputEdges: Edge[],
   inputNodes: GraphNode[],
-  evaluate: Evaluator
+  evaluate: Evaluator,
 ) => any;
 
 export const toGlsl = (node: DataNode): string => {
@@ -30,7 +30,7 @@ export const toGlsl = (node: DataNode): string => {
 export const evaluateNode = (
   engine: Engine,
   graph: Graph,
-  node: GraphNode
+  node: GraphNode,
 ): any => {
   // TODO: Data nodes themselves should have evaluators
   if ('value' in node) {
@@ -40,18 +40,18 @@ export const evaluateNode = (
   const { evaluate } = coreParsers[node.type];
   if (!evaluate) {
     throw new Error(
-      `No evaluator for node ${node.name} (type: ${node.type}, id: ${node.id})`
+      `No evaluator for node ${node.name} (type: ${node.type}, id: ${node.id})`,
     );
   }
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
   const inputNodes = inputEdges.map(
-    (edge) => graph.nodes.find((node) => node.id === edge.from) as GraphNode
+    (edge) => graph.nodes.find((node) => node.id === edge.from) as GraphNode,
   );
 
   return evaluate(
     node as SourceNode,
     inputEdges,
     inputNodes,
-    evaluateNode.bind(null, engine, graph)
+    evaluateNode.bind(null, engine, graph),
   );
 };

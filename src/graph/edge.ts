@@ -22,13 +22,13 @@ export const makeEdge = (
   to: string,
   output: string,
   input: string,
-  type?: EdgeType
+  type?: EdgeType,
 ): Edge => ({ id, from, to, output, input, type });
 
 export const linkFromVertToFrag = (
   id: string,
   vertId: string,
-  fragId: string
+  fragId: string,
 ) =>
   makeEdge(
     id,
@@ -36,5 +36,5 @@ export const linkFromVertToFrag = (
     fragId,
     LinkHandle.NEXT_STAGE, // output from next_stage
     LinkHandle.PREVIOUS_STAGE, // input to previous_stage
-    EdgeLink.NEXT_STAGE
+    EdgeLink.NEXT_STAGE,
   );

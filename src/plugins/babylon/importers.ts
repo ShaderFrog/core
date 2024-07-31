@@ -29,24 +29,24 @@ const importers: EngineImporters = {
           name === 'vUv'
             ? 'vMainUV1'
             : name === 'vNormal'
-            ? 'vNormalW'
-            : name === 'projectionMatrix'
-            ? seen[name]
-              ? 'viewProjection'
-              : 'hobgoblin'
-            : name === 'modelMatrix'
-            ? seen[name]
-              ? 'world'
-              : name
-            : name === 'modelViewMatrix'
-            ? seen[name]
-              ? '(world * viewProjection)'
-              : name
-            : name === 'vPosition'
-            ? seen[name]
-              ? 'vPositionW'
-              : name
-            : name;
+              ? 'vNormalW'
+              : name === 'projectionMatrix'
+                ? seen[name]
+                  ? 'viewProjection'
+                  : 'hobgoblin'
+                : name === 'modelMatrix'
+                  ? seen[name]
+                    ? 'world'
+                    : name
+                  : name === 'modelViewMatrix'
+                    ? seen[name]
+                      ? '(world * viewProjection)'
+                      : name
+                    : name === 'vPosition'
+                      ? seen[name]
+                        ? 'vPositionW'
+                        : name
+                      : name;
 
         seen[name] = true;
 

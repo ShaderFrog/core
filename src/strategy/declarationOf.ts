@@ -4,7 +4,7 @@ import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { AstNode } from '@shaderfrog/glsl-parser/ast';
 
 export const declarationOfStrategy = (
-  declarationOf: string
+  declarationOf: string,
 ): DeclarationOfStrategy => ({
   type: StrategyType.DECLARATION_OF,
   config: { declarationOf },
@@ -20,7 +20,7 @@ export const constApplyDeclarationOf: ApplyStrategy<DeclarationOfStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode
+  siblingNode,
 ) => {
   const declaration = findDeclarationOf(ast, strategy.config.declarationOf);
   const name = strategy.config.declarationOf;
@@ -33,7 +33,7 @@ export const constApplyDeclarationOf: ApplyStrategy<DeclarationOfStrategy> = (
             'filler',
             undefined, // Data type for what plugs into this filler
             ['code', 'data'],
-            false
+            false,
           ),
           (fillerAst) => {
             declaration.initializer = fillerAst as AstNode;

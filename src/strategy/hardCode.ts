@@ -20,7 +20,7 @@ export const applyHardCodeStrategy: ApplyStrategy<HardCodeStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode
+  siblingNode,
 ) =>
   strategy.config.inputs.map((input) => {
     // Broken out into two lines to enforce type checking on the array.
