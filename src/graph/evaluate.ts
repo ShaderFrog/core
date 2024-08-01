@@ -15,6 +15,9 @@ export type Evaluate = (
 
 export const toGlsl = (node: DataNode): string => {
   const { type, value } = node;
+  if (type === 'number') {
+    return value;
+  }
   if (type === 'vector2') {
     return `vec2(${value[0]}, ${value[1]})`;
   }
@@ -23,6 +26,10 @@ export const toGlsl = (node: DataNode): string => {
   }
   if (type === 'vector4' || type === 'rgba') {
     return `vec4(${value[0]}, ${value[1]}, ${value[2]}, ${value[3]})`;
+  }
+  // Right now hard coding that an array is floats. Need type from node later.
+  if (type === 'array') {
+    return `float[${value.length}](${value.join(', ')})`;
   }
   throw new Error(`Unknown GLSL inline type: "${node.type}"`);
 };

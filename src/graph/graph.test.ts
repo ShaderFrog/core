@@ -18,10 +18,11 @@ import { numberNode } from './data-nodes';
 import { makeEdge } from './edge';
 import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
-import { compileSource } from './graph';
+import { compileSource, nodeName, resultName } from './graph';
 import { texture2DStrategy } from '../strategy';
 import { isError } from './context';
 import { fail } from '../test-util';
+import { SourceType } from './code-nodes';
 
 const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));
@@ -171,14 +172,6 @@ void main() {
         'filler_image2',
         'fragment',
       ),
-      makeEdge(
-        id(),
-        input2.id,
-        imageReplacemMe.id,
-        'out',
-        'filler_image2',
-        'fragment',
-      ),
     ],
   };
   const engineContext: EngineContext = {
@@ -200,12 +193,220 @@ void main() {
 
   expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
 
-  expect(result.fragmentResult)
-    .toContain(`vec4 main_Shader_${imageReplacemMe.id}() {
-  vec3 col1 = main_Shader_${input1.id}().rgb + 1.0;
-  vec3 col2 = main_Shader_${input2.id}().rgb + 2.0;
+  const iOutName = resultName(imageReplacemMe);
+  const iMainName = nodeName(imageReplacemMe);
+  expect(result.fragmentResult).toContain(`
+void main() {
+  vec4 ${iOutName} = ${iMainName}();
+  frogFragOut = ${iOutName};
+}`);
+
+  /**
+   * Starting to look at memoizing the return of each function at the top of
+   * the main function.
+   *
+   * Things to keep in mind:
+   * - Support the function getting called with backfill args
+   * - Support if there are loops in the graph which all need this, so track
+   *   the memoized variable and pass it down all the way through.
+   * - Support for dynamic variable names in your source code to avoid having
+   *   to hard code a node's name and ID. Should be a magic reference and maybe
+   *   an ID under the hood.
+   *
+   * Do all of the fillers need to be called in the top level main function?
+   */
+  const iOut1 = resultName(input1);
+  const iOut2 = resultName(input2);
+  expect(result.fragmentResult).toContain(`vec4 ${iMainName}() {
+  vec4 ${iOut2} = ${nodeName(input2)}();
+  vec4 ${iOut1} = ${nodeName(input1)}();
+  vec3 col1 = ${iOut1}.rgb + 1.0;
+  vec3 col2 = ${iOut2}.rgb + 2.0;
   ${imgOut} = vec4(col1 + col2, 1.0);
   return ${imgOut};
+}`);
+});
+
+it('compileSource() inlining an expression', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+  const imageReplacemMe = makeSourceNode(
+    id(),
+    `uniform sampler2D image1;
+void main() {
+  vec3 col1 = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
+  gl_FragColor = vec4(col1, 1.0);
+}
+`,
+    'fragment',
+  );
+
+  // Inine an expression source node
+  const input = makeSourceNode(id(), `vec4(1.0)`, 'fragment');
+  input.sourceType = SourceType.EXPRESSION;
+
+  const graph: Graph = {
+    nodes: [outV, outF, imageReplacemMe, input],
+    edges: [
+      makeEdge(
+        id(),
+        imageReplacemMe.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image1',
+        'fragment',
+      ),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  // Verify it inlined the expression and did not memoize the source into a
+  // varaible
+  expect(result.fragmentResult).toContain(`vec4 ${nodeName(imageReplacemMe)}() {
+  vec3 col1 = vec4(1.0).rgb + 1.0;`);
+});
+
+it('compileSource() binary zzz', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+
+  const color = makeSourceNode(
+    id(),
+    `uniform sampler2D image;
+void main() {
+  vec3 col = texture2D(image, vec2(0.0)).rgb;
+  gl_FragColor = vec4(col, 1.0);
+}
+`,
+    'fragment',
+  );
+
+  // Inine an expression source node
+  const expr = makeSourceNode(id(), `vec4(1.0)`, 'fragment');
+  expr.sourceType = SourceType.EXPRESSION;
+
+  const add = addNode(id(), p);
+  const graph: Graph = {
+    nodes: [color, expr, add, outV, outF],
+    edges: [
+      makeEdge(id(), color.id, add.id, 'out', 'a'),
+      makeEdge(id(), expr.id, add.id, 'out', 'b'),
+      makeEdge(id(), add.id, outF.id, 'out', 'filler_frogFragOut', 'fragment'),
+    ],
+  };
+
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  /**
+   * I think we're seeing the need for hoisiting / continuations / passing (no
+   * idea if this is right terminology, it's 1am) of function calls. Because
+   * "main_Shader_2_out" fills in "a", and "vec4(1.0)" fills in "b", and we need
+   * to inject the dclaration line. When does main_Shader_2_out get inlined?
+   *
+   * In the binary node filler I think. At that time, we don't know what
+   * node the binary node is inlined into! It could be inlined into another
+   * binary node! We need to queue up the function calls, and flush the queue
+   * once we hit a main function?
+   *
+   * Or we could queue them all up until the output node, put them all in the
+   * output node, and then pass them back down to the functions that need them.
+   * We might have to do something like that regardless for the backfilling
+   * case, and the case when a value is needed in more than one place in the
+   * graph.
+   *
+   * At least there's a failing test for it now.
+   *
+   * I was also thinking a cop-out option could be to simply inline the function
+   * call filler into the binary node filler, but that means the filler needs
+   * to branch based on its context, which it doesn't currently have...
+   */
+  expect(result.fragmentResult).toContain(`void main() {
+  vec4 ${resultName(color)} = ${nodeName(color)}();
+  frogFragOut = (${resultName(color)}+ vec4(1.0));
+}`);
+});
+
+it('compileSource() binary ttt', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+
+  const a = makeSourceNode(
+    id(),
+    `
+void main() {
+  gl_FragColor = vec4(col, 1.0);
+}
+`,
+    'fragment',
+  );
+  const b = makeSourceNode(
+    id(),
+    `
+void main() {
+  gl_FragColor = vec4(col, 1.0);
+}
+`,
+    'fragment',
+  );
+
+  // Inine an expression source node
+  const expr = makeSourceNode(id(), `vec4(1.0)`, 'fragment');
+  expr.sourceType = SourceType.EXPRESSION;
+
+  const add = addNode(id(), p);
+  const graph: Graph = {
+    nodes: [a, b, add, outV, outF],
+    edges: [
+      makeEdge(id(), a.id, add.id, 'out', 'a'),
+      makeEdge(id(), b.id, add.id, 'out', 'b'),
+      makeEdge(id(), add.id, outF.id, 'out', 'filler_frogFragOut', 'fragment'),
+    ],
+  };
+
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  expect(result.fragmentResult).toContain(`void main() {
+  vec4 ${resultName(b)} = ${nodeName(b)}();
+  vec4 ${resultName(a)} = ${nodeName(a)}();
+  frogFragOut = (${resultName(a)}+ ${resultName(b)});
 }`);
 });
 

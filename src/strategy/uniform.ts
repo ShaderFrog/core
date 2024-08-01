@@ -152,6 +152,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
       const declaration = node.declaration as DeclaratorListNode;
 
       // The uniform declaration type, like vec4
+      // TODO: File VSCode bug, this is highlighted like a function
       const uniformType = (
         declaration?.specified_type?.specifier?.specifier as KeywordNode
       )?.token;

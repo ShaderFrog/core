@@ -9,7 +9,7 @@ import { makeExpression } from '../util/ast';
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { Engine, PhysicalNodeConstructor } from '../engine';
-import { GraphNode } from '../graph/graph-types';
+import { GraphNode, NodeType } from '../graph/graph-types';
 import { mangleEntireProgram } from 'src/graph';
 
 it('named attribute strategy`', () => {
@@ -163,7 +163,7 @@ const constructor: PhysicalNodeConstructor = () => ({
   id: '1',
   name: '1',
   engine: true,
-  type: '',
+  type: NodeType.SOURCE,
   inputs: [],
   outputs: [],
   position: { x: 0, y: 0 },

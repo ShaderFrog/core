@@ -111,3 +111,19 @@ export const addFnStmtWithIndent = (
     ),
   ];
 };
+
+export const unshiftFnStmtWithIndent = (
+  fnBody: FunctionNode,
+  newNode: string | AstNode,
+): AstNode[] => {
+  const statements = fnBody.body.statements;
+  const indent = guessFnIndent(fnBody);
+  return [
+    tryAddTrailingWhitespace(
+      typeof newNode === 'string' ? makeFnStatement(newNode)[0] : newNode,
+      `\n`,
+    ),
+    { type: 'literal', literal: '', whitespace: indent },
+    ...statements,
+  ];
+};

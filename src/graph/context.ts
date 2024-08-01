@@ -1,7 +1,12 @@
 import groupBy from 'lodash.groupby';
 import { type GlslSyntaxError } from '@shaderfrog/glsl-parser';
 
-import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
+import {
+  AstNode,
+  FunctionNode,
+  FunctionPrototypeNode,
+  Program,
+} from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
 import { NodeInput } from './base-node';
@@ -15,6 +20,7 @@ import {
   mangleEntireProgram,
 } from './graph';
 import { InputFillers, coreParsers } from './parsers';
+import { findMain } from '../util/ast';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a
@@ -31,6 +37,7 @@ export type NodeContext = {
   inputs?: NodeInput[];
   inputFillers: InputFillers;
   errors?: NodeErrors;
+  mainFn?: FunctionNode;
 };
 
 export type NodeErrors = {
@@ -82,9 +89,19 @@ const computeNodeContext = async (
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
+  let mainFn: ReturnType<typeof findMain>;
   let ast: ReturnType<typeof parser.produceAst>;
   try {
     ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
+
+    // Find the main function before mangling
+    if (
+      node.sourceType === SourceType.SHADER_PROGRAM ||
+      (node as CodeNode).engine
+    ) {
+      mainFn = findMain(ast as Program);
+    }
+
     if (manipulateAst) {
       ast = manipulateAst(
         engineContext,
@@ -143,6 +160,7 @@ const computeNodeContext = async (
   const nodeContext: NodeContext = {
     ast,
     id: node.id,
+    mainFn,
     inputFillers: computedInputs.reduce<InputFillers>(
       (acc, [input, filler, args]) => ({
         ...acc,
