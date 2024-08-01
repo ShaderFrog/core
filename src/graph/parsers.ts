@@ -23,7 +23,7 @@ import { Edge } from './edge';
 import { BinaryNode, SourceNode, SourceType } from './code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './base-node';
 import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
-import { nodeName } from './graph';
+import { nodeName, resultName } from './graph';
 import { Evaluate } from './evaluate';
 import { generateFiller } from '../util/ast';
 
@@ -187,7 +187,8 @@ export const coreParsers: CoreParser = {
         ? ((ast as Program).program[0] as AstNode)
         : node.sourceType === SourceType.FN_BODY_FRAGMENT
           ? ((ast as Program).program as AstNode[])
-          : (makeExpression(`${nodeName(node)}()`) as AstNode);
+          : (makeExpression(resultName(node)) as AstNode);
+      // (makeExpression(`${nodeName(node)}()`) as AstNode);
     },
   },
   // TODO: Output node assumes strategies are still passed in on node creation,
