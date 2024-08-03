@@ -22,7 +22,12 @@ import {
   ShaderSections,
   shaderSectionsToProgram,
 } from './shader-sections';
-import { FrogProgram, makeExpression } from '../util/ast';
+import {
+  backfillAst,
+  findMain,
+  FrogProgram,
+  makeExpression,
+} from '../util/ast';
 import { ensure } from '../util/ensure';
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
@@ -346,7 +351,9 @@ export const filterGraphNodes = (
   }, consSearchResult());
 
 type NodeIds = Record<string, GraphNode>;
-type Dlorp = Record<string, (...args: string[]) => string>;
+
+// Index of nodeId to
+type DependencyDeclarations = Record<string, (...args: string[]) => string>;
 
 export type CompileNodeResult = [
   // After compiling a node and all of its dependencies, the ShaderSections
@@ -359,7 +366,7 @@ export type CompileNodeResult = [
   // as the graph is compiled.
   compiledIds: NodeIds,
   // Dependencies to inject into the parent function
-  dependencies: Dlorp,
+  dependencyDeclarations: DependencyDeclarations,
 ];
 
 // before data inputs were known by the input.category being node or data. I
@@ -408,7 +415,7 @@ export const compileNode = (
   const inputEdges = edges.filter((edge) => edge.to === node.id);
   let continuation = shaderSectionsCons();
 
-  let dependencies: Dlorp = {};
+  let dependencyDeclarations: DependencyDeclarations = {};
 
   // Compile children recursively
   inputEdges
@@ -447,92 +454,87 @@ export const compileNode = (
       continuation = mergeShaderSections(continuation, inputSections);
       compiledIds = { ...compiledIds, ...childIds };
 
+      // I don't know what case causes this, but continue on if theres' no
+      // context yet
+      if (!nodeContext) {
+        return;
+      }
+
+      // Produce the input filler
       let filler: InputFillerGroup;
       let fillerName: string | undefined;
-      if (nodeContext) {
-        if (input.property) {
-          fillerName = ensure(
-            (codeNode.config.properties || []).find(
-              (p) => p.property === input.property,
-            )?.fillerName,
-            `Node "${node.name}" has no property named "${input.property}" to find the filler for`,
-          );
-          filler = inputFillers[fillerName];
-        } else {
-          filler = inputFillers[input.id];
-        }
-        if (!filler) {
-          console.error('No filler for property', {
-            input,
-            node,
-            inputFillers,
-            fillerName,
-          });
-          throw new Error(
-            `Node "${node.name}"${
-              (node as SourceNode).stage
-                ? ` (${(node as SourceNode).stage})`
-                : ''
-            } has no filler for input "${
-              input.displayName
-            }" named ${fillerName}`,
-          );
-        }
-
-        /**
-         * Here we produce the filler, now _out_x. This is correct for filling in the
-         * other shaders, I think. I also note that the backfilling case matters here.
-         * A separate filler, like _out_uv1 matters if you're backfilling uv into an
-         * instance of a shader call. A node could have multiple fillers depending on
-         * what the arguments are to the backfilling step.
-         *
-         * Every graph defines strategies, which:
-         * 1. Find the relevant parts of the AST to work with and capture them in a
-         *    closure
-         * 2. Returns the "filler" function, that when called with another node's
-         *    filler, slams that filler into the current node's AST.
-         *
-         * The filler function I think works fine. The filler function doesn't give a
-         * SHIT about what it's filling in.
-         *
-         * At some point, we need to track the *declaration* of the filler. When do we
-         * know we need to instantiate the filler? At filling time! On the filling
-         * floors...
-         *
-         * Could we do it in a separate pass? If a source node is plugged into another
-         * source node, then we know it's filling, and needs to be instantiated.
-         *
-         * So here, we can instantiate the filler and modify the ast. We could
-         * simply inject the filler into the main fn here if it's a program node.
-         * Also what happens if you plug in a shader program into a non program
-         * node? I don't think the tool supports that right now. But it should!
-         * (TODO lol).
-         *
-         *
-         */
-
-        // If we're a node that can inline dependencies, and there are, do it
-        if (nodeContext && nodeContext.mainFn) {
-          const main = nodeContext.mainFn;
-          Object.entries(childDeps).forEach(([nodeId, childDep]) => {
-            let args: string[] | undefined;
-            if (codeNode.backfillersTest?.[input.id] && filler.fillerArgs) {
-              args = filler.fillerArgs?.map(generate);
-            }
-            main.body.statements = unshiftFnStmtWithIndent(
-              main,
-              nodeId === fromNode.id && args ? childDep(...args) : childDep(),
-            );
-          });
-        } else {
-          dependencies = { ...dependencies, ...childDeps };
-        }
-
-        // Fill in the input! The return value is the new AST of the filled in
-        // fromNode.
-        // TODO: Use immer for fillers?
-        nodeContext.ast = filler.filler(fillerAst);
+      if (input.property) {
+        fillerName = ensure(
+          (codeNode.config.properties || []).find(
+            (p) => p.property === input.property,
+          )?.fillerName,
+          `Node "${node.name}" has no property named "${input.property}" to find the filler for`,
+        );
+        filler = inputFillers[fillerName];
+      } else {
+        filler = inputFillers[input.id];
       }
+      if (!filler) {
+        console.error('No filler for property', {
+          input,
+          node,
+          inputFillers,
+          fillerName,
+        });
+        throw new Error(
+          `Node "${node.name}"${
+            (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
+          } has no filler for input "${input.displayName}" named ${fillerName}`,
+        );
+      }
+
+      // If we're a node that can inline dependencies, and there are, do it
+      if (nodeContext && nodeContext.mainFn) {
+        const main = nodeContext.mainFn;
+
+        // With each child dependency declaration...
+        Object.entries(childDeps).forEach(([nodeId, childDep]) => {
+          let backfillerArgs: AstNode[] | undefined;
+
+          // Test if it needs to be backfilled - this only goes one level deep
+          // because we're only backfilling fromNode
+          const backfillers = codeNode.backfillersTest?.[input.id];
+          if (backfillers && filler.fillerArgs) {
+            backfillerArgs = filler.fillerArgs;
+
+            const childAst = engineContext.nodes[fromNode.id].ast;
+            // For now we can only backfill programs
+            if (childAst.type === 'program') {
+              backfillers.forEach((backfiller) => {
+                // This is where the variable name gets injected into the main
+                // function
+                backfillAst(
+                  childAst,
+                  backfiller.argType,
+                  backfiller.targetVariable,
+                  engineContext.nodes[fromNode.id].mainFn,
+                );
+              });
+            }
+          }
+
+          // Inject the child dependency (with backfillers, if present) into
+          // our own AST main fn
+          main.body.statements = unshiftFnStmtWithIndent(
+            main,
+            nodeId === fromNode.id && backfillerArgs
+              ? childDep(...backfillerArgs.map(generate))
+              : childDep(),
+          );
+        });
+      } else {
+        dependencyDeclarations = { ...dependencyDeclarations, ...childDeps };
+      }
+
+      // Fill in the input! The return value is the new AST of the filled in
+      // fromNode.
+      // TODO: Use immer for fillers?
+      nodeContext.ast = filler.filler(fillerAst);
     });
 
   // Order matters here! *Prepend* the input nodes to this one, because
@@ -550,33 +552,14 @@ export const compileNode = (
     ? makeExpression(toGlsl(node))
     : parser.produceFiller(node, ast);
 
-  // Pass our own dependencies up to the next node
+  // Pass our own dependency declrations up to the next node to handle
   if (
     (isSourceNode(node) && node.sourceType === SourceType.SHADER_PROGRAM) ||
     codeNode.engine
   ) {
-    /**
-     * This is related to the dependency - we need to inject the instantiation
-     * line for the vertex out. If a node links through a shader, it becomes
-     * a vec3 output. The engines do this in the source parser! I'm thinking
-     * this should actually be done in the core, not in the engines, since
-     * all vertex shaders should return a position, and we discard the "w"
-     * component.
-     *
-     * This works for now and I added a test to threngine.
-     *
-     * I think this works? Is there any issue?
-     *
-     * For backfilling, what technically need to happen:
-     * - This needs to inline the backfill args from the parent shader
-     * - The child shader being backfilled needs to be modified to take in a
-     *   parameter
-     * - The inlining and memoizing of the filler needs to happenin the line
-     *   above the filled-in line, not the top of the function.
-     * - The memoized variable needs to be unique based on the fn args
-     **/
-    dependencies = {
-      ...dependencies,
+    dependencyDeclarations = {
+      ...dependencyDeclarations,
+      // The args here are used for backfilling if present
       [node.id]: (...args) =>
         `${
           codeNode.stage === 'vertex' && doesLinkThruShader(graph, node)
@@ -586,7 +569,12 @@ export const compileNode = (
     };
   }
 
-  return [sections, filler, { ...compiledIds, [node.id]: node }, dependencies];
+  return [
+    sections,
+    filler,
+    { ...compiledIds, [node.id]: node },
+    dependencyDeclarations,
+  ];
 };
 
 export type CompileGraphResult = {

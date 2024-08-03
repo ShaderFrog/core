@@ -68,7 +68,7 @@ export interface CodeNode extends BaseNode {
   originalEngine?: string;
   backfillersTest?: Record<
     string,
-    { argPosition: number; targetVariable: string }[]
+    { argPosition: number; argType: string; targetVariable: string }[]
   >;
 }
 

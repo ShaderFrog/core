@@ -1,7 +1,7 @@
 /**
  * Utility functions to work with ASTs
  */
-import util from 'util';
+
 import { parser, generate } from '@shaderfrog/glsl-parser';
 import {
   visit,
@@ -24,11 +24,7 @@ import { ShaderStage } from '../graph/graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 import { addFnStmtWithIndent } from './whitespace';
 import { Filler } from '../graph/parsers';
-import { SourceNode } from '../graph';
-import {
-  renameBinding,
-  renameBindings,
-} from '@shaderfrog/glsl-parser/parser/utils';
+import { renameBinding } from '@shaderfrog/glsl-parser/parser/utils';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.manipulate)\x1b[0m', ...args);
@@ -485,4 +481,64 @@ export const generateFiller = (filler: Filler) => {
   return Array.isArray(filler)
     ? filler.map(generate).join('')
     : generate(filler);
+};
+
+export const isDeclarationStatement = (
+  node: Program['program'][0],
+): node is DeclarationStatementNode =>
+  node.type === 'declaration_statement' &&
+  node.declaration.type === 'declarator_list';
+
+export const backfillAst = (
+  ast: Program,
+  fromType: string,
+  targetVariable: string,
+  mainFn?: FunctionNode,
+) => {
+  if (!ast.scopes[0].bindings[targetVariable]) {
+    console.warn(
+      `Variable "${targetVariable}" not found in global program scope to splargus! Variables: ${Object.keys(ast.scopes[0].bindings)}`,
+    );
+    return ast;
+  }
+
+  // Remove the declaration from the program. However on consideratio, this is
+  // more dangerous, if I miss a reference to backfilling, then keeping the
+  // declaration allows fall-through to the original value.
+  // ast.program = ast.program.reduce<Program['program']>((stmts, stmt) => {
+  //   if (!isDeclarationStatement(stmt)) {
+  //     return [...stmts, stmt];
+  //   }
+
+  //   const declaration = stmt.declaration as DeclaratorListNode;
+  //   const { declarations } = declaration;
+
+  //   if (declarations.length === 1) {
+  //     return stmts;
+  //   } else {
+  //     const decl = stmt.declaration as DeclaratorListNode;
+  //     decl.declarations = decl.declarations.filter(
+  //       (d) => d.identifier.identifier !== targetVariable,
+  //     );
+  //     return [...stmts, stmt];
+  //   }
+  // }, []);
+
+  // Inject the backfill param as the arg
+  if (mainFn) {
+    mainFn.prototype.parameters = (mainFn.prototype.parameters || []).concat(
+      (
+        parser.parse(`void x(${fromType} ${targetVariable}) {}`)
+          .program[0] as FunctionNode
+      ).prototype.parameters,
+    );
+  }
+
+  // ast.scopes[0].bindings[0] = renameBinding(
+  //   ast.scopes[0].bindings[targetVariable],
+  //   targetVariable,
+  // );
+  // delete ast.scopes[0].bindings[targetVariable];
+
+  return ast;
 };
