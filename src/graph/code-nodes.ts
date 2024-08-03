@@ -66,6 +66,10 @@ export interface CodeNode extends BaseNode {
   stage?: ShaderStage;
   biStage?: boolean;
   originalEngine?: string;
+  backfillersTest?: Record<
+    string,
+    { argPosition: number; targetVariable: string }[]
+  >;
 }
 
 export interface BinaryNode extends CodeNode {

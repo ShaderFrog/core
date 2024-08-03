@@ -43,7 +43,7 @@ export type InputFiller = (filler: Filler) => AstNode | Program;
 
 export type InputFillerGroup = {
   filler: InputFiller;
-  backfillArgs?: AstNode[];
+  fillerArgs?: AstNode[];
 };
 export type InputFillers = Record<string, InputFillerGroup>;
 

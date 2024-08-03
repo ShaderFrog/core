@@ -19,7 +19,7 @@ import {
   isSourceNode,
   mangleEntireProgram,
 } from './graph';
-import { InputFillers, coreParsers } from './parsers';
+import { InputFillerGroup, InputFillers, coreParsers } from './parsers';
 import { findMain } from '../util/ast';
 
 /**
@@ -162,13 +162,20 @@ const computeNodeContext = async (
     id: node.id,
     mainFn,
     inputFillers: computedInputs.reduce<InputFillers>(
-      (acc, [input, filler, args]) => ({
-        ...acc,
-        [input.id]: {
+      (acc, [input, filler, fillerArgs]) => {
+        // This is intentionally broken out into an explicit return to force
+        // this type declaration. Inlining the object in [input.id]: {...}
+        // doesn't force it to be an InputFillerGroup, and it can contain extra
+        // arguments by accident
+        const fillerGroup: InputFillerGroup = {
           filler,
-          args,
-        },
-      }),
+          fillerArgs,
+        };
+        return {
+          ...acc,
+          [input.id]: fillerGroup,
+        };
+      },
       {},
     ),
   };

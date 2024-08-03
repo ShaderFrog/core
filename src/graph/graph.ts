@@ -6,6 +6,7 @@ import {
   Program,
   FunctionNode,
   ParameterDeclarationNode,
+  AstNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import {
@@ -345,6 +346,7 @@ export const filterGraphNodes = (
   }, consSearchResult());
 
 type NodeIds = Record<string, GraphNode>;
+type Dlorp = Record<string, (...args: string[]) => string>;
 
 export type CompileNodeResult = [
   // After compiling a node and all of its dependencies, the ShaderSections
@@ -357,7 +359,7 @@ export type CompileNodeResult = [
   // as the graph is compiled.
   compiledIds: NodeIds,
   // Dependencies to inject into the parent function
-  dependencies: string[],
+  dependencies: Dlorp,
 ];
 
 // before data inputs were known by the input.category being node or data. I
@@ -379,6 +381,7 @@ export const compileNode = (
     ...(coreParsers[node.type] || coreParsers[NodeType.SOURCE]),
     ...(engine.parsers[node.type] || {}),
   };
+  const codeNode = node as CodeNode;
 
   const { inputs } = node;
 
@@ -405,7 +408,7 @@ export const compileNode = (
   const inputEdges = edges.filter((edge) => edge.to === node.id);
   let continuation = shaderSectionsCons();
 
-  let dependencies: string[] = [];
+  let dependencies: Dlorp = {};
 
   // Compile children recursively
   inputEdges
@@ -443,14 +446,13 @@ export const compileNode = (
 
       continuation = mergeShaderSections(continuation, inputSections);
       compiledIds = { ...compiledIds, ...childIds };
-      dependencies = [...dependencies, ...childDeps];
 
       let filler: InputFillerGroup;
       let fillerName: string | undefined;
       if (nodeContext) {
         if (input.property) {
           fillerName = ensure(
-            ((node as CodeNode).config.properties || []).find(
+            (codeNode.config.properties || []).find(
               (p) => p.property === input.property,
             )?.fillerName,
             `Node "${node.name}" has no property named "${input.property}" to find the filler for`,
@@ -475,51 +477,6 @@ export const compileNode = (
               input.displayName
             }" named ${fillerName}`,
           );
-        }
-
-        /**
-         *      +------+    +------+
-         * a -- o add  o -- o tex  |
-         * b -- o      |    +------+
-         *      +------+
-         *
-         * This could produce:
-         *     main_a(v1) + main_b(v2)
-         * I guess it has to? or it could produce
-         *     function add(v1) { return main_a(v1) + main_b(v2); }
-         * It can't replace the arg _expression_ in the from shaders, because
-         * the expression isn't available there.
-         */
-        // TODO: This is a hard coded hack for vUv backfilling. It works in
-        // the simple case. Doesn't work for hell (based on world position).
-        if (
-          filler.backfillArgs &&
-          !Array.isArray(fillerAst) &&
-          fillerAst.type === 'function_call'
-        ) {
-          // Object.values(filterGraphFromNode(graph, node, {
-          //   node: (n) => n.type === 'source'
-          // }).nodes).forEach(sourceNode => {
-          if (fromNode.type === 'source') {
-            // @ts-ignore
-            fillerAst.args = filler.backfillArgs;
-            // const fc = engineContext.nodes[sourceNode.id];
-            const fc = engineContext.nodes[fromNode.id];
-            const main = Object.values(
-              (fc.ast as Program).scopes[0].functions.main,
-            )[0].declaration as FunctionNode;
-            main.prototype.parameters = [
-              'vec2 vv' as unknown as ParameterDeclarationNode,
-            ];
-            // @ts-ignore
-            const scope = fc.ast.scopes[0];
-            // renameBindings(scope, (name, node) => {
-            //   return node.type !== 'declaration' && name === 'vUv'
-            //     ? 'vv'
-            //     : name;
-            // });
-          }
-          // })
         }
 
         /**
@@ -554,23 +511,22 @@ export const compileNode = (
          *
          */
 
-        // if (
-        //   isSourceNode(fromNode) &&
-        //   // Ignore expression from nodes
-        //   fromNode.sourceType === SourceType.SHADER_PROGRAM &&
-        //   ((isSourceNode(node) && node.type !== NodeType.BINARY) ||
-        //     node.type === NodeType.OUTPUT)
-        // ) {
-        //   const main = nodeContext.main;
-        //   if (!main) {
-        //     console.error('Expected main function in', { node, nodeContext });
-        //     throw new Error(`No main function found in node ${node.name}`);
-        //   }
-        //   main.body.statements = unshiftFnStmtWithIndent(
-        //     main,
-        //     `vec4 ${nodeName(fromNode)}_out = ${nodeName(fromNode)}();`,
-        //   );
-        // }
+        // If we're a node that can inline dependencies, and there are, do it
+        if (nodeContext && nodeContext.mainFn) {
+          const main = nodeContext.mainFn;
+          Object.entries(childDeps).forEach(([nodeId, childDep]) => {
+            let args: string[] | undefined;
+            if (codeNode.backfillersTest?.[input.id] && filler.fillerArgs) {
+              args = filler.fillerArgs?.map(generate);
+            }
+            main.body.statements = unshiftFnStmtWithIndent(
+              main,
+              nodeId === fromNode.id && args ? childDep(...args) : childDep(),
+            );
+          });
+        } else {
+          dependencies = { ...dependencies, ...childDeps };
+        }
 
         // Fill in the input! The return value is the new AST of the filled in
         // fromNode.
@@ -594,38 +550,40 @@ export const compileNode = (
     ? makeExpression(toGlsl(node))
     : parser.produceFiller(node, ast);
 
-  // If we're a node that can inline dependencies, and there are, do it
-  if (nodeContext && nodeContext.mainFn) {
-    const main = nodeContext.mainFn;
-    dependencies.forEach((c) => {
-      main.body.statements = unshiftFnStmtWithIndent(main, c);
-    });
-    dependencies = [];
-  }
-
   // Pass our own dependencies up to the next node
   if (
     (isSourceNode(node) && node.sourceType === SourceType.SHADER_PROGRAM) ||
-    (node as CodeNode).engine
+    codeNode.engine
   ) {
     /**
-     * This is related to the dependency - we need to inject the instantation
+     * This is related to the dependency - we need to inject the instantiation
      * line for the vertex out. If a node links through a shader, it becomes
      * a vec3 output. The engines do this in the source parser! I'm thinking
      * this should actually be done in the core, not in the engines, since
      * all vertex shaders should return a position, and we discard the "w"
      * component.
      *
-     * This works for now and I added a test to threngine
-     */
-    dependencies = [
+     * This works for now and I added a test to threngine.
+     *
+     * I think this works? Is there any issue?
+     *
+     * For backfilling, what technically need to happen:
+     * - This needs to inline the backfill args from the parent shader
+     * - The child shader being backfilled needs to be modified to take in a
+     *   parameter
+     * - The inlining and memoizing of the filler needs to happenin the line
+     *   above the filled-in line, not the top of the function.
+     * - The memoized variable needs to be unique based on the fn args
+     **/
+    dependencies = {
       ...dependencies,
-      `${
-        (node as CodeNode).stage === 'vertex' && doesLinkThruShader(graph, node)
-          ? 'vec3'
-          : 'vec4'
-      } ${nodeName(node)}_out = ${nodeName(node)}();`,
-    ];
+      [node.id]: (...args) =>
+        `${
+          codeNode.stage === 'vertex' && doesLinkThruShader(graph, node)
+            ? 'vec3'
+            : 'vec4'
+        } ${nodeName(node)}_out = ${nodeName(node)}(${args.join(', ')});`,
+    };
   }
 
   return [sections, filler, { ...compiledIds, [node.id]: node }, dependencies];

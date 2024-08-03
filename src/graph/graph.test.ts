@@ -7,6 +7,7 @@ import { generate } from '@shaderfrog/glsl-parser';
 
 import { Graph, ShaderStage } from './graph-types';
 import { addNode, outputNode, sourceNode } from './graph-node';
+import { findMain } from '../util/ast';
 
 import {
   shaderSectionsToProgram,
@@ -19,7 +20,7 @@ import { makeEdge } from './edge';
 import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
 import { compileSource, nodeName, resultName } from './graph';
-import { texture2DStrategy } from '../strategy';
+import { splargus, texture2DStrategy } from '../strategy';
 import { isError } from './context';
 import { fail } from '../test-util';
 import { SourceType } from './code-nodes';
@@ -220,6 +221,136 @@ void main() {
   expect(result.fragmentResult).toContain(`vec4 ${iMainName}() {
   vec4 ${iOut2} = ${nodeName(input2)}();
   vec4 ${iOut1} = ${nodeName(input1)}();
+  vec3 col1 = ${iOut1}.rgb + 1.0;
+  vec3 col2 = ${iOut2}.rgb + 2.0;
+  ${imgOut} = vec4(col1 + col2, 1.0);
+  return ${imgOut};
+}`);
+});
+
+it('splargus yyy', () => {
+  const x = parser.parse(`
+attribute vec2 vUv, xx;
+void main() {
+    gl_FragColor = vec4(vUv, xx);
+}`);
+
+  // TODO: CLEANUP AND TRY IN GRAPH.TS
+  const z = splargus(x, 'vec2', 'vUv', 'yy', findMain(x));
+  console.log(generate(z));
+
+  expect(generate(z)).toBe(`
+attribute vec2 xx;
+void main(vec2 yy) {
+    gl_FragColor = vec4(yy, xx);
+}`);
+});
+
+it('compileSource() xxx', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+  const imageReplacemMe = makeSourceNode(
+    id(),
+    `uniform sampler2D image1;
+uniform sampler2D image2;
+void main() {
+  vec3 col1 = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
+  vec3 col2 = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+  gl_FragColor = vec4(col1 + col2, 1.0);
+}
+`,
+    'fragment',
+  );
+
+  imageReplacemMe.backfillersTest = {
+    filler_image1: [
+      {
+        argPosition: 1,
+        targetVariable: 'vUv',
+      },
+    ],
+  };
+
+  const input1 = makeSourceNode(
+    id(),
+    `float a = 1.0;
+void main() {
+  gl_FragColor = vec4(0.0);
+}
+`,
+    'fragment',
+  );
+  const input2 = makeSourceNode(
+    id(),
+    `float a = 2.0;
+void main() {
+  gl_FragColor = vec4(1.0);
+}
+`,
+    'fragment',
+  );
+
+  const graph: Graph = {
+    nodes: [outV, outF, imageReplacemMe, input1, input2],
+    edges: [
+      makeEdge(
+        id(),
+        imageReplacemMe.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input1.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image1',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input2.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image2',
+        'fragment',
+      ),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input1.id}() {`);
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input2.id}() {`);
+
+  const imgOut = `frogOut_${imageReplacemMe.id}`;
+
+  expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
+
+  const iOutName = resultName(imageReplacemMe);
+  const iMainName = nodeName(imageReplacemMe);
+  expect(result.fragmentResult).toContain(`
+void main() {
+  vec4 ${iOutName} = ${iMainName}();
+  frogFragOut = ${iOutName};
+}`);
+
+  const iOut1 = resultName(input1);
+  const iOut2 = resultName(input2);
+  expect(result.fragmentResult).toContain(`vec4 ${iMainName}() {
+  vec4 ${iOut2} = ${nodeName(input2)}();
+  vec4 ${iOut1} = ${nodeName(input1)}(posTurn - 0.4 * time);
   vec3 col1 = ${iOut1}.rgb + 1.0;
   vec3 col2 = ${iOut2}.rgb + 2.0;
   ${imgOut} = vec4(col1 + col2, 1.0);
