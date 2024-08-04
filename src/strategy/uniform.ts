@@ -8,8 +8,7 @@ import {
 import { mangleName } from '../graph/graph';
 import { nodeInput } from '../graph/base-node';
 import { GraphDataType } from '../graph/data-nodes';
-import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../graph/parsers';
+import { BaseStrategy, ApplyStrategy, StrategyType, ComputedInput } from '.';
 import { generateFiller } from '../util/ast';
 // TODO: Get this from glsl-parser root when you have internet access
 import { renameBinding } from '@shaderfrog/glsl-parser/parser/utils';

@@ -1,8 +1,13 @@
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
-import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import {
+  BaseStrategy,
+  ApplyStrategy,
+  StrategyType,
+  ComputedInput,
+  Filler,
+} from '.';
 import { Scope, ScopeIndex } from '@shaderfrog/glsl-parser/parser/scope';
-import { ComputedInput, Filler } from '../graph/parsers';
 import { generateFiller } from '../util/ast';
 
 export interface VariableStrategy extends BaseStrategy {

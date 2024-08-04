@@ -94,6 +94,12 @@ export const guessFnIndent = (fnBody: FunctionNode) =>
     return ws || getLiteralIndent((n as DoStatementNode).semi) || '';
   }, '');
 
+const addWs = (node: string | AstNode, ws: string) =>
+  tryAddTrailingWhitespace(
+    typeof node === 'string' ? makeFnStatement(node)[0] : node,
+    ws,
+  );
+
 export const addFnStmtWithIndent = (
   fnBody: FunctionNode,
   newNode: string | AstNode,
@@ -105,10 +111,7 @@ export const addFnStmtWithIndent = (
     // This simple hack is way easier than trying to modify the function body
     // opening brace and/or the previous statement
     { type: 'literal', literal: '', whitespace: indent },
-    tryAddTrailingWhitespace(
-      typeof newNode === 'string' ? makeFnStatement(newNode)[0] : newNode,
-      `\n`,
-    ),
+    addWs(newNode, `\n`),
   ];
 };
 
@@ -119,11 +122,27 @@ export const unshiftFnStmtWithIndent = (
   const statements = fnBody.body.statements;
   const indent = guessFnIndent(fnBody);
   return [
-    tryAddTrailingWhitespace(
-      typeof newNode === 'string' ? makeFnStatement(newNode)[0] : newNode,
-      `\n`,
-    ),
+    addWs(newNode, `\n`),
     { type: 'literal', literal: '', whitespace: indent },
     ...statements,
+  ];
+};
+
+export const spliceFnStmtWithIndent = (
+  fnBody: FunctionNode,
+  index: number,
+  ...newNodes: (string | AstNode)[]
+): AstNode[] => {
+  const statements = fnBody.body.statements;
+  const indent = guessFnIndent(fnBody);
+  return [
+    ...statements.slice(0, index),
+    ...newNodes.map((n) => addWs(n, `\n`)),
+    {
+      type: 'literal',
+      literal: '',
+      whitespace: indent,
+    },
+    ...statements.slice(index),
   ];
 };

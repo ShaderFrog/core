@@ -23,7 +23,7 @@ import { Program } from '@shaderfrog/glsl-parser/ast';
 import { ShaderStage } from '../graph/graph-types';
 import { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 import { addFnStmtWithIndent } from './whitespace';
-import { Filler } from '../graph/parsers';
+import { Filler } from '../strategy';
 import { renameBinding } from '@shaderfrog/glsl-parser/parser/utils';
 
 const log = (...args: any[]) =>

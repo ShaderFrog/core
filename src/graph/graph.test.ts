@@ -236,6 +236,7 @@ it('compileSource() backfilling level 1', async () => {
     `uniform sampler2D image1;
 uniform sampler2D image2;
 void main() {
+  float a = 1.0;
   vec3 col1 = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
   vec3 col2 = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
   gl_FragColor = vec4(col1 + col2, 1.0);
@@ -323,13 +324,18 @@ void main() {
   const iMainName = nodeName(imageReplacemMe);
   const imgOut = `frogOut_${imageReplacemMe.id}`;
 
-  //expect(result.fragmentResult).not.toContain(`in vec2 vUv_${input1.id};`);
+  // Input 1 should have been backfilled
   expect(result.fragmentResult).toContain(
     `vec4 ${nodeName(input1)}(vec2 vUv) {`,
   );
 
+  // Input 2 should have been backfilled
+  expect(result.fragmentResult).toContain(`vec4 ${nodeName(input2)}() {`);
+
+  // The final shader code should inject the arguments in the line * the declaration
   expect(result.fragmentResult).toContain(`vec4 ${iMainName}() {
   vec4 ${iOut2} = ${nodeName(input2)}();
+  float a = 1.0;
   vec4 ${iOut1} = ${nodeName(input1)}(posTurn - 0.4 * time);
   vec3 col1 = ${iOut1}.rgb + 1.0;
   vec3 col2 = ${iOut2}.rgb + 2.0;

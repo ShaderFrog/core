@@ -18,7 +18,7 @@ import {
   makeFnBodyStatementWithScopes,
   makeFnStatement,
 } from '../util/ast';
-import { applyStrategy } from '../strategy';
+import { applyStrategy, ComputedInput, Filler } from '../strategy';
 import { Edge } from './edge';
 import { BinaryNode, SourceNode, SourceType } from './code-nodes';
 import { InputCategory, nodeInput, NodeInput } from './base-node';
@@ -36,19 +36,6 @@ const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.parsers)\x1b[0m', ...args);
 
 export const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-
-export type Filler = AstNode | AstNode[] | void;
-
-export type InputFiller = (filler: Filler) => AstNode | Program;
-
-export type InputFillerGroup = {
-  filler: InputFiller;
-  fillerArgs?: AstNode[];
-};
-export type InputFillers = Record<string, InputFillerGroup>;
-
-type FillerArguments = AstNode[];
-export type ComputedInput = [NodeInput, InputFiller, FillerArguments?];
 
 export type ProduceAst = (
   engineContext: EngineContext,

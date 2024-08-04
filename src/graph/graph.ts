@@ -2,12 +2,7 @@ import {
   renameBindings,
   renameFunctions,
 } from '@shaderfrog/glsl-parser/parser/utils';
-import {
-  Program,
-  FunctionNode,
-  ParameterDeclarationNode,
-  AstNode,
-} from '@shaderfrog/glsl-parser/ast';
+import { Program, AstNode } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import {
   NodeContext,
@@ -24,9 +19,9 @@ import {
 } from './shader-sections';
 import {
   backfillAst,
-  findMain,
   FrogProgram,
   makeExpression,
+  makeFnStatement,
 } from '../util/ast';
 import { ensure } from '../util/ensure';
 import { DataNode } from './data-nodes';
@@ -34,7 +29,7 @@ import { Edge } from './edge';
 import { CodeNode, SourceNode, SourceType } from './code-nodes';
 import { nodeInput, NodeInput } from './base-node';
 import { makeId } from '../util/id';
-import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
+import { ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
 import {
   EdgeLink,
@@ -44,7 +39,13 @@ import {
   NodeType,
 } from './graph-types';
 import { generate } from '@shaderfrog/glsl-parser';
-import { unshiftFnStmtWithIndent } from '../util/whitespace';
+import {
+  guessFnIndent,
+  spliceFnStmtWithIndent,
+  tryAddTrailingWhitespace,
+  unshiftFnStmtWithIndent,
+} from '../util/whitespace';
+import { InputFillerGroup } from '../strategy';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.graph)\x1b[0m', ...args);
@@ -492,22 +493,27 @@ export const compileNode = (
       if (nodeContext && nodeContext.mainFn) {
         const main = nodeContext.mainFn;
 
-        // With each child dependency declaration...
+        /**
+         * For each child dependency declaration, inject the declaration into
+         * our own main function body. Perform backfilling if called for.
+         */
         Object.entries(childDeps).forEach(([nodeId, childDep]) => {
-          let backfillerArgs: AstNode[] | undefined;
+          let backfillerArgs: string[] = [];
+          let fillerStmt: AstNode | undefined;
 
           // Test if it needs to be backfilled - this only goes one level deep
           // because we're only backfilling fromNode
           const backfillers = codeNode.backfillersTest?.[input.id];
           if (backfillers && filler.fillerArgs) {
-            backfillerArgs = filler.fillerArgs;
+            backfillerArgs = filler.fillerArgs.map(generate);
+            fillerStmt = filler.fillerStmt;
 
             const childAst = engineContext.nodes[fromNode.id].ast;
             // For now we can only backfill programs
             if (childAst.type === 'program') {
               backfillers.forEach((backfiller) => {
                 // This is where the variable name gets injected into the main
-                // function
+                // function parameter of the backfilled child
                 backfillAst(
                   childAst,
                   backfiller.argType,
@@ -518,14 +524,42 @@ export const compileNode = (
             }
           }
 
-          // Inject the child dependency (with backfillers, if present) into
-          // our own AST main fn
-          main.body.statements = unshiftFnStmtWithIndent(
-            main,
-            nodeId === fromNode.id && backfillerArgs
-              ? childDep(...backfillerArgs.map(generate))
-              : childDep(),
+          /*
+           * In the case this filler is telling us a statement to inject near,
+           * we want to inject the dependency declaration right above that filler statement.
+           * This is for the case where
+           *   vec4 x = texture2D(img, someVar).rgb;
+           * gets translated to
+           *   vec4 _my_filler = _filler_main(someVar);
+           *   vec4 x = _my_filler.rgb;
+           **/
+          const fillerIndex = main.body.statements.indexOf(
+            fillerStmt as AstNode,
           );
+          if (fillerIndex !== -1) {
+            main.body.statements = spliceFnStmtWithIndent(
+              main,
+              fillerIndex,
+              childDep(...backfillerArgs),
+            );
+          } else {
+            // if we couldn't find it, inject at the top of the function as a
+            // backup attempt. This will almost certainly blow up the shader.
+            if (fillerStmt) {
+              console.warn(
+                `Could not inject backfilled initializer`,
+                fromNode,
+                `into`,
+                node,
+              );
+            }
+            // Inject the child dependency (with backfillers, if present) into
+            // our own AST main fn
+            main.body.statements = unshiftFnStmtWithIndent(
+              main,
+              childDep(...(nodeId === fromNode.id ? [] : backfillerArgs)),
+            );
+          }
         });
       } else {
         dependencyDeclarations = { ...dependencyDeclarations, ...childDeps };
