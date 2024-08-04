@@ -14,6 +14,9 @@ import { fail } from '../../test-util';
 
 const p = { x: 0, y: 0 };
 
+let counter = 0;
+const id = () => '' + counter++;
+
 const makeSourceNode = (
   id: string,
   source: string,
@@ -87,7 +90,7 @@ void main() {
   );
 });
 
-it('threngine compileSource() qqq', async () => {
+it('threngine compileSource() linking through vertex test', async () => {
   const outV = outputNode(makeId(), 'Output v', p, 'vertex');
   const outF = outputNode(makeId(), 'Output f', p, 'fragment');
 
@@ -151,4 +154,95 @@ it('threngine compileSource() qqq', async () => {
   expect(result.vertexResult).toContain(
     `vec4 ${resultName(vert1)} = ${nodeName(vert1)}();`,
   );
+});
+
+it('compileSource() fragment produces inlined output', async () => {
+  const outV = outputNode(id(), 'Output v', p, 'vertex');
+  const outF = outputNode(id(), 'Output f', p, 'fragment');
+  const imageReplacemMe = makeSourceNode(
+    id(),
+    `uniform sampler2D image1;
+uniform sampler2D image2;
+void main() {
+  vec3 col1 = texture2D(image1, posTurn - 0.4 * time).rgb + 1.0;
+  vec3 col2 = texture2D(image2, negTurn - 0.4 * time).rgb + 2.0;
+  gl_FragColor = vec4(col1 + col2, 1.0);
+}
+`,
+    'fragment',
+  );
+  const input1 = makeSourceNode(
+    id(),
+    `float a = 1.0;
+void main() {
+  gl_FragColor = vec4(0.0);
+}
+`,
+    'fragment',
+  );
+  const input2 = makeSourceNode(
+    id(),
+    `float a = 2.0;
+void main() {
+  gl_FragColor = vec4(1.0);
+}
+`,
+    'fragment',
+  );
+
+  const graph: Graph = {
+    nodes: [outV, outF, imageReplacemMe, input1, input2],
+    edges: [
+      makeEdge(
+        id(),
+        imageReplacemMe.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input1.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image1',
+        'fragment',
+      ),
+      makeEdge(
+        id(),
+        input2.id,
+        imageReplacemMe.id,
+        'out',
+        'filler_image2',
+        'fragment',
+      ),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+    debuggingNonsense: {},
+  };
+
+  const result = await compileSource(graph, threngine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input1.id}() {`);
+  expect(result.fragmentResult).toContain(`vec4 main_Shader_${input2.id}() {`);
+
+  const imgOut = `frogOut_${imageReplacemMe.id}`;
+
+  expect(result.fragmentResult).toContain(`vec4 ${imgOut};`);
+
+  const iOutName = resultName(imageReplacemMe);
+  const iMainName = nodeName(imageReplacemMe);
+  expect(result.fragmentResult).toContain(`
+void main() {
+  vec4 ${iOutName} = ${iMainName}();
+  frogFragOut = ${iOutName};
+}`);
 });

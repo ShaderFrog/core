@@ -7,7 +7,6 @@ import { generate } from '@shaderfrog/glsl-parser';
 
 import { Graph, ShaderStage } from './graph-types';
 import { addNode, outputNode, sourceNode } from './graph-node';
-import { backfillAst, findMain } from '../util/ast';
 
 import {
   shaderSectionsToProgram,
@@ -48,8 +47,9 @@ const dedupe = (code: string) =>
     }),
   );
 
-let counter = 0;
 const p = { x: 0, y: 0 };
+
+let counter = 0;
 const id = () => '' + counter++;
 
 const constructor: PhysicalNodeConstructor = () => ({
@@ -245,7 +245,7 @@ void main() {
     'fragment',
   );
 
-  imageReplacemMe.backfillersTest = {
+  imageReplacemMe.backfillers = {
     filler_image1: [
       {
         argPosition: 1,
@@ -408,7 +408,7 @@ void main() {
   vec3 col1 = vec4(1.0).rgb + 1.0;`);
 });
 
-it('compileSource() binary zzz', async () => {
+it('compileSource() binary properly inlines dependencies', async () => {
   const outV = outputNode(id(), 'Output v', p, 'vertex');
   const outF = outputNode(id(), 'Output f', p, 'fragment');
 
@@ -449,29 +449,6 @@ void main() {
     fail(result);
   }
 
-  /**
-   * I think we're seeing the need for hoisiting / continuations / passing (no
-   * idea if this is right terminology, it's 1am) of function calls. Because
-   * "main_Shader_2_out" fills in "a", and "vec4(1.0)" fills in "b", and we need
-   * to inject the dclaration line. When does main_Shader_2_out get inlined?
-   *
-   * In the binary node filler I think. At that time, we don't know what
-   * node the binary node is inlined into! It could be inlined into another
-   * binary node! We need to queue up the function calls, and flush the queue
-   * once we hit a main function?
-   *
-   * Or we could queue them all up until the output node, put them all in the
-   * output node, and then pass them back down to the functions that need them.
-   * We might have to do something like that regardless for the backfilling
-   * case, and the case when a value is needed in more than one place in the
-   * graph.
-   *
-   * At least there's a failing test for it now.
-   *
-   * I was also thinking a cop-out option could be to simply inline the function
-   * call filler into the binary node filler, but that means the filler needs
-   * to branch based on its context, which it doesn't currently have...
-   */
   expect(result.fragmentResult).toContain(`void main() {
   vec4 ${resultName(color)} = ${nodeName(color)}();
   frogFragOut = (${resultName(color)}+ vec4(1.0));

@@ -503,7 +503,7 @@ export const compileNode = (
 
           // Test if it needs to be backfilled - this only goes one level deep
           // because we're only backfilling fromNode
-          const backfillers = codeNode.backfillersTest?.[input.id];
+          const backfillers = codeNode.backfillers?.[input.id];
           if (backfillers && filler.fillerArgs) {
             backfillerArgs = filler.fillerArgs.map(generate);
             fillerStmt = filler.fillerStmt;
@@ -588,7 +588,11 @@ export const compileNode = (
 
   // Pass our own dependency declrations up to the next node to handle
   if (
-    (isSourceNode(node) && node.sourceType === SourceType.SHADER_PROGRAM) ||
+    (node.type !== NodeType.OUTPUT &&
+      // Some legacy shaders don't have sourceType set apparently, which defaults
+      // the shader type to shader program
+      isSourceNode(node) &&
+      (!node.sourceType || node.sourceType === SourceType.SHADER_PROGRAM)) ||
     codeNode.engine
   ) {
     dependencyDeclarations = {

@@ -64,17 +64,17 @@ export const isError = (test: any): test is NodeErrors =>
 // "baked" property on node inputs which is toggle-able in the graph
 const collapseNodeInputs = (
   node: CodeNode,
-  updatedInputs: NodeInput[],
+  updatedInputs: NodeInput[]
 ): NodeInput[] =>
   Object.values(groupBy([...updatedInputs, ...node.inputs], (i) => i.id)).map(
-    (dupes) => dupes.reduce((node, dupe) => ({ ...node, ...dupe })),
+    (dupes) => dupes.reduce((node, dupe) => ({ ...node, ...dupe }))
   );
 
 const computeNodeContext = async (
   engineContext: EngineContext,
   engine: Engine,
   graph: Graph,
-  node: SourceNode,
+  node: SourceNode
 ): Promise<NodeContext | NodeErrors> => {
   // THIS DUPLICATES OTHER LINE
   const parser = {
@@ -111,7 +111,7 @@ const computeNodeContext = async (
         ast,
         inputEdges,
         node,
-        sibling as SourceNode,
+        sibling as SourceNode
       );
     }
   } catch (error) {
@@ -131,9 +131,9 @@ const computeNodeContext = async (
         input: (input, b, c, fromNode) =>
           input.bakeable && fromNode?.type === 'source',
       },
-      1,
+      1
     ).inputs[node.id] || [],
-    'id',
+    'id'
   );
 
   // Find the combination if inputs (data) and fillers (runtime context data)
@@ -143,7 +143,7 @@ const computeNodeContext = async (
     ast,
     inputEdges,
     node,
-    sibling,
+    sibling
   );
 
   node.inputs = collapseNodeInputs(
@@ -151,7 +151,7 @@ const computeNodeContext = async (
     computedInputs.map(([i]) => ({
       ...i,
       displayName: mapInputName(node, i),
-    })),
+    }))
   ).map((input) => ({
     // Auto-bake
     ...input,
@@ -178,7 +178,7 @@ const computeNodeContext = async (
           [input.id]: fillerGroup,
         };
       },
-      {},
+      {}
     ),
   };
 
@@ -195,7 +195,7 @@ const computeNodeContext = async (
       engine,
       ast as Program,
       node,
-      findLinkedNode(graph, node.id),
+      findLinkedNode(graph, node.id)
     );
   }
 
@@ -206,7 +206,7 @@ export const computeContextForNodes = async (
   engineContext: EngineContext,
   engine: Engine,
   graph: Graph,
-  nodes: GraphNode[],
+  nodes: GraphNode[]
 ) =>
   nodes
     .filter(isSourceNode)
@@ -221,7 +221,7 @@ export const computeContextForNodes = async (
           engineContext,
           engine,
           graph,
-          node,
+          node
         );
         if (isError(nodeContextOrError)) {
           return nodeContextOrError;
@@ -233,7 +233,7 @@ export const computeContextForNodes = async (
         };
         return context;
       },
-      Promise.resolve(engineContext.nodes as Record<string, NodeContext>),
+      Promise.resolve(engineContext.nodes as Record<string, NodeContext>)
     );
 
 /**
@@ -243,13 +243,13 @@ export const computeContextForNodes = async (
 export const computeAllContexts = async (
   engineContext: EngineContext,
   engine: Engine,
-  graph: Graph,
+  graph: Graph
 ) => {
   const result = await computeContextForNodes(
     engineContext,
     engine,
     graph,
-    graph.nodes,
+    graph.nodes
   );
   if (isError(result)) {
     return result;
@@ -263,16 +263,16 @@ export const computeAllContexts = async (
 export const computeGraphContext = async (
   engineContext: EngineContext,
   engine: Engine,
-  graph: Graph,
+  graph: Graph
 ) => {
   const outputFrag = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'fragment',
+    (node) => node.type === 'output' && node.stage === 'fragment'
   );
   if (!outputFrag) {
     throw new Error('No fragment output in graph');
   }
   const outputVert = graph.nodes.find(
-    (node) => node.type === 'output' && node.stage === 'vertex',
+    (node) => node.type === 'output' && node.stage === 'vertex'
   );
   if (!outputVert) {
     throw new Error('No vertex output in graph');
@@ -296,7 +296,7 @@ export const computeGraphContext = async (
       outputVert,
       ...Object.values(vertexes).filter((node) => node.id !== outputVert.id),
       ...unlinkedNodes,
-    ],
+    ]
   );
   if (isError(vertNodesOrError)) {
     return vertNodesOrError;
@@ -308,9 +308,9 @@ export const computeGraphContext = async (
     [
       outputFrag,
       ...Object.values(fragments).filter(
-        (node) => node.id !== outputFrag.id && !vertexIds.has(node.id),
+        (node) => node.id !== outputFrag.id && !vertexIds.has(node.id)
       ),
-    ],
+    ]
   );
   if (isError(fragNodesOrError)) {
     return fragNodesOrError;

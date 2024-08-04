@@ -9,8 +9,8 @@ import { makeExpression } from '../util/ast';
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { Engine, PhysicalNodeConstructor } from '../engine';
-import { GraphNode, NodeType } from '../graph/graph-types';
-import { mangleEntireProgram } from 'src/graph';
+import { NodeType } from '../graph/graph-types';
+import { mangleEntireProgram } from '../graph';
 
 it('named attribute strategy`', () => {
   const source = `
