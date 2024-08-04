@@ -555,7 +555,11 @@ export const compileNode = (
 
   // Pass our own dependency declrations up to the next node to handle
   if (
-    (isSourceNode(node) && node.sourceType === SourceType.SHADER_PROGRAM) ||
+    (node.type !== NodeType.OUTPUT &&
+      // Some legacy shaders don't have sourceType set apparently, which defaults
+      // the shader type to shader program
+      isSourceNode(node) &&
+      (!node.sourceType || node.sourceType === SourceType.SHADER_PROGRAM)) ||
     codeNode.engine
   ) {
     dependencyDeclarations = {

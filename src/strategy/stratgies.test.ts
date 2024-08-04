@@ -9,7 +9,7 @@ import { makeExpression } from '../util/ast';
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { Engine, PhysicalNodeConstructor } from '../engine';
-import { GraphNode, NodeType } from '../graph/graph-types';
+import { NodeType } from '../graph/graph-types';
 import { mangleEntireProgram } from '../graph';
 
 it('named attribute strategy`', () => {
@@ -29,7 +29,7 @@ void main() {
     },
     ast,
     { source } as SourceNode,
-    {} as SourceNode
+    {} as SourceNode,
   );
 
   expect(fillers.length).toBe(1);
@@ -72,7 +72,7 @@ re(x, y, z);
     },
     ast,
     { source } as SourceNode,
-    {} as SourceNode
+    {} as SourceNode,
   );
 
   expect(fillers.length).toBe(1);
@@ -124,7 +124,7 @@ re(x, y, z);
     },
     ast,
     { source } as SourceNode,
-    {} as SourceNode
+    {} as SourceNode,
   );
 
   expect(fillers.length).toBe(1);
@@ -208,13 +208,13 @@ void main() {
   vec4 y = output;
   vec4 z = zenput;
 }`,
-    { quiet: true }
+    { quiet: true },
   );
 
   const fillers = applyStrategy(
     { type: StrategyType.UNIFORM, config: {} },
     ast,
-    {} as SourceNode
+    {} as SourceNode,
   );
 
   // It should find uniforms with simple types, excluding sampler2D
@@ -227,13 +227,13 @@ void main() {
   ]);
 
   fillers.find(([{ displayName: name }]) => name === 'input')?.[1](
-    makeExpression('a')
+    makeExpression('a'),
   );
   fillers.find(([{ displayName: name }]) => name === 'output')?.[1](
-    makeExpression('b')
+    makeExpression('b'),
   );
   fillers.find(([{ displayName: name }]) => name === 'zenput')?.[1](
-    makeExpression('c')
+    makeExpression('c'),
   );
   const result = generate(ast);
 
@@ -263,7 +263,7 @@ void main() {
   vec4 x = input;
   vec4 y = output;
 }`,
-    { quiet: true }
+    { quiet: true },
   );
 
   const node = { id: '1', name: 'fake' } as SourceNode;
@@ -271,7 +271,7 @@ void main() {
   const fillers = applyStrategy(
     { type: StrategyType.UNIFORM, config: {} },
     ast,
-    node
+    node,
   );
 
   mangleEntireProgram(engine, ast, node);
@@ -284,10 +284,10 @@ void main() {
   ]);
 
   fillers.find(([{ displayName: name }]) => name === 'input')?.[1](
-    makeExpression('a')
+    makeExpression('a'),
   );
   fillers.find(([{ displayName: name }]) => name === 'output')?.[1](
-    makeExpression('b')
+    makeExpression('b'),
   );
   const result = generate(ast);
 
@@ -305,15 +305,15 @@ it('uses name without suffix for single call', () => {
 void main() {
   vec4 computed = texture2D(noiseImage, uvPow * 1.0);
 }`,
-    { quiet: true }
+    { quiet: true },
   );
   expect(
     applyStrategy(
       { type: StrategyType.TEXTURE_2D, config: {} },
       ast,
       {} as SourceNode,
-      {} as SourceNode
-    ).map(([{ displayName: name }]) => name)
+      {} as SourceNode,
+    ).map(([{ displayName: name }]) => name),
   ).toEqual(['noiseImage']);
 });
 
@@ -324,15 +324,15 @@ void main() {
   vec4 computed = texture2D(noiseImage, uvPow * 1.0);
   computed += texture2D(noiseImage, uvPow * 2.0);
 }`,
-    { quiet: true }
+    { quiet: true },
   );
   expect(
     applyStrategy(
       { type: StrategyType.TEXTURE_2D, config: {} },
       ast,
       {} as SourceNode,
-      {} as SourceNode
-    ).map(([{ displayName: name }]) => name)
+      {} as SourceNode,
+    ).map(([{ displayName: name }]) => name),
   ).toEqual(['noiseImage_0', 'noiseImage_1']);
 });
 
@@ -358,7 +358,7 @@ void getNormal() {
       { type: StrategyType.TEXTURE_2D, config: {} },
       ast,
       {} as SourceNode,
-      {} as SourceNode
-    ).map(([{ displayName: name }]) => name)
+      {} as SourceNode,
+    ).map(([{ displayName: name }]) => name),
   ).toEqual(['normalMap']);
 });
