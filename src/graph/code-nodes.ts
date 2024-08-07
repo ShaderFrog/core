@@ -5,7 +5,7 @@ import { BaseNode, NodeInput } from './base-node';
 
 export const mapInputName = (
   node: CodeNode,
-  { id, displayName }: NodeInput,
+  { id, displayName }: NodeInput
 ): string => node.config?.inputMapping?.[id] || displayName;
 
 export type InputMapping = { [original: string]: string };
@@ -38,7 +38,7 @@ export const property = (
   property: string,
   type: GraphDataType,
   fillerName?: string,
-  defaultValue?: any,
+  defaultValue?: any
 ): NodeProperty => ({
   displayName,
   type,
@@ -57,6 +57,11 @@ export enum SourceType {
   EXPRESSION = 'Expression',
 }
 
+export type Backfillers = Record<
+  string,
+  { argType: string; targetVariable: string }[]
+>;
+
 export interface CodeNode extends BaseNode {
   config: NodeConfig;
   type: string;
@@ -67,7 +72,7 @@ export interface CodeNode extends BaseNode {
   biStage?: boolean;
   originalEngine?: string;
   // Record of the filler id to the backfiller target variable
-  backfillers?: Record<string, { argType: string; targetVariable: string }[]>;
+  backfillers?: Backfillers;
 }
 
 export interface BinaryNode extends CodeNode {
