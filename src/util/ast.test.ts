@@ -20,3 +20,19 @@ void main(vec2 vUv) {
     gl_FragColor = vec4(vUv, xx);
 }`);
 });
+
+it('backfillAst with void main fn', () => {
+  const source = parser.parse(`
+attribute vec2 vUv;
+void main(void) {
+    gl_FragColor = vec4(vUv, 1.0, 1.0);
+}`);
+
+  const result = backfillAst(source, 'vec2', 'vUv', findMain(source));
+
+  expect(generate(result)).toBe(`
+attribute vec2 vUv;
+void main(vec2 vUv) {
+    gl_FragColor = vec4(vUv, 1.0, 1.0);
+}`);
+});

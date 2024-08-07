@@ -14,9 +14,6 @@ import { fail } from '../../test-util';
 
 const p = { x: 0, y: 0 };
 
-let counter = 0;
-const id = () => '' + counter++;
-
 const makeSourceNode = (
   id: string,
   source: string,
@@ -147,12 +144,4 @@ it('threngine compileSource() linking through vertex', async () => {
   // Because vert2 links through vert1, it should be a vec3, not a vec4
   expect(result.vertexResult).toContain(`vec3 ${nodeName(vert2)}() {`);
   expect(result.vertexResult).toContain(`vec4 ${nodeName(vert1)}() {`);
-  // expect(result.vertexResult).toContain(
-  //   `vec3 ${resultName(vert2)} = ${nodeName(vert2)}();`,
-  // );
-
-  // // The final vert should maintain its vec-4ness
-  // expect(result.vertexResult).toContain(
-  //   `vec4 ${resultName(vert1)} = ${nodeName(vert1)}();`,
-  // );
 });

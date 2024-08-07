@@ -4,7 +4,6 @@ import {
   AstNode,
   NodeVisitors,
   IdentifierNode,
-  Program,
 } from '@shaderfrog/glsl-parser/ast';
 import { nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType, ComputedInput } from '.';
@@ -23,7 +22,6 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
   graphNode,
   siblingNode,
 ) => {
-  //let texture2Dcalls: [string, AstNode, string, AstNode[], AstNode][] = [];
   let texture2Dcalls: string[] = [];
 
   const references: Record<
@@ -51,17 +49,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
 
           if (!(name in references)) {
             references[name] = [];
-            texture2Dcalls.push(
-              name,
-              // path.parent as AstNode,
-              // path.key,
-              // // Remove the first argument and comma to populate the backfiller args
-              // (path.node.args as AstNode[]).slice(2),
-              // // For backfilling, find the parent statement of this texture2D() call.
-              // // This is to try to ensure the backfilled dependency has access to
-              // // any variables used in the texture2D() call.
-              // path.findParent((p) => 'semi' in p.node)?.node,
-            );
+            texture2Dcalls.push(name);
           }
 
           references[name].push({
@@ -75,8 +63,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
   };
   visit(ast, visitors);
 
-  const inputs = texture2Dcalls.map<ComputedInput>((name, index) => {
-    //([name, parent, key, texture2dArgs, stmt], index) => {
+  const inputs = texture2Dcalls.map<ComputedInput>((name) => {
     return [
       nodeInput(
         name,
@@ -88,6 +75,7 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
       ),
       (filler) => {
         references[name].forEach(({ parent, key, args }) => {
+          // Backfilling into the filler! Similar to parsers.ts filler
           const f = filler(...args.map(generate));
           // @ts-ignore
           parent[key] = f;
@@ -95,12 +83,6 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
 
         return ast;
       },
-
-      // These are the backfiller args
-      //texture2dArgs,
-
-      // The fillerStmt
-      //stmt,
     ];
   });
 

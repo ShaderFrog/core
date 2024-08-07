@@ -92,8 +92,6 @@ export type FindInputs = (
 export type ProduceNodeFiller = (
   node: SourceNode,
   ast: Program | AstNode,
-  // TODO: I returned AstNode[] from the return type here, see same note over
-  // CompileNodeResult
 ) => Filler;
 
 type CoreNodeParser = {
@@ -179,18 +177,8 @@ export const coreParsers: CoreParser = {
             ? ((ast as Program).program[0] as AstNode)
             : node.sourceType === SourceType.FN_BODY_FRAGMENT
               ? ((ast as Program).program as AstNode[])
-              : // CURRENTLY DUPLICATED IN GRAPH.TS RETURNING DEPENDENCIES
-                // This returns node_name_out - which is not correct in the case
-                // an inlined backfilled filer should be node_name(args).
-                // Maybe this is the issue? When we produe the filler, we don't
-                // yet know the context the filler will be used in. If a filler
-                // is inlined, we want to use the node name, but if it's instantiated
-                // memoized, we want to use the variable result name. I think this
-                // function should just return the instantiator, not the filler,
-                // and it's up to graph.ts to figure out if we want to instantiate
-                // it or call it in place. In the case of a program, filler =
-                // instantiator. In the case of an expression, it's the raw
-                // expression. This lets us take backfill args here I think.
+              : // Backfilling into the call of this program's filler.
+                // Similar to texutre2D.ts filler
                 makeExpression(`${nodeName(node)}(${args.join(', ')})`);
         return fillerNode;
       };
