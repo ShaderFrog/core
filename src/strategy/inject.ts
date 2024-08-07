@@ -74,10 +74,9 @@ export const applyInjectStrategy: ApplyStrategy<InjectStrategy> = (
         ['code', 'data'],
         false,
       ),
-      (fillerAst) => {
-        const toInsert = Array.isArray(fillerAst)
-          ? fillerAst
-          : [fillerAst as AstNode];
+      (filler) => {
+        const result = filler();
+        const toInsert = Array.isArray(result) ? result : [result as AstNode];
         // Loop backwards through the matches because when we inject code into
         // parent nodes, it modifies the statement list arrays
         for (

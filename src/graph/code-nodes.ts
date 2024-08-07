@@ -5,7 +5,7 @@ import { BaseNode, NodeInput } from './base-node';
 
 export const mapInputName = (
   node: CodeNode,
-  { id, displayName }: NodeInput,
+  { id, displayName }: NodeInput
 ): string => node.config?.inputMapping?.[id] || displayName;
 
 export type InputMapping = { [original: string]: string };
@@ -38,7 +38,7 @@ export const property = (
   property: string,
   type: GraphDataType,
   fillerName?: string,
-  defaultValue?: any,
+  defaultValue?: any
 ): NodeProperty => ({
   displayName,
   type,
@@ -49,18 +49,30 @@ export const property = (
 
 export enum SourceType {
   SHADER_PROGRAM = 'Shader Program',
-  EXPRESSION = 'Expression',
+  // Function body fragments are parsed, and parsed differently than shader
+  // programs. This confuses me all the time. TODO: Remove fn_body_framgent
+  // and just try/catch parsing a program, then try fn body fragment?
   FN_BODY_FRAGMENT = 'Function Body Fragment',
+  // Expressions are inlined as is
+  EXPRESSION = 'Expression',
 }
+
+export type Backfillers = Record<
+  string,
+  { argType: string; targetVariable: string }[]
+>;
 
 export interface CodeNode extends BaseNode {
   config: NodeConfig;
+  type: string;
   engine: boolean;
   source: string;
   sourceType?: SourceType;
   stage?: ShaderStage;
   biStage?: boolean;
   originalEngine?: string;
+  // Record of the filler id to the backfiller target variable
+  backfillers?: Backfillers;
 }
 
 export interface BinaryNode extends CodeNode {

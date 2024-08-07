@@ -21,7 +21,7 @@ const log = (...args: any[]) =>
 // Typescript fucked up flat https://stackoverflow.com/a/61420611/743464
 export const combineWs = (
   a: string | string[],
-  b: string | string[],
+  b: string | string[]
 ): string[] => [a, b].flat(<20>Infinity);
 
 // Move whitespace from one node to another. Since whitespace is trailing, if a
@@ -29,7 +29,7 @@ export const combineWs = (
 // node to the later one. This keeps comments in the same place.
 export const transferWhitespace = (
   to: AstNode,
-  from: AstNode,
+  from: AstNode
 ): [AstNode, AstNode] => {
   return 'semi' in to && 'semi' in from
     ? [
@@ -49,20 +49,20 @@ export const transferWhitespace = (
         },
       ]
     : 'whitespace' in to && 'semi' in from
-      ? [
-          {
-            ...to,
-            whitespace: combineWs(to.whitespace, from.semi.whitespace),
+    ? [
+        {
+          ...to,
+          whitespace: combineWs(to.whitespace, from.semi.whitespace),
+        },
+        {
+          ...from,
+          semi: {
+            ...from.semi,
+            whitespace: '\n',
           },
-          {
-            ...from,
-            semi: {
-              ...from.semi,
-              whitespace: '\n',
-            },
-          },
-        ]
-      : [to, from];
+        },
+      ]
+    : [to, from];
 };
 
 export const getLiteralIndent = (node: { whitespace: Whitespace }) =>
@@ -75,7 +75,7 @@ export const getLiteralIndent = (node: { whitespace: Whitespace }) =>
 
 export const tryAddTrailingWhitespace = <T extends AstNode>(
   node: T,
-  ws: string,
+  ws: string
 ): T => {
   return 'semi' in node
     ? {
@@ -94,9 +94,15 @@ export const guessFnIndent = (fnBody: FunctionNode) =>
     return ws || getLiteralIndent((n as DoStatementNode).semi) || '';
   }, '');
 
+const addWs = (node: string | AstNode, ws: string) =>
+  tryAddTrailingWhitespace(
+    typeof node === 'string' ? makeFnStatement(node)[0] : node,
+    ws
+  );
+
 export const addFnStmtWithIndent = (
   fnBody: FunctionNode,
-  newNode: string | AstNode,
+  newNode: string | AstNode
 ): AstNode[] => {
   const statements = fnBody.body.statements;
   const indent = guessFnIndent(fnBody);
@@ -105,9 +111,38 @@ export const addFnStmtWithIndent = (
     // This simple hack is way easier than trying to modify the function body
     // opening brace and/or the previous statement
     { type: 'literal', literal: '', whitespace: indent },
-    tryAddTrailingWhitespace(
-      typeof newNode === 'string' ? makeFnStatement(newNode)[0] : newNode,
-      `\n`,
-    ),
+    addWs(newNode, `\n`),
+  ];
+};
+
+export const unshiftFnStmtWithIndent = (
+  fnBody: FunctionNode,
+  newNode: string | AstNode
+): AstNode[] => {
+  const statements = fnBody.body.statements;
+  const indent = guessFnIndent(fnBody);
+  return [
+    addWs(newNode, `\n`),
+    { type: 'literal', literal: '', whitespace: indent },
+    ...statements,
+  ];
+};
+
+export const spliceFnStmtWithIndent = (
+  fnBody: FunctionNode,
+  index: number,
+  ...newNodes: (string | AstNode)[]
+): AstNode[] => {
+  const statements = fnBody.body.statements;
+  const indent = guessFnIndent(fnBody);
+  return [
+    ...statements.slice(0, index),
+    ...newNodes.map((n) => addWs(n, `\n`)),
+    {
+      type: 'literal',
+      literal: '',
+      whitespace: indent,
+    },
+    ...statements.slice(index),
   ];
 };

@@ -1,6 +1,7 @@
 import { NodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../graph/parsers';
+import { ComputedInput } from '../strategy';
+import { AstNode } from '@shaderfrog/glsl-parser/ast';
 
 /**
  * I don't actually know if anything uses this, nor do I remember how it would
@@ -30,10 +31,7 @@ export const applyHardCodeStrategy: ApplyStrategy<HardCodeStrategy> = (
       // so this awkward branch is to make types line up. But I don't think
       // this code path would ever get called
       (filler) => {
-        if (!filler || Array.isArray(filler)) {
-          throw new Error('Cannot use void filler');
-        }
-        return filler;
+        return filler() as AstNode;
       },
     ];
     return ci;

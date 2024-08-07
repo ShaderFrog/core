@@ -1,7 +1,12 @@
 import groupBy from 'lodash.groupby';
 import { type GlslSyntaxError } from '@shaderfrog/glsl-parser';
 
-import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
+import {
+  AstNode,
+  FunctionNode,
+  FunctionPrototypeNode,
+  Program,
+} from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
 import { NodeInput } from './base-node';
@@ -13,8 +18,11 @@ import {
   findLinkedVertexNodes,
   isSourceNode,
   mangleEntireProgram,
+  shouldNodeHaveMainFn,
 } from './graph';
-import { InputFillers, coreParsers } from './parsers';
+import { InputFillerGroup, InputFillers } from '../strategy';
+import { coreParsers } from './parsers';
+import { findMain } from '../util/ast';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a
@@ -31,6 +39,7 @@ export type NodeContext = {
   inputs?: NodeInput[];
   inputFillers: InputFillers;
   errors?: NodeErrors;
+  mainFn?: FunctionNode;
 };
 
 export type NodeErrors = {
@@ -82,9 +91,16 @@ const computeNodeContext = async (
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
+  let mainFn: ReturnType<typeof findMain>;
   let ast: ReturnType<typeof parser.produceAst>;
   try {
     ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
+
+    // Find the main function before mangling
+    if (shouldNodeHaveMainFn(node)) {
+      mainFn = findMain(ast as Program);
+    }
+
     if (manipulateAst) {
       ast = manipulateAst(
         engineContext,
@@ -143,14 +159,23 @@ const computeNodeContext = async (
   const nodeContext: NodeContext = {
     ast,
     id: node.id,
+    mainFn,
     inputFillers: computedInputs.reduce<InputFillers>(
-      (acc, [input, filler, args]) => ({
-        ...acc,
-        [input.id]: {
+      (acc, [input, filler, fillerArgs, fillerStmt]) => {
+        // This is intentionally broken out into an explicit return to force
+        // this type declaration. Inlining the object in [input.id]: {...}
+        // doesn't force it to be an InputFillerGroup, and it can contain extra
+        // arguments by accident
+        const fillerGroup: InputFillerGroup = {
           filler,
-          args,
-        },
-      }),
+          fillerArgs,
+          fillerStmt,
+        };
+        return {
+          ...acc,
+          [input.id]: fillerGroup,
+        };
+      },
       {},
     ),
   };

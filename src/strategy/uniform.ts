@@ -8,8 +8,7 @@ import {
 import { mangleName } from '../graph/graph';
 import { nodeInput } from '../graph/base-node';
 import { GraphDataType } from '../graph/data-nodes';
-import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../graph/parsers';
+import { BaseStrategy, ApplyStrategy, StrategyType, ComputedInput } from '.';
 import { generateFiller } from '../util/ast';
 // TODO: Get this from glsl-parser root when you have internet access
 import { renameBinding } from '@shaderfrog/glsl-parser/parser/utils';
@@ -152,6 +151,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
       const declaration = node.declaration as DeclaratorListNode;
 
       // The uniform declaration type, like vec4
+      // TODO: File VSCode bug, this is highlighted like a function
       const uniformType = (
         declaration?.specified_type?.specifier?.specifier as KeywordNode
       )?.token;
@@ -193,7 +193,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           }
 
           // Rename all the references to said uniform
-          renameBinding(references[name], generateFiller(filler));
+          renameBinding(references[name], generateFiller(filler()));
 
           return ast;
         },
