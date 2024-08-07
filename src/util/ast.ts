@@ -523,12 +523,16 @@ export const backfillAst = (
 
   // Inject the backfill param as the arg
   if (mainFn) {
-    mainFn.prototype.parameters = (mainFn.prototype.parameters || []).concat(
-      (
-        parser.parse(`void x(${fromType} ${targetVariable}) {}`)
-          .program[0] as FunctionNode
-      ).prototype.parameters,
-    );
+    mainFn.prototype.parameters = (mainFn.prototype.parameters || [])
+      .filter(
+        (arg) => (arg.specifier.specifier as KeywordNode).token !== 'void',
+      )
+      .concat(
+        (
+          parser.parse(`void x(${fromType} ${targetVariable}) {}`)
+            .program[0] as FunctionNode
+        ).prototype.parameters,
+      );
   }
 
   // ast.scopes[0].bindings[0] = renameBinding(
