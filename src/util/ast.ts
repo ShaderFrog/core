@@ -474,13 +474,11 @@ export const convert300MainToReturn = (ast: FrogProgram): void => {
   ast.scopes[0].bindings[replacedReturn].references.push(rtn.expression);
 };
 
-export const generateFiller = (filler: Filler) => {
-  if (!filler) {
+export const generateFiller = (ast: AstNode | AstNode[] | void) => {
+  if (!ast) {
     throw new Error('Cannot generate void filler!');
   }
-  return Array.isArray(filler)
-    ? filler.map(generate).join('')
-    : generate(filler);
+  return Array.isArray(ast) ? ast.map(generate).join('') : generate(ast);
 };
 
 export const isDeclarationStatement = (
@@ -497,9 +495,8 @@ export const backfillAst = (
 ) => {
   if (!ast.scopes[0].bindings[targetVariable]) {
     console.warn(
-      `Variable "${targetVariable}" not found in global program scope to splargus! Variables: ${Object.keys(ast.scopes[0].bindings)}`,
+      `Variable "${targetVariable}" not found in global program scope to backfill! Variables: ${Object.keys(ast.scopes[0].bindings)}`,
     );
-    return ast;
   }
 
   // Remove the declaration from the program. However on consideratio, this is

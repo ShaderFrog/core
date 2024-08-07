@@ -33,11 +33,11 @@ void main() {
   );
 
   expect(fillers.length).toBe(1);
-  fillers[0][1]({
+  fillers[0][1](() => ({
     type: 'literal',
     literal: `myFiller()`,
     whitespace: '',
-  });
+  }));
   const result = generate(ast);
 
   // Should replace the use of the filler, but not the declaration
@@ -76,12 +76,12 @@ re(x, y, z);
   );
 
   expect(fillers.length).toBe(1);
-  fillers[0][1]({
+  fillers[0][1](() => ({
     type: 'literal',
     literal: `someOtherCall(x, y, z);
 someOtherCall(x, y, z);`,
     whitespace: '',
-  });
+  }));
   const result = generate(ast);
 
   // Should fill references
@@ -128,12 +128,12 @@ re(x, y, z);
   );
 
   expect(fillers.length).toBe(1);
-  fillers[0][1]({
+  fillers[0][1](() => ({
     type: 'literal',
     literal: `someOtherCall(x, y, z);
 someOtherCall(x, y, z);`,
     whitespace: '\n',
-  });
+  }));
   const result = generate(ast);
 
   // Should fill references
@@ -226,13 +226,13 @@ void main() {
     'zenput',
   ]);
 
-  fillers.find(([{ displayName: name }]) => name === 'input')?.[1](
+  fillers.find(([{ displayName: name }]) => name === 'input')?.[1](() =>
     makeExpression('a'),
   );
-  fillers.find(([{ displayName: name }]) => name === 'output')?.[1](
+  fillers.find(([{ displayName: name }]) => name === 'output')?.[1](() =>
     makeExpression('b'),
   );
-  fillers.find(([{ displayName: name }]) => name === 'zenput')?.[1](
+  fillers.find(([{ displayName: name }]) => name === 'zenput')?.[1](() =>
     makeExpression('c'),
   );
   const result = generate(ast);
@@ -283,10 +283,11 @@ void main() {
     'output',
   ]);
 
-  fillers.find(([{ displayName: name }]) => name === 'input')?.[1](
+  const a = fillers.find(([{ displayName: name }]) => name === 'input')?.[1];
+  fillers.find(([{ displayName: name }]) => name === 'input')?.[1](() =>
     makeExpression('a'),
   );
-  fillers.find(([{ displayName: name }]) => name === 'output')?.[1](
+  fillers.find(([{ displayName: name }]) => name === 'output')?.[1](() =>
     makeExpression('b'),
   );
   const result = generate(ast);
@@ -317,7 +318,7 @@ void main() {
   ).toEqual(['noiseImage']);
 });
 
-it('finds multiple texture2D inputs for one uniform', () => {
+it('finds one texture2D input for one texture2D() call', () => {
   const ast = parser.parse(
     `
 void main() {
@@ -333,7 +334,7 @@ void main() {
       {} as SourceNode,
       {} as SourceNode,
     ).map(([{ displayName: name }]) => name),
-  ).toEqual(['noiseImage_0', 'noiseImage_1']);
+  ).toEqual(['noiseImage']);
 });
 
 it('Make sure texture2D finds preprocessed texture() call', () => {

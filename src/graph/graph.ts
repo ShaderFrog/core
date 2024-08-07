@@ -40,12 +40,10 @@ import {
 } from './graph-types';
 import { generate } from '@shaderfrog/glsl-parser';
 import {
-  guessFnIndent,
   spliceFnStmtWithIndent,
-  tryAddTrailingWhitespace,
   unshiftFnStmtWithIndent,
 } from '../util/whitespace';
-import { InputFillerGroup } from '../strategy';
+import { Filler, InputFillerGroup } from '../strategy';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.graph)\x1b[0m', ...args);
@@ -55,6 +53,21 @@ export const isDataNode = (node: GraphNode): node is DataNode =>
 
 export const isSourceNode = (node: GraphNode): node is SourceNode =>
   !isDataNode(node);
+
+/**
+ * Determine if a node's source code / AST should have a main function. Essentially
+ * check if the source code is a full program or not.
+ */
+export const shouldNodeHaveMainFn = (node: GraphNode): node is SourceNode =>
+  // Some legacy shaders have an output node that does not have a sourceType,
+  // otherwise the sourceType second check would always work
+  node.type === NodeType.OUTPUT ||
+  // Same for code nodes :(
+  (isSourceNode(node) && !(node as CodeNode).sourceType) ||
+  (node as CodeNode).sourceType === SourceType.SHADER_PROGRAM ||
+  // Engine nodes can have rando types like "physical", so if they are engine
+  // nodes, assume they have a main fn.
+  (node as CodeNode).engine;
 
 export const findNode = (graph: Graph, id: string): GraphNode =>
   ensure(graph.nodes.find((node) => node.id === id));
@@ -353,8 +366,11 @@ export const filterGraphNodes = (
 
 type NodeIds = Record<string, GraphNode>;
 
-// Index of nodeId to
-type DependencyDeclarations = Record<string, (...args: string[]) => string>;
+// Index of nodeId to its declaration
+type DependencyDeclarations = Record<
+  string,
+  { type: string; variableName: string }
+>;
 
 export type CompileNodeResult = [
   // After compiling a node and all of its dependencies, the ShaderSections
@@ -367,7 +383,7 @@ export type CompileNodeResult = [
   // as the graph is compiled.
   compiledIds: NodeIds,
   // Dependencies to inject into the parent function
-  dependencyDeclarations: DependencyDeclarations,
+  // dependencyDeclarations: DependencyDeclarations,
 ];
 
 // before data inputs were known by the input.category being node or data. I
@@ -438,7 +454,8 @@ export const compileNode = (
     }))
     .filter(({ input }) => !isDataInput(input))
     .forEach(({ fromNode, input }) => {
-      const [inputSections, fillerAst, childIds, childDeps] = compileNode(
+      // const [inputSections, fillerFn, childIds, childDeps] = compileNode(
+      const [inputSections, fillerFn, childIds] = compileNode(
         engine,
         graph,
         edges,
@@ -446,7 +463,7 @@ export const compileNode = (
         fromNode,
         activeIds,
       );
-      if (!fillerAst) {
+      if (!fillerFn) {
         throw new TypeError(
           `Expected a filler ast from node ID ${fromNode.id} (${fromNode.type}) but none was returned`,
         );
@@ -489,86 +506,215 @@ export const compileNode = (
         );
       }
 
+      const isMagicStatementDontInstantiate =
+        input.displayName === MAGIC_OUTPUT_STMTS;
+
+      /**
+       * We're running this in the context of one node and input, but
+       *   (before this) all child nodes of this node are compiled and offer
+       *   up fillers and dependnecies to inject into our own node
+       *
+       * What does a child node offer up? Now, it's:
+       * - A declaration variable
+       * - A declaration type
+       * It's up to the current context to determine if we want to instantiate
+       * or call direclty. And
+       * - The filler instantiator, aka the filler itself.
+       *
+       * What are the circumstances in which we want to instantiate a dependency
+       * vs simply call filler.filler? We want to instantiate if:
+       * - Only if the child shader *isn't* a program? Is that really true?
+       *
+       * By the way one thing we haven't talked about yet is instantating a
+       * variable so that a node can be plugged in to multiple places into this
+       * node without having to re-instantiate the child. I don't actually know
+       * what this graph will look like yet. we'll hit it for the dependency /
+       * normal map case coming up... I guess, because if a variable is instantiated
+       * then you can replace otehr calls to it with the vairiable name later.
+       * So do I always want to instantiate? Even with backfilling I think it
+       * would work... I guess you can only instantiate if this is a program
+       * node since you have to return multiple lines.
+       *
+       * If there are no child dependencies *for this node*, then assume
+       *   the child is an expression, and just call the filler to inject
+       *   the expression (the filler) into this node's AST.
+       *   Note I said "for this node" - Object.entries(childDeps).length tests
+       *   for all child dependencies, recursively
+       *
+       * I think the overall logic flow is: If instantiate, instantiate it then
+       * use the variable name as the filler. If not, just fill in.
+       *
+       * And if backfilling, backfill the instantiator, which is a separate thing
+       *
+       * Children now offer up the dependency name and type and it's up to us
+       * if we want to use it. if we don't use it we need to pass it on.
+       *
+       * If we don't use it the expectation is the next program parent will
+       * instantiate the variable. Something is off here. In the case of
+       * program -> binary -> output, binary can:
+       * - call program(), and we're done with dependencies
+       * - use program's variableName, _program_out, and pass on the dependency
+       *   to the next node, but now we're in a different state, we expect
+       *   the next node to instantiate with _program = program() so that
+       *   binary works. How would that work? Going to bed for now.
+       */
+
       // If we're a node that can inline dependencies, and there are, do it
-      if (nodeContext && nodeContext.mainFn) {
-        const main = nodeContext.mainFn;
+      // if (nodeContext && nodeContext.mainFn) {
+      const main = nodeContext.mainFn;
 
-        /**
-         * For each child dependency declaration, inject the declaration into
-         * our own main function body. Perform backfilling if called for.
-         */
-        Object.entries(childDeps).forEach(([nodeId, childDep]) => {
-          let backfillerArgs: string[] = [];
-          let fillerStmt: AstNode | undefined;
+      /**
+       * You butchered up this logic to make the tests pass. This here is for
+       * the test "inlining a fragment expression" where the expression to
+       * inline does not produce a child dependency so the loop below doesn't
+       * run, and you moved the filler.filler() call into this if block which
+       * screwed up a bunch of stuff and made you need to call this conditionally
+       * randomly. gotta fix all this fucked up logic and continue on
+       */
+      // if (!Object.entries(childDeps).length) {
+      //   // bad logic just doing this to get tests to pass
+      //   if (!isMagicStatementDontInstantiate) {
+      //     nodeContext.ast = filler.filler(fillerFn);
+      //   }
+      // }
 
-          // Test if it needs to be backfilled - this only goes one level deep
-          // because we're only backfilling fromNode
-          const backfillers = codeNode.backfillers?.[input.id];
-          if (backfillers && filler.fillerArgs) {
-            backfillerArgs = filler.fillerArgs.map(generate);
-            fillerStmt = filler.fillerStmt;
+      /**
+       * Child dependency declaration injection
+       *
+       * For each child dependency declaration, inject the declaration into
+       * our own main function body. Perform backfilling if called for.
+       *
+       * Adds vec4 main_Shader_CHILD_out = main_Shader_CHILD() to the program,
+       * but does not actually fill in "main_Shader_CHILD_out" yet.
+       */
+      // Object.entries(childDeps).forEach(([nodeId, childDep]) => {
+      // console.log('looking at child dep', childDep);
+      // let backfillerArgs: string[] = [];
+      // let fillerStmt: AstNode | undefined;
 
-            const childAst = engineContext.nodes[fromNode.id].ast;
-            // For now we can only backfill programs
-            if (childAst.type === 'program') {
-              backfillers.forEach((backfiller) => {
-                // This is where the variable name gets injected into the main
-                // function parameter of the backfilled child
-                backfillAst(
-                  childAst,
-                  backfiller.argType,
-                  backfiller.targetVariable,
-                  engineContext.nodes[fromNode.id].mainFn,
-                );
-              });
-            }
-          }
+      // Test if it needs to be backfilled - this only goes one level deep
+      // because we're only backfilling fromNode
+      let backfillers = codeNode.backfillers?.[input.id];
+      //if (input.id === 'filler_tex_depth') {
+      //  backfillers = [
+      //    {
+      //      argType: 'vec2',
+      //      targetVariable: 'vUv',
+      //    },
+      //  ];
+      //}
 
-          /*
-           * In the case this filler is telling us a statement to inject near,
-           * we want to inject the dependency declaration right above that filler statement.
-           * This is for the case where
-           *   vec4 x = texture2D(img, someVar).rgb;
-           * gets translated to
-           *   vec4 _my_filler = _filler_main(someVar);
-           *   vec4 x = _my_filler.rgb;
-           **/
-          const fillerIndex = main.body.statements.indexOf(
-            fillerStmt as AstNode,
-          );
-          if (fillerIndex !== -1) {
-            main.body.statements = spliceFnStmtWithIndent(
-              main,
-              fillerIndex,
-              childDep(...backfillerArgs),
+      // if (backfillers && filler.fillerArgs) {
+      if (backfillers && shouldNodeHaveMainFn(fromNode)) {
+        // backfillerArgs = filler.fillerArgs.map(generate);
+        // fillerStmt = filler.fillerStmt;
+
+        const childAst = engineContext.nodes[fromNode.id].ast;
+        // console.log('backfilling', generate(childAst));
+        // For now we can only backfill programs
+        if (childAst.type === 'program') {
+          backfillers.forEach((backfiller) => {
+            // This is where the variable name gets injected into the main
+            // function parameter of the backfilled child
+            backfillAst(
+              childAst,
+              backfiller.argType,
+              backfiller.targetVariable,
+              engineContext.nodes[fromNode.id].mainFn,
             );
-          } else {
-            // if we couldn't find it, inject at the top of the function as a
-            // backup attempt. This will almost certainly blow up the shader.
-            if (fillerStmt) {
-              console.warn(
-                `Could not inject backfilled initializer`,
-                fromNode,
-                `into`,
-                node,
-              );
-            }
-            // Inject the child dependency (with backfillers, if present) into
-            // our own AST main fn
-            main.body.statements = unshiftFnStmtWithIndent(
-              main,
-              childDep(...(nodeId === fromNode.id ? [] : backfillerArgs)),
-            );
-          }
-        });
+          });
+        }
+        nodeContext.ast = filler.filler(fillerFn);
       } else {
-        dependencyDeclarations = { ...dependencyDeclarations, ...childDeps };
+        // Don't backfill by discarding the backfiller args
+        nodeContext.ast = filler.filler(() => fillerFn());
       }
+      // } else {
+      //   console.log('not backfillin!');
+      /**
+       * In the case this filler is telling us a statement to inject near,
+       * we want to inject the dependency declaration right above that
+       * filler statement.
+       * This is for the case where
+       *   vec4 x = texture2D(img, someVar).rgb;
+       * gets translated to
+       *   vec4 _my_filler = _filler_main(someVar);
+       *   vec4 x = _my_filler.rgb;
+       */
+      // const fillerIndex = main.body.statements.indexOf(
+      //   fillerStmt as AstNode,
+      // );
+      // Only backfill if this is the node into our input, so only one
+      // level deep for now
+      // const left = childDep.declarationLeft;
+      // const right = generate(
+      //   //childDep.declarationRight(
+      //   //  ...(nodeId === fromNode.id ? backfillerArgs : []),
+      //   //) as AstNode,
+      //   childDep.declarationRight() as AstNode,
+      // );
 
-      // Fill in the input! The return value is the new AST of the filled in
-      // fromNode.
-      // TODO: Use immer for fillers?
-      nodeContext.ast = filler.filler(fillerAst);
+      // Create the child declaration dependency line...
+      // const childDeclaration =
+      // If this is the magic output statements of a vertex node, then
+      // we only want to *call* the other dependency, we don't need to
+      // assign it to a variable. This is purely based on if we're plugged
+      // into the magic stmts input, which could introduce bugs later.
+      // isMagicStatementDontInstantiate
+      //   ? `${right};`
+      // : // For any other case, instantiate the entire variable, because
+      // it will be filled in
+      // `${left}${right};`;
+
+      // if (f`illerIndex !== -1) {
+      //   main.body.statements = spliceFnStmtWithIndent(
+      //     main,
+      //     fillerIndex,
+      //     childDeclaration,
+      //   );
+      // } else {
+      //   // if we couldn't find it, inject at the top of the function as a
+      //   // backup attempt. This will almost certainly blow up the shader.
+      //   if (fillerStmt) {
+      //     console.warn(
+      //       `Could not inject backfilled initializer`,
+      //       fromNode,
+      //       `into`,
+      //       node,
+      //     );
+      //   }
+      //   // Inject the child dependency (with backfillers, if present) into
+      //   // our own AST main fn
+      //   main.body.statements = unshiftFnStmtWithIndent(
+      //     main,
+      //     childDeclaration,
+      //   );
+      //   if (generate(main).includes('main_Checkerboard_out;')) {
+      //     console.error('main_Checkerboard_out');
+      //   }
+      // }`
+
+      /**
+       * Filling: Now that the child dependency has been instantiated,
+       * replace the parts of this AST that want to use it with
+       * "main_Shader_CHILD_out"
+       *
+       * In the case of MAGIC_OUTPUT_STMTS for the Output node, this
+       * injects the call to the child
+       */
+      //   if (!isMagicStatementDontInstantiate) {
+      //     nodeContext.ast = filler.filler(fillerFn);
+      //   }
+      // }
+      // });
+      // } else {
+      // dependencyDeclarations = { ...dependencyDeclarations, ...childDeps };
+
+      // bad logic just doing this to get tests to pass
+      //   if (!isMagicStatementDontInstantiate) {
+      //     nodeContext.ast = filler.filler(fillerFn);
+      //   }
+      // }
     });
 
   // Order matters here! *Prepend* the input nodes to this one, because
@@ -576,42 +722,36 @@ export const compileNode = (
   const sections = mergeShaderSections(
     continuation,
     isDataNode(node) ||
-      (node as SourceNode).sourceType === SourceType.EXPRESSION ||
-      (node as SourceNode).sourceType === SourceType.FN_BODY_FRAGMENT
+      codeNode.sourceType === SourceType.EXPRESSION ||
+      codeNode.sourceType === SourceType.FN_BODY_FRAGMENT
       ? shaderSectionsCons()
       : findShaderSections(ast as Program),
   );
 
-  const filler = isDataNode(node)
-    ? makeExpression(toGlsl(node))
+  const filler: Filler = isDataNode(node)
+    ? () => makeExpression(toGlsl(node))
     : parser.produceFiller(node, ast);
 
-  // Pass our own dependency declrations up to the next node to handle
-  if (
-    (node.type !== NodeType.OUTPUT &&
-      // Some legacy shaders don't have sourceType set apparently, which defaults
-      // the shader type to shader program
-      isSourceNode(node) &&
-      (!node.sourceType || node.sourceType === SourceType.SHADER_PROGRAM)) ||
-    codeNode.engine
-  ) {
-    dependencyDeclarations = {
-      ...dependencyDeclarations,
-      // The args here are used for backfilling if present
-      [node.id]: (...args) =>
-        `${
-          codeNode.stage === 'vertex' && doesLinkThruShader(graph, node)
-            ? 'vec3'
-            : 'vec4'
-        } ${nodeName(node)}_out = ${nodeName(node)}(${args.join(', ')});`,
-    };
-  }
+  // Pass our own dependency declarations up to the next node to handle
+  // if (shouldNodeHaveMainFn(node) && node.type !== NodeType.OUTPUT) {
+  //   dependencyDeclarations = {
+  //     ...dependencyDeclarations,
+  //     // The args here are used for backfilling if present
+  //     [node.id]: {
+  //       type:
+  //         codeNode.stage === 'vertex' && doesLinkThruShader(graph, node)
+  //           ? 'vec3'
+  //           : 'vec4',
+  //       variableName: resultName(node),
+  //     },
+  //   };
+  // }
 
   return [
     sections,
     filler,
     { ...compiledIds, [node.id]: node },
-    dependencyDeclarations,
+    // dependencyDeclarations,
   ];
 };
 

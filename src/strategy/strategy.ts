@@ -25,7 +25,7 @@ import { NodeInput } from '../graph';
  * applyTexture2DStrategy(), which returns a list of fillers found by each
  * strategy.
  */
-export type Filler = AstNode | AstNode[] | void;
+export type Filler = (...args: string[]) => AstNode | AstNode[] | void;
 
 export type InputFiller = (filler: Filler) => AstNode | Program;
 
@@ -36,6 +36,7 @@ export type InputFillerGroup = {
   filler: InputFiller;
   // Used for backfilling
   fillerArgs?: FillerArguments;
+  // Can I remove fillerArgs and keep fillerStmt?
   fillerStmt?: AstNode;
 };
 export type InputFillers = Record<string, InputFillerGroup>;

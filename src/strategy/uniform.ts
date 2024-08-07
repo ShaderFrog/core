@@ -193,7 +193,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           }
 
           // Rename all the references to said uniform
-          renameBinding(references[name], generateFiller(filler));
+          renameBinding(references[name], generateFiller(filler()));
 
           return ast;
         },

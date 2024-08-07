@@ -37,14 +37,14 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
 
         if (ref.type === 'declaration') {
           identifier = ref.identifier.identifier;
-          replacer = (fillerAst: Filler) => {
-            ref.identifier.identifier = generateFiller(fillerAst);
+          replacer = (filler: Filler) => {
+            ref.identifier.identifier = generateFiller(filler());
             return ast;
           };
         } else if (ref.type === 'identifier') {
           identifier = ref.identifier;
-          replacer = (fillerAst: Filler) => {
-            ref.identifier = generateFiller(fillerAst);
+          replacer = (filler: Filler) => {
+            ref.identifier = generateFiller(filler());
             return ast;
           };
           // } else if (ref.type === 'parameter_declaration') {
