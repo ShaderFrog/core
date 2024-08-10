@@ -2,11 +2,7 @@ import {
   renameBindings,
   renameFunctions,
 } from '@shaderfrog/glsl-parser/parser/utils';
-import {
-  Program,
-  FunctionNode,
-  ParameterDeclarationNode,
-} from '@shaderfrog/glsl-parser/ast';
+import { Program, AstNode } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import {
   NodeContext,
@@ -15,20 +11,25 @@ import {
   isError,
 } from './context';
 import {
-  emptyShaderSections,
+  shaderSectionsCons,
   findShaderSections,
   mergeShaderSections,
   ShaderSections,
   shaderSectionsToProgram,
 } from './shader-sections';
-import { FrogProgram, makeExpression } from '../util/ast';
+import {
+  backfillAst,
+  FrogProgram,
+  makeExpression,
+  makeFnStatement,
+} from '../util/ast';
 import { ensure } from '../util/ensure';
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
 import { CodeNode, SourceNode, SourceType } from './code-nodes';
 import { nodeInput, NodeInput } from './base-node';
 import { makeId } from '../util/id';
-import { InputFillerGroup, ProduceNodeFiller, coreParsers } from './parsers';
+import { ProduceNodeFiller, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
 import {
   EdgeLink,
@@ -38,6 +39,11 @@ import {
   NodeType,
 } from './graph-types';
 import { generate } from '@shaderfrog/glsl-parser';
+import {
+  spliceFnStmtWithIndent,
+  unshiftFnStmtWithIndent,
+} from '../util/whitespace';
+import { Filler, InputFillerGroup } from '../strategy';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.graph)\x1b[0m', ...args);
@@ -47,6 +53,21 @@ export const isDataNode = (node: GraphNode): node is DataNode =>
 
 export const isSourceNode = (node: GraphNode): node is SourceNode =>
   !isDataNode(node);
+
+/**
+ * Determine if a node's source code / AST should have a main function. Essentially
+ * check if the source code is a full program or not.
+ */
+export const shouldNodeHaveMainFn = (node: GraphNode): node is SourceNode =>
+  // Some legacy shaders have an output node that does not have a sourceType,
+  // otherwise the sourceType second check would always work
+  node.type === NodeType.OUTPUT ||
+  // Same for code nodes :(
+  (isSourceNode(node) && !(node as CodeNode).sourceType) ||
+  (node as CodeNode).sourceType === SourceType.SHADER_PROGRAM ||
+  // Engine nodes can have rando types like "physical", so if they are engine
+  // nodes, assume they have a main fn.
+  (node as CodeNode).engine;
 
 export const findNode = (graph: Graph, id: string): GraphNode =>
   ensure(graph.nodes.find((node) => node.id === id));
@@ -78,6 +99,8 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
 
 export const nodeName = (node: GraphNode): string =>
   'main_' + node.name.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
+
+export const resultName = (node: GraphNode): string => nodeName(node) + '_out';
 
 export const mangleName = (
   name: string,
@@ -345,8 +368,8 @@ type NodeIds = Record<string, GraphNode>;
 
 export type CompileNodeResult = [
   // After compiling a node and all of its dependencies, the ShaderSections
-  // represent the intermidate compile result, continues to grow as the graph is
-  // compiled.
+  // represent the intermediate compile result, continues to grow as the graph
+  // is compiled.
   compiledSections: ShaderSections,
   // The filler this node offers up to any filling nodes
   filler: ReturnType<ProduceNodeFiller>,
@@ -374,6 +397,7 @@ export const compileNode = (
     ...(coreParsers[node.type] || coreParsers[NodeType.SOURCE]),
     ...(engine.parsers[node.type] || {}),
   };
+  const codeNode = node as CodeNode;
 
   const { inputs } = node;
 
@@ -398,161 +422,120 @@ export const compileNode = (
   let compiledIds = activeIds;
 
   const inputEdges = edges.filter((edge) => edge.to === node.id);
-  if (inputEdges.length) {
-    let continuation = emptyShaderSections();
-    inputEdges
-      .filter((edge) => edge.type !== EdgeLink.NEXT_STAGE)
-      .map((edge) => ({
-        edge,
-        fromNode: ensure(
-          graph.nodes.find((node) => edge.from === node.id),
-          `GraphNode for edge ${edge.from} not found`,
-        ),
-        input: ensure(
-          inputs.find(({ id }) => id == edge.input),
-          `GraphNode "${node.name}"${
-            (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
-          } has no input ${edge.input}!\nAvailable:${inputs
-            .map(({ id }) => id)
-            .join(', ')}`,
-        ),
-      }))
-      .filter(({ input }) => !isDataInput(input))
-      .forEach(({ fromNode, edge, input }) => {
-        const [inputSections, fillerAst, childIds] = compileNode(
-          engine,
-          graph,
-          edges,
-          engineContext,
-          fromNode,
-          activeIds,
+  let continuation = shaderSectionsCons();
+
+  // Compile children recursively
+  inputEdges
+    .filter((edge) => edge.type !== EdgeLink.NEXT_STAGE)
+    .map((edge) => ({
+      edge,
+      fromNode: ensure(
+        graph.nodes.find((node) => edge.from === node.id),
+        `GraphNode for edge ${edge.from} not found`,
+      ),
+      input: ensure(
+        inputs.find(({ id }) => id == edge.input),
+        `GraphNode "${node.name}"${
+          (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
+        } has no input ${edge.input}!\nAvailable:${inputs
+          .map(({ id }) => id)
+          .join(', ')}`,
+      ),
+    }))
+    .filter(({ input }) => !isDataInput(input))
+    .forEach(({ fromNode, input }) => {
+      // const [inputSections, fillerFn, childIds, childDeps] = compileNode(
+      const [inputSections, fillerFn, childIds] = compileNode(
+        engine,
+        graph,
+        edges,
+        engineContext,
+        fromNode,
+        activeIds,
+      );
+      if (!fillerFn) {
+        throw new TypeError(
+          `Expected a filler ast from node ID ${fromNode.id} (${fromNode.type}) but none was returned`,
         );
-        if (!fillerAst) {
-          throw new TypeError(
-            `Expected a filler ast from node ID ${fromNode.id} (${fromNode.type}) but none was returned`,
-          );
-        }
+      }
 
-        continuation = mergeShaderSections(continuation, inputSections);
-        compiledIds = { ...compiledIds, ...childIds };
+      continuation = mergeShaderSections(continuation, inputSections);
+      compiledIds = { ...compiledIds, ...childIds };
 
-        let filler: InputFillerGroup;
-        let fillerName: string | undefined;
-        if (nodeContext) {
-          if (input.property) {
-            fillerName = ensure(
-              ((node as CodeNode).config.properties || []).find(
-                (p) => p.property === input.property,
-              )?.fillerName,
-              `Node "${node.name}" has no property named "${input.property}" to find the filler for`,
+      // Continue on if there's no context I don't know what case causes this
+      if (!nodeContext) {
+        return;
+      }
+
+      // Produce the input filler
+      let filler: InputFillerGroup;
+      let fillerName: string | undefined;
+      if (input.property) {
+        fillerName = ensure(
+          (codeNode.config.properties || []).find(
+            (p) => p.property === input.property,
+          )?.fillerName,
+          `Node "${node.name}" has no property named "${input.property}" to find the filler for`,
+        );
+        filler = inputFillers[fillerName];
+      } else {
+        filler = inputFillers[input.id];
+      }
+      if (!filler) {
+        console.error('No filler for property', {
+          input,
+          node,
+          inputFillers,
+          fillerName,
+        });
+        throw new Error(
+          `Node "${node.name}"${
+            (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
+          } has no filler for input "${input.displayName}" named ${fillerName}`,
+        );
+      }
+
+      // Test if it needs to be backfilled - this only goes one level deep
+      // because we're only backfilling fromNode
+      let backfillers = codeNode.backfillers?.[input.id];
+      if (backfillers && shouldNodeHaveMainFn(fromNode)) {
+        const childAst = engineContext.nodes[fromNode.id].ast;
+        // For now we can only backfill programs
+        if (childAst.type === 'program') {
+          backfillers.forEach((backfiller) => {
+            // This is where the variable name gets injected into the main
+            // function parameter of the backfilled child
+            backfillAst(
+              childAst,
+              backfiller.argType,
+              backfiller.targetVariable,
+              engineContext.nodes[fromNode.id].mainFn,
             );
-            filler = inputFillers[fillerName];
-          } else {
-            filler = inputFillers[input.id];
-          }
-          if (!filler) {
-            console.error('No filler for property', {
-              input,
-              node,
-              inputFillers,
-              fillerName,
-            });
-            throw new Error(
-              `Node "${node.name}"${
-                (node as SourceNode).stage
-                  ? ` (${(node as SourceNode).stage})`
-                  : ''
-              } has no filler for input "${
-                input.displayName
-              }" named ${fillerName}`,
-            );
-          }
-
-          /**
-           *      +------+    +------+
-           * a -- o add  o -- o tex  |
-           * b -- o      |    +------+
-           *      +------+
-           *
-           * This could produce:
-           *     main_a(v1) + main_b(v2)
-           * I guess it has to? or it could produce
-           *     function add(v1) { return main_a(v1) + main_b(v2); }
-           * It can't replace the arg _expression_ in the from shaders, because
-           * the expression isn't available there.
-           */
-          // TODO: This is a hard coded hack for vUv backfilling. It works in
-          // the simple case. Doesn't work for hell (based on world position).
-          if (
-            filler.backfillArgs &&
-            !Array.isArray(fillerAst) &&
-            fillerAst.type === 'function_call'
-          ) {
-            // Object.values(filterGraphFromNode(graph, node, {
-            //   node: (n) => n.type === 'source'
-            // }).nodes).forEach(sourceNode => {
-            if (fromNode.type === 'source') {
-              // @ts-ignore
-              fillerAst.args = filler.backfillArgs;
-              // const fc = engineContext.nodes[sourceNode.id];
-              const fc = engineContext.nodes[fromNode.id];
-              const main = Object.values(
-                (fc.ast as Program).scopes[0].functions.main,
-              )[0].declaration as FunctionNode;
-              main.prototype.parameters = [
-                'vec2 vv' as unknown as ParameterDeclarationNode,
-              ];
-              // @ts-ignore
-              const scope = fc.ast.scopes[0];
-              // renameBindings(scope, (name, node) => {
-              //   return node.type !== 'declaration' && name === 'vUv'
-              //     ? 'vv'
-              //     : name;
-              // });
-            }
-            // })
-          }
-
-          // Fill in the input! The return value is the new AST of the filled in
-          // fromNode.
-          nodeContext.ast = filler.filler(fillerAst);
+          });
         }
-        // log(generate(ast.program));
-      });
+        nodeContext.ast = filler.filler(fillerFn);
+      } else {
+        // Don't backfill by discarding the backfiller args
+        nodeContext.ast = filler.filler(() => fillerFn());
+      }
+    });
 
-    // Order matters here! *Prepend* the input nodes to this one, because
-    // you have to declare functions in order of use in GLSL
-    const sections = mergeShaderSections(
-      continuation,
-      isDataNode(node) ||
-        (node as SourceNode).sourceType === SourceType.EXPRESSION ||
-        (node as SourceNode).sourceType === SourceType.FN_BODY_FRAGMENT
-        ? emptyShaderSections()
-        : findShaderSections(ast as Program),
-    );
+  // Order matters here! *Prepend* the input nodes to this one, because
+  // you have to declare functions in order of use in GLSL
+  const sections = mergeShaderSections(
+    continuation,
+    isDataNode(node) ||
+      codeNode.sourceType === SourceType.EXPRESSION ||
+      codeNode.sourceType === SourceType.FN_BODY_FRAGMENT
+      ? shaderSectionsCons()
+      : findShaderSections(ast as Program),
+  );
 
-    const filler = isDataNode(node)
-      ? makeExpression(toGlsl(node))
-      : parser.produceFiller(node, ast);
+  const filler: Filler = isDataNode(node)
+    ? () => makeExpression(toGlsl(node))
+    : parser.produceFiller(node, ast);
 
-    return [sections, filler, { ...compiledIds, [node.id]: node }];
-  } else {
-    // TODO: This duplicates the above branch, and also does this mean we
-    // recalculate the shader sections and filler for every edge? Can I move
-    // these lines above the loop?
-    const sections =
-      isDataNode(node) ||
-      (node as SourceNode).sourceType === SourceType.EXPRESSION ||
-      (node as SourceNode).sourceType === SourceType.FN_BODY_FRAGMENT
-        ? emptyShaderSections()
-        : findShaderSections(ast as Program);
-
-    const filler = isDataNode(node)
-      ? makeExpression(toGlsl(node))
-      : parser.produceFiller(node, ast);
-
-    return [sections, filler, { ...compiledIds, [node.id]: node }];
-  }
+  return [sections, filler, { ...compiledIds, [node.id]: node }];
 };
 
 export type CompileGraphResult = {

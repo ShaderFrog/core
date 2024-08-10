@@ -5,9 +5,8 @@ import {
   NodeVisitors,
   IdentifierNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { InputCategory, nodeInput } from '../graph/base-node';
-import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../graph/parsers';
+import { nodeInput } from '../graph/base-node';
+import { BaseStrategy, ApplyStrategy, StrategyType, ComputedInput } from '.';
 
 export interface Texture2DStrategy extends BaseStrategy {
   type: StrategyType.TEXTURE_2D;
@@ -23,8 +22,13 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
   graphNode,
   siblingNode,
 ) => {
-  let texture2Dcalls: [string, AstNode, string, AstNode[]][] = [];
-  const seen: { [key: string]: number } = {};
+  let texture2Dcalls: string[] = [];
+
+  const references: Record<
+    string,
+    { parent: AstNode; key: string; args: AstNode[] }[]
+  > = {};
+
   const visitors: NodeVisitors = {
     function_call: {
       enter: (path) => {
@@ -42,47 +46,45 @@ export const applyTexture2DStrategy: ApplyStrategy<Texture2DStrategy> = (
           }
 
           const name = generate(path.node.args[0]);
-          seen[name] = (seen[name] || 0) + 1;
-          texture2Dcalls.push([
-            name,
-            path.parent as AstNode,
-            path.key,
-            // Remove the first argument and comma
-            (path.node.args as AstNode[]).slice(2),
-          ]);
+
+          if (!(name in references)) {
+            references[name] = [];
+            texture2Dcalls.push(name);
+          }
+
+          references[name].push({
+            parent: path.parent as AstNode,
+            key: path.key,
+            args: (path.node.args as AstNode[]).slice(2),
+          });
         }
       },
     },
   };
   visit(ast, visitors);
-  const names = new Set(
-    Object.entries(seen).reduce<string[]>(
-      (arr, [name, count]) => [...arr, ...(count > 1 ? [name] : [])],
-      [],
-    ),
-  );
-  const inputs = texture2Dcalls.map<ComputedInput>(
-    ([name, parent, key, texture2dArgs], index) => {
-      // Suffix input name if it's used more than once
-      const iName = names.has(name) ? `${name}_${index}` : name;
-      return [
-        nodeInput(
-          iName,
-          `filler_${iName}`,
-          'filler',
-          'vector4', // Data type for what plugs into this filler
-          ['code', 'data'],
-          false,
-        ),
-        (fillerAst) => {
+
+  const inputs = texture2Dcalls.map<ComputedInput>((name) => {
+    return [
+      nodeInput(
+        name,
+        `filler_${name}`,
+        'filler',
+        'vector4', // Data type for what plugs into this filler
+        ['code', 'data'],
+        false,
+      ),
+      (filler) => {
+        references[name].forEach(({ parent, key, args }) => {
+          // Backfilling into the filler! Similar to parsers.ts filler
+          const f = filler(...args.map(generate));
           // @ts-ignore
-          parent[key] = fillerAst;
-          return ast;
-        },
-        texture2dArgs,
-      ];
-    },
-  );
+          parent[key] = f;
+        });
+
+        return ast;
+      },
+    ];
+  });
 
   return inputs;
 };

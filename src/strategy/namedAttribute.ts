@@ -31,7 +31,7 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
         ['code', 'data'],
         true,
       ),
-      (fillerAst) => {
+      (filler) => {
         Object.entries(program.scopes[0].bindings).forEach(
           ([name, binding]) => {
             binding.references.forEach((ref) => {
@@ -42,7 +42,7 @@ export const applyNamedAttributeStrategy: ApplyStrategy<
                 ref !== binding.declaration &&
                 ref.identifier === attributeName
               ) {
-                ref.identifier = generateFiller(fillerAst);
+                ref.identifier = generateFiller(filler());
               }
             });
           },

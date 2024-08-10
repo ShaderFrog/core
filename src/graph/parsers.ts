@@ -1,4 +1,4 @@
-import { generate, parser } from '@shaderfrog/glsl-parser';
+import { parser } from '@shaderfrog/glsl-parser';
 
 import {
   visit,
@@ -12,20 +12,23 @@ import { Engine, EngineContext } from '../engine';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import {
   convert300MainToReturn,
+  findMain,
+  findMainOrThrow,
   from2To3,
   makeExpression,
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
   makeFnStatement,
 } from '../util/ast';
-import { applyStrategy } from '../strategy';
+import { applyStrategy, ComputedInput, Filler } from '../strategy';
 import { Edge } from './edge';
 import { BinaryNode, SourceNode, SourceType } from './code-nodes';
-import { InputCategory, nodeInput, NodeInput } from './base-node';
+import { nodeInput } from './base-node';
 import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
-import { nodeName } from './graph';
+import { nodeName, resultName } from './graph';
 import { Evaluate } from './evaluate';
 import { generateFiller } from '../util/ast';
+import { unshiftFnStmtWithIndent } from '../util/whitespace';
 
 /*
  * Core graph parsers, which is the plumbing/interface the graph and context
@@ -36,19 +39,6 @@ const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.parsers)\x1b[0m', ...args);
 
 export const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-
-export type Filler = AstNode | AstNode[] | void;
-
-export type InputFiller = (filler: Filler) => AstNode | Program;
-
-export type InputFillerGroup = {
-  filler: InputFiller;
-  backfillArgs?: AstNode[];
-};
-export type InputFillers = Record<string, InputFillerGroup>;
-
-type FillerArguments = AstNode[];
-export type ComputedInput = [NodeInput, InputFiller, FillerArguments?];
 
 export type ProduceAst = (
   engineContext: EngineContext,
@@ -102,8 +92,6 @@ export type FindInputs = (
 export type ProduceNodeFiller = (
   node: SourceNode,
   ast: Program | AstNode,
-  // TODO: I returned AstNode[] from the return type here, see same note over
-  // CompileNodeResult
 ) => Filler;
 
 type CoreNodeParser = {
@@ -183,11 +171,17 @@ export const coreParsers: CoreParser = {
         });
     },
     produceFiller: (node, ast) => {
-      return node.sourceType === SourceType.EXPRESSION
-        ? ((ast as Program).program[0] as AstNode)
-        : node.sourceType === SourceType.FN_BODY_FRAGMENT
-          ? ((ast as Program).program as AstNode[])
-          : (makeExpression(`${nodeName(node)}()`) as AstNode);
+      return (...args) => {
+        const fillerNode =
+          node.sourceType === SourceType.EXPRESSION
+            ? ((ast as Program).program[0] as AstNode)
+            : node.sourceType === SourceType.FN_BODY_FRAGMENT
+              ? ((ast as Program).program as AstNode[])
+              : // Backfilling into the call of this program's filler.
+                // Similar to texutre2D.ts filler
+                makeExpression(`${nodeName(node)}(${args.join(', ')})`);
+        return fillerNode;
+      };
     },
   },
   // TODO: Output node assumes strategies are still passed in on node creation,
@@ -210,12 +204,11 @@ export const coreParsers: CoreParser = {
             ['code'],
             false,
           ),
-          (fillerAst) => {
-            const fn = (ast as Program).program.find(
-              (stmt): stmt is FunctionNode => stmt.type === 'function',
-            );
-            fn?.body.statements.unshift(
-              makeFnStatement(generateFiller(fillerAst))[0],
+          (filler) => {
+            const main = findMainOrThrow(ast as Program);
+            main.body.statements = unshiftFnStmtWithIndent(
+              main,
+              generateFiller(filler()),
             );
             return ast;
           },
@@ -223,7 +216,7 @@ export const coreParsers: CoreParser = {
       ];
     },
     produceFiller: (node, ast) => {
-      return makeExpression('impossible_call()');
+      return () => makeExpression('impossible_call()');
     },
   },
   [NodeType.BINARY]: {
@@ -253,7 +246,7 @@ export const coreParsers: CoreParser = {
               ['data', 'code'],
               false,
             ),
-            (fillerAst) => {
+            (filler) => {
               let foundPath: Path<any> | undefined;
               const visitors: NodeVisitors = {
                 identifier: {
@@ -273,17 +266,17 @@ export const coreParsers: CoreParser = {
 
               if (foundPath.parent && foundPath.key) {
                 // @ts-ignore
-                foundPath.parent[foundPath.key] = fillerAst;
+                foundPath.parent[foundPath.key] = filler();
                 return ast;
               } else {
-                return fillerAst;
+                return filler();
               }
             },
           ] as ComputedInput;
         });
     },
     produceFiller: (node, ast) => {
-      return ast as AstNode;
+      return () => ast as AstNode;
     },
     evaluate: (node, inputEdges, inputNodes, evaluateNode) => {
       const operator = (node as BinaryNode).operator;

@@ -1,8 +1,13 @@
 import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
-import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
+import {
+  BaseStrategy,
+  ApplyStrategy,
+  StrategyType,
+  ComputedInput,
+  Filler,
+} from '.';
 import { Scope, ScopeIndex } from '@shaderfrog/glsl-parser/parser/scope';
-import { ComputedInput, Filler } from '../graph/parsers';
 import { generateFiller } from '../util/ast';
 
 export interface VariableStrategy extends BaseStrategy {
@@ -32,14 +37,14 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
 
         if (ref.type === 'declaration') {
           identifier = ref.identifier.identifier;
-          replacer = (fillerAst: Filler) => {
-            ref.identifier.identifier = generateFiller(fillerAst);
+          replacer = (filler: Filler) => {
+            ref.identifier.identifier = generateFiller(filler());
             return ast;
           };
         } else if (ref.type === 'identifier') {
           identifier = ref.identifier;
-          replacer = (fillerAst: Filler) => {
-            ref.identifier = generateFiller(fillerAst);
+          replacer = (filler: Filler) => {
+            ref.identifier = generateFiller(filler());
             return ast;
           };
           // } else if (ref.type === 'parameter_declaration') {

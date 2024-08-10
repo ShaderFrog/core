@@ -5,13 +5,11 @@ import {
   DeclaratorListNode,
   AstNode,
 } from '@shaderfrog/glsl-parser/ast';
-import { mangleName } from '../graph/graph';
+
 import { nodeInput } from '../graph/base-node';
 import { GraphDataType } from '../graph/data-nodes';
-import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
-import { ComputedInput } from '../graph/parsers';
+import { BaseStrategy, ApplyStrategy, StrategyType, ComputedInput } from '.';
 import { generateFiller } from '../util/ast';
-// TODO: Get this from glsl-parser root when you have internet access
 import { renameBinding } from '@shaderfrog/glsl-parser/parser/utils';
 import { ScopeEntry } from '@shaderfrog/glsl-parser/parser/scope';
 
@@ -129,12 +127,12 @@ const mapUniformType = (type: string): GraphDataType | undefined => {
 };
 
 const isUniformDeclaration = (
-  node: Program['program'][0],
+  node: Program['program'][0]
 ): node is DeclarationStatementNode =>
   node.type === 'declaration_statement' &&
   node.declaration.type === 'declarator_list' &&
   !!node.declaration?.specified_type?.qualifiers?.find(
-    (n) => (n as KeywordNode).token === 'uniform',
+    (n) => (n as KeywordNode).token === 'uniform'
   );
 // commented this out to allow for sampler2D uniforms to appear as inputs
 // && uniformType !== 'sampler2D'
@@ -142,7 +140,7 @@ const isUniformDeclaration = (
 export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
   strategy,
   ast,
-  graphNode,
+  graphNode
 ) => {
   const program = ast as Program;
 
@@ -152,6 +150,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
       const declaration = node.declaration as DeclaratorListNode;
 
       // The uniform declaration type, like vec4
+      // TODO: File VSCode bug, this is highlighted like a function
       const uniformType = (
         declaration?.specified_type?.specifier?.specifier as KeywordNode
       )?.token;
@@ -169,7 +168,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           ...acc,
           [name]: program.scopes[0].bindings[name],
         }),
-        {},
+        {}
       );
 
       return names.map<ComputedInput>((name) => [
@@ -179,7 +178,7 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           'uniform',
           graphDataType,
           ['code', 'data'],
-          true,
+          true
         ),
         (filler) => {
           // Remove the declaration line, or the declared uniform
@@ -188,12 +187,12 @@ export const applyUniformStrategy: ApplyStrategy<UniformStrategy> = (
           } else {
             const decl = node.declaration as DeclaratorListNode;
             decl.declarations = decl.declarations.filter(
-              (d) => d.identifier.identifier !== name,
+              (d) => d.identifier.identifier !== name
             );
           }
 
           // Rename all the references to said uniform
-          renameBinding(references[name], generateFiller(filler));
+          renameBinding(references[name], generateFiller(filler()));
 
           return ast;
         },
