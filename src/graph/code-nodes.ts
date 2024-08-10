@@ -49,18 +49,25 @@ export const property = (
 
 export enum SourceType {
   SHADER_PROGRAM = 'Shader Program',
-  EXPRESSION = 'Expression',
+  // Function body fragments are parsed, and parsed differently than shader
+  // programs. This confuses me all the time. TODO: Remove fn_body_framgent
+  // and just try/catch parsing a program, then try fn body fragment?
   FN_BODY_FRAGMENT = 'Function Body Fragment',
+  // Expressions are inlined as is
+  EXPRESSION = 'Expression',
 }
 
 export interface CodeNode extends BaseNode {
   config: NodeConfig;
+  type: string;
   engine: boolean;
   source: string;
   sourceType?: SourceType;
   stage?: ShaderStage;
   biStage?: boolean;
   originalEngine?: string;
+  // Record of the filler id to the backfiller target variable
+  backfillers?: Record<string, { argType: string; targetVariable: string }[]>;
 }
 
 export interface BinaryNode extends CodeNode {

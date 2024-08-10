@@ -35,8 +35,8 @@ export const constApplyDeclarationOf: ApplyStrategy<DeclarationOfStrategy> = (
             ['code', 'data'],
             false,
           ),
-          (fillerAst) => {
-            declaration.initializer = fillerAst as AstNode;
+          (filler) => {
+            declaration.initializer = filler() as AstNode;
             return ast;
           },
         ],

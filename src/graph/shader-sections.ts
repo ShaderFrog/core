@@ -10,6 +10,7 @@ import {
 import { generate } from '@shaderfrog/glsl-parser';
 import { makeStatement } from '../util/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
+
 export interface ShaderSections {
   precision: DeclarationStatementNode[];
   version: AstNode[];
@@ -21,7 +22,7 @@ export interface ShaderSections {
   program: AstNode[];
 }
 
-export const emptyShaderSections = (): ShaderSections => ({
+export const shaderSectionsCons = (): ShaderSections => ({
   precision: [],
   preprocessor: [],
   version: [],
