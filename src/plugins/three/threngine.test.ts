@@ -11,6 +11,8 @@ import { isError } from '../../graph/context';
 import { threngine } from './threngine';
 import { makeId } from '../../util/id';
 import { fail } from '../../test-util';
+import importers from './importers';
+import { generate, parser } from '@shaderfrog/glsl-parser';
 
 const p = { x: 0, y: 0 };
 
@@ -144,4 +146,30 @@ it('threngine compileSource() linking through vertex', async () => {
   // Because vert2 links through vert1, it should be a vec3, not a vec4
   expect(result.vertexResult).toContain(`vec3 ${nodeName(vert2)}() {`);
   expect(result.vertexResult).toContain(`vec4 ${nodeName(vert1)}() {`);
+});
+
+it('threngine shadertoy import', async () => {
+  const testImport = `
+void mainImage( out vec4 fragColor, in vec2 fragCoord ){
+  vec3 rd = normalize(vec3(2.*fragCoord - iResolution.xy, iResolution.y));
+  fragColor = vec4(sqrt(clamp(col, 0., 1.)), 1.0 * iTime);
+}
+`;
+
+  const p = parser.parse(testImport);
+  importers.shadertoy.convertAst(p, 'fragment');
+  console.log(generate(p));
+  expect(generate(p)).toContain(`
+precision highp float;
+precision highp int;
+
+uniform vec2 mouse;
+uniform float time;
+uniform vec2 renderResolution;
+
+void main() {
+  vec3 rd = normalize(vec3(2.*gl_FragCoord.xy - renderResolution.xy, renderResolution.y));
+  gl_FragColor = vec4(sqrt(clamp(col, 0., 1.)), 1.0 * time);
+}
+`);
 });

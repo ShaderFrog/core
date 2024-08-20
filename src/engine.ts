@@ -31,7 +31,7 @@ export type PhongNodeConstructor = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
+  stage: ShaderStage | undefined
 ) => CodeNode;
 
 export type PhysicalNodeConstructor = (
@@ -39,7 +39,7 @@ export type PhysicalNodeConstructor = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
+  stage: ShaderStage | undefined
 ) => CodeNode;
 
 export type ToonNodeConstructor = (
@@ -47,7 +47,7 @@ export type ToonNodeConstructor = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined,
+  stage: ShaderStage | undefined
 ) => CodeNode;
 
 export interface Engine {
@@ -102,7 +102,9 @@ export type EngineImporter = {
   convertAst(ast: Program, type?: ShaderStage): void;
   nodeInputMap: Partial<Record<EngineNodeType, Record<string, string | null>>>;
   edgeMap: { [oldInput: string]: string };
+  code?: Record<string, string>;
 };
+
 export type EngineImporters = {
   [engine: string]: EngineImporter;
 };
@@ -111,7 +113,7 @@ export type EngineImporters = {
 
 export const convertNode = (
   node: SourceNode,
-  converter: EngineImporter,
+  converter: EngineImporter
 ): SourceNode => {
   log(`Converting ${node.name} (${node.id})`);
   const preprocessed = preprocess(node.source, {
@@ -134,12 +136,12 @@ export const convertNode = (
 export const convertToEngine = (
   oldEngine: Engine,
   newEngine: Engine,
-  graph: Graph,
+  graph: Graph
 ): Graph => {
   const converter = newEngine.importers[oldEngine.name];
   if (!converter) {
     throw new Error(
-      `The engine ${newEngine.name} has no importer for ${oldEngine.name}`,
+      `The engine ${newEngine.name} has no importer for ${oldEngine.name}`
     );
   }
 
@@ -162,12 +164,12 @@ export const convertToEngine = (
             source.name,
             source.position,
             source.config.uniforms,
-            source.stage,
+            source.stage
           );
         // Bail if no conversion
       } else {
         throw new Error(
-          `Can't convert ${oldEngine.name} to ${newEngine.name} because ${newEngine.name} does not have a "${node.type}" constructor`,
+          `Can't convert ${oldEngine.name} to ${newEngine.name} because ${newEngine.name} does not have a "${node.type}" constructor`
         );
       }
     } else if (NodeType.SOURCE === node.type) {
@@ -192,7 +194,7 @@ export const convertToEngine = (
             edge.input,
             'as there is no edge mapping in the',
             newEngine.name,
-            'importer',
+            'importer'
           );
           edgeUpdates[edge.id] = null;
         }
@@ -245,7 +247,7 @@ export type DefaultPropertySetter = (p: NodeProperty) => any;
 export const collectInitialEvaluatedGraphProperties = (
   engine: Engine,
   graph: Graph,
-  defaultPropertySetting: DefaultPropertySetter,
+  defaultPropertySetting: DefaultPropertySetter
 ) => {
   const graphProperties: Record<string, any> = {};
 
@@ -262,7 +264,7 @@ export const collectInitialEvaluatedGraphProperties = (
       // predicate search enforces
       const input = i as NodeInput & { property: string };
       const edge = graph.edges.find(
-        ({ to, input: i }) => to === node.id && i === input.id,
+        ({ to, input: i }) => to === node.id && i === input.id
       );
       // In the case where a node has been deleted from the graph,
       // dataInputs won't have been udpated until a recompile completes
@@ -274,7 +276,7 @@ export const collectInitialEvaluatedGraphProperties = (
           // Find the corresponding property on the node and get the default
           // setting
           const property = (node.config.properties || []).find(
-            (p) => p.property === input.property,
+            (p) => p.property === input.property
           );
           if (property) {
             graphProperties[input.property] = defaultPropertySetting(property);
@@ -288,7 +290,7 @@ export const collectInitialEvaluatedGraphProperties = (
             graphProperties[input.property] = evaluateNode(
               engine,
               graph,
-              fromNode,
+              fromNode
             );
           } catch (err) {
             console.error('Tried to evaluate a non-data node!', {
