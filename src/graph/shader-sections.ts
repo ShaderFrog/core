@@ -44,7 +44,7 @@ export const higherPrecision = (p1: Precision, p2: Precision): Precision =>
 
 export const dedupeVersions = (nodes: AstNode[]): AstNode => nodes[0];
 export const highestPrecisions = (
-  nodes: DeclarationStatementNode[],
+  nodes: DeclarationStatementNode[]
 ): DeclarationStatementNode[] =>
   Object.entries(
     nodes.reduce(
@@ -53,21 +53,21 @@ export const highestPrecisions = (
         // Like "float"
         [(stmt.declaration as any).specifier.specifier.token]: higherPrecision(
           precisions[(stmt.declaration as any).specifier.specifier.token],
-          (stmt.declaration as any).qualifier.token,
+          (stmt.declaration as any).qualifier.token
         ),
       }),
-      {} as { [type: string]: Precision },
-    ),
+      {} as { [type: string]: Precision }
+    )
   ).map(
     ([typeName, precision]) =>
       makeStatement(
-        `precision ${precision} ${typeName}`,
-      )[0] as DeclarationStatementNode,
+        `precision ${precision} ${typeName}`
+      )[0] as DeclarationStatementNode
   );
 
 export const dedupeQualifiedStatements = (
   statements: DeclarationStatementNode[],
-  qualifier: string,
+  qualifier: string
 ): any =>
   Object.entries(
     statements.reduce(
@@ -83,17 +83,17 @@ export const dedupeQualifiedStatements = (
               ...types,
               [decl.identifier.identifier]: true,
             }),
-            {} as { [typeName: string]: string },
+            {} as { [typeName: string]: string }
           ),
         },
       }),
-      {} as { [key: string]: AstNode },
-    ),
+      {} as { [key: string]: AstNode }
+    )
   ).map(
     ([type, varNames]): AstNode =>
       makeStatement(
-        `${qualifier} ${type} ${Object.keys(varNames).join(', ')}`,
-      )[0],
+        `${qualifier} ${type} ${Object.keys(varNames).join(', ')}`
+      )[0]
   );
 
 type UniformName = Record<string, { generated: string; hasInterface: boolean }>;
@@ -122,8 +122,8 @@ export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
           'token' in specifier
             ? specifier.token
             : 'identifier' in specifier
-              ? specifier.identifier
-              : undefined;
+            ? specifier.identifier
+            : undefined;
         if (!type) {
           console.error('Unknown statement: ', stmt);
           throw new Error(`Unknown specifier: ${specifier.type}`);
@@ -140,7 +140,7 @@ export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
             if (!('token' in decl.quantifier[0].expression)) {
               console.error('Unknown expression in quantifier: ', decl);
               throw new Error(
-                `Unknown expression in quantifier: ${generate(decl)}`,
+                `Unknown expression in quantifier: ${generate(decl)}`
               );
             }
             quantifier = `[${decl.quantifier[0].expression.token}]`;
@@ -203,24 +203,24 @@ export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
       } else {
         console.error('Unknown uniform AST', { stmt, code: generate(stmt) });
         throw new Error(
-          'Unknown uniform AST encountered when merging uniforms',
+          'Unknown uniform AST encountered when merging uniforms'
         );
       }
-    }, {}),
+    }, {})
   );
 
   return groupedByTypeName.map(([type, variables]): AstNode => {
     return makeStatement(
       `uniform ${type} ${Object.values(variables)
         .map((v) => v.generated)
-        .join(', ')}`,
+        .join(', ')}`
     )[0];
   });
 };
 
 export const mergeShaderSections = (
   s1: ShaderSections,
-  s2: ShaderSections,
+  s2: ShaderSections
 ): ShaderSections => {
   return {
     version: [...s1.version, ...s2.version],
@@ -241,7 +241,7 @@ export type MergeOptions = {
 
 export const shaderSectionsToProgram = (
   sections: ShaderSections,
-  mergeOptions: MergeOptions,
+  mergeOptions: MergeOptions
 ): Program => ({
   type: 'program',
   scopes: [],
@@ -318,11 +318,11 @@ export const findShaderSections = (ast: Program): ShaderSections => {
       (('specified_type' in node.declaration &&
         'qualifiers' in node.declaration.specified_type &&
         node.declaration.specified_type.qualifiers?.find(
-          (n) => 'token' in n && n.token === 'uniform',
+          (n) => 'token' in n && n.token === 'uniform'
         )) ||
         ('qualifiers' in node.declaration &&
           node.declaration?.qualifiers?.find(
-            (n) => 'token' in n && n.token === 'uniform',
+            (n) => 'token' in n && n.token === 'uniform'
           )))
     ) {
       return {
@@ -333,7 +333,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
       node.type === 'declaration_statement' &&
       'specified_type' in node.declaration &&
       node.declaration?.specified_type?.qualifiers?.find(
-        (n) => 'token' in n && n.token === 'in',
+        (n) => 'token' in n && n.token === 'in'
       )
     ) {
       return {
@@ -344,7 +344,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
       node.type === 'declaration_statement' &&
       'specified_type' in node.declaration &&
       node.declaration?.specified_type?.qualifiers?.find(
-        (n) => 'token' in n && n.token === 'out',
+        (n) => 'token' in n && n.token === 'out'
       )
     ) {
       return {
