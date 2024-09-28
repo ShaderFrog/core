@@ -86,7 +86,7 @@ export const numberUniformData = (
 export type TextureNodeValueData = {
   assetId: number;
   versionId: number;
-  properties?: { repeatTexure: boolean; repeat: { x: number; y: number } };
+  properties?: { repeatTexure: boolean; repeat?: { x: number; y: number } };
 };
 export interface TextureNode extends BaseNode {
   type: 'texture';
