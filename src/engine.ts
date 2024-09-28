@@ -86,10 +86,10 @@ export interface Engine {
 
 // The context an engine builds as it evaluates. It can manage its own state
 // as the generic "RuntimeContext" which is passed to implemented engine methods
-export type EngineContext = {
+export type EngineContext<T = any> = {
   engine: string;
   nodes: Record<string, NodeContext>;
-  runtime: any;
+  runtime: T;
   debuggingNonsense: {
     vertexSource?: string;
     vertexPreprocessed?: string;

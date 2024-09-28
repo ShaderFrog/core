@@ -11,6 +11,10 @@ import {
   MeshPhongMaterial,
   MeshPhysicalMaterial,
   MeshToonMaterial,
+  Scene,
+  WebGLRenderer,
+  Camera,
+  PerspectiveCamera,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
@@ -412,11 +416,12 @@ const threeMaterialProperties = (
 };
 
 export type ThreeRuntime = {
-  scene: any;
-  camera: any;
-  renderer: any;
+  scene: Scene;
+  camera: PerspectiveCamera;
+  renderer: WebGLRenderer;
   sceneData: any;
   engineMaterial: any;
+  loaded: boolean;
   index: number;
   cache: {
     data: {
