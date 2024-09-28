@@ -44,7 +44,7 @@ export const numberNode = (
     isRandom?: boolean;
     inputs?: NodeInput[];
     outputs?: NodeOutput[];
-  },
+  }
 ): NumberNode => ({
   type: 'number',
   id,
@@ -74,7 +74,7 @@ export const numberUniformData = (
   name: string,
   value: string,
   range?: [string | number, string | number],
-  stepper?: string | number,
+  stepper?: string | number
 ): NumberDataUniform => ({
   type: 'number',
   name,
@@ -83,18 +83,22 @@ export const numberUniformData = (
   stepper,
 });
 
-export type AssetVersionNodeData = { assetId: number; versionId: number };
+export type TextureNodeValueData = {
+  assetId: number;
+  versionId: number;
+  properties?: { repeatTexure: boolean; repeat: { x: number; y: number } };
+};
 export interface TextureNode extends BaseNode {
   type: 'texture';
   // This is specific to the shaderfrog site and should probably be refactored
   // out. Maybe a separate TextureSiteNode and friends? Open to ideas here.
-  value?: AssetVersionNodeData;
+  value?: TextureNodeValueData;
 }
 export const textureNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value: AssetVersionNodeData,
+  value: TextureNodeValueData
 ): TextureNode => ({
   type: 'texture',
   id,
@@ -116,7 +120,7 @@ export type TextureDataUniform = Pick<TextureNode, 'type' | 'value' | 'name'>;
 
 export const textureUniformData = (
   name: string,
-  value: AssetVersionNodeData,
+  value: TextureNodeValueData
 ): TextureDataUniform => ({ type: 'texture', name, value });
 
 export interface SamplerCubeNode extends BaseNode {
@@ -127,7 +131,7 @@ export const samplerCubeNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value: string,
+  value: string
 ): SamplerCubeNode => ({
   type: 'samplerCube',
   id,
@@ -152,7 +156,7 @@ export type SamplerCubeDataUniform = Pick<
 
 export const samplerCubeUniformData = (
   name: string,
-  value: string,
+  value: string
 ): SamplerCubeDataUniform => ({ type: 'samplerCube', name, value });
 
 export type ArrayValue = string[];
@@ -167,7 +171,7 @@ export function arrayNode(
   id: string,
   name: string,
   position: NodePosition,
-  value: ArrayValue,
+  value: ArrayValue
 ): ArrayNode {
   return {
     id,
@@ -213,7 +217,7 @@ export function vectorNode(
   id: string,
   name: string,
   position: NodePosition,
-  value: Vector2 | Vector3 | Vector4,
+  value: Vector2 | Vector3 | Vector4
 ): Vector2Node | Vector3Node | Vector4Node {
   const dataType =
     value.length === 2 ? 'vector2' : value.length === 3 ? 'vector3' : 'vector4';
@@ -234,8 +238,8 @@ export function vectorNode(
     ...(value.length === 2
       ? { value, dimensions: 2, type: 'vector2' }
       : value.length === 3
-        ? { value, dimensions: 3, type: 'vector3' }
-        : { value, dimensions: 4, type: 'vector4' }),
+      ? { value, dimensions: 3, type: 'vector3' }
+      : { value, dimensions: 4, type: 'vector4' }),
   };
 }
 
@@ -246,7 +250,7 @@ export type ArrayDataUniform = Pick<
 
 export const arrayUniformData = (
   name: string,
-  value: ArrayValue,
+  value: ArrayValue
 ): ArrayDataUniform => ({
   name,
   value,
@@ -269,14 +273,14 @@ export type Vector4DataUniform = Pick<
 
 export const vectorUniformData = (
   name: string,
-  value: Vector2 | Vector3 | Vector4,
+  value: Vector2 | Vector3 | Vector4
 ): Vector2DataUniform | Vector3DataUniform | Vector4DataUniform => ({
   name,
   ...(value.length === 2
     ? { value, dimensions: 2, type: 'vector2' }
     : value.length === 3
-      ? { value, dimensions: 3, type: 'vector3' }
-      : { value, dimensions: 4, type: 'vector4' }),
+    ? { value, dimensions: 3, type: 'vector3' }
+    : { value, dimensions: 4, type: 'vector4' }),
 });
 
 export interface RgbNode extends BaseNode {
@@ -294,7 +298,7 @@ export function colorNode(
   id: string,
   name: string,
   position: NodePosition,
-  value: Vector3 | Vector4,
+  value: Vector3 | Vector4
 ): RgbNode | RgbaNode {
   const dataType = value.length === 3 ? 'rgb' : 'rgba';
   return {
@@ -327,7 +331,7 @@ export type RgbaDataUniform = Omit<
 
 export const colorUniformData = (
   name: string,
-  value: Vector3 | Vector4,
+  value: Vector3 | Vector4
 ): RgbDataUniform | RgbaDataUniform => ({
   name,
   ...(value.length === 3
