@@ -106,6 +106,8 @@ export const phongNode = (
           'filler_displacementMap'
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
+        property('Bump Map', 'bumpMap', 'texture', 'filler_bumpMap'),
+        property('Bump Scale', 'bumpScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
       strategies: [
