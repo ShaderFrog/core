@@ -177,6 +177,12 @@ export const physicalNode = (
         // MeshPhysicalMaterial gets envMap from the scene. MeshStandardMaterial
         // gets it from the material
         // property('Env Map', 'envMap', 'samplerCube'),
+        property(
+          'Env Map Intensity',
+          'envMapIntensity',
+          'number',
+          'uniform_envMapIntensity'
+        ),
         property('Transmission', 'transmission', 'number'),
         property(
           'Transmission Map',
@@ -354,7 +360,7 @@ const programCacheKey = (
   const lights: string[] = [];
   scene.traverse((obj: any) => {
     if (obj instanceof Light) {
-      lights.push(obj.type as string);
+      lights.push(obj.uuid);
     }
   });
 
@@ -366,8 +372,10 @@ const programCacheKey = (
       .join('-') +
     '|Lights:' +
     lights.join(',') +
-    '|Envtex:' +
-    scene.environmentTexture
+    '|Bg:' +
+    scene.background?.uuid +
+    '|Env:' +
+    scene.environment?.uuid
   );
 };
 
@@ -520,6 +528,7 @@ export const toonNode = (
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
+        property('Env Map Intensity', 'envMapIntensity', 'number'),
       ],
       strategies: [
         uniformStrategy(),
