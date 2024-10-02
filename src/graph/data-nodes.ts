@@ -84,9 +84,14 @@ export const numberUniformData = (
 });
 
 export type TextureNodeValueData = {
-  assetId: number;
-  versionId: number;
-  properties?: { repeatTexure: boolean; repeat?: { x: number; y: number } };
+  assetId?: number;
+  versionId?: number;
+  properties?: {
+    repeatTexure: boolean;
+    repeat?: { x: number; y: number };
+    anisotropy?: number;
+    encoding?: 'srgb';
+  };
 };
 export interface TextureNode extends BaseNode {
   type: 'texture';
@@ -98,13 +103,16 @@ export const textureNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value: TextureNodeValueData
+  value?: TextureNodeValueData
 ): TextureNode => ({
   type: 'texture',
   id,
   name,
   position,
-  value,
+  value: {
+    ...(value || { assetId: undefined, versionId: undefined }),
+    properties: value?.properties || { repeatTexure: true },
+  },
   inputs: [],
   outputs: [
     {
