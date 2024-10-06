@@ -12,6 +12,9 @@ import {
   shaderSectionsToProgram,
   mergeShaderSections,
   findShaderSections,
+  extractSource,
+  filterUniformNames,
+  filterQualifiedStatements,
 } from './shader-sections';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { numberNode } from './data-nodes';
@@ -29,8 +32,8 @@ const inspect = (thing: any): void =>
   console.log(util.inspect(thing, false, null, true));
 
 const mergeBlocks = (ast1: Program, ast2: Program): string => {
-  const s1 = findShaderSections(ast1);
-  const s2 = findShaderSections(ast2);
+  const s1 = findShaderSections('', ast1);
+  const s2 = findShaderSections('', ast2);
   const merged = mergeShaderSections(s1, s2);
   return generate(
     shaderSectionsToProgram(merged, {
@@ -42,7 +45,7 @@ const mergeBlocks = (ast1: Program, ast2: Program): string => {
 
 const dedupe = (code: string) =>
   generate(
-    shaderSectionsToProgram(findShaderSections(parser.parse(code)), {
+    shaderSectionsToProgram(findShaderSections('', parser.parse(code)), {
       includePrecisions: true,
       includeVersion: true,
     })
@@ -624,4 +627,42 @@ uniform vec3 a;
   expect(dedupe(`layout(std140,column_major) uniform;`)).toEqual(
     `layout(std140,column_major) uniform;`
   );
+});
+
+it('filterUniformNames', () => {
+  const stmts = parser
+    .parse(
+      `uniform vec4 x,y;
+uniform vec2 x, y[5];
+uniform Light0 { vec4 y; } x;
+uniform Light0 { vec4 x; } y;
+`
+    )
+    .program.filter((s) => s.type === 'declaration_statement');
+  const filtered = filterUniformNames(
+    stmts.map((x) => ({ nodeId: '', source: x })),
+    (name) => name !== 'x'
+  );
+
+  expect(generate(extractSource(filtered))).toEqual(`uniform vec4 y;
+uniform vec2 y[5];
+uniform Light0 { vec4 x; } y;
+`);
+});
+
+it('filterQualifiedStatements', () => {
+  const stmts = parser
+    .parse(
+      `in vec2 x, y;
+out vec2 x;
+`
+    )
+    .program.filter((s) => s.type === 'declaration_statement');
+  const filtered = filterQualifiedStatements(
+    stmts.map((x) => ({ nodeId: '', source: x })),
+    (name) => name !== 'x'
+  );
+
+  expect(generate(extractSource(filtered))).toEqual(`in vec2 y;
+`);
 });

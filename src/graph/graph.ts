@@ -2,7 +2,7 @@ import {
   renameBindings,
   renameFunctions,
 } from '@shaderfrog/glsl-parser/parser/utils';
-import { Program, AstNode } from '@shaderfrog/glsl-parser/ast';
+import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import {
   NodeContext,
@@ -17,12 +17,7 @@ import {
   ShaderSections,
   shaderSectionsToProgram,
 } from './shader-sections';
-import {
-  backfillAst,
-  FrogProgram,
-  makeExpression,
-  makeFnStatement,
-} from '../util/ast';
+import { backfillAst, FrogProgram, makeExpression } from '../util/ast';
 import { ensure } from '../util/ensure';
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
@@ -39,10 +34,6 @@ import {
   NodeType,
 } from './graph-types';
 import { generate } from '@shaderfrog/glsl-parser';
-import {
-  spliceFnStmtWithIndent,
-  unshiftFnStmtWithIndent,
-} from '../util/whitespace';
 import { Filler, InputFillerGroup } from '../strategy';
 
 const log = (...args: any[]) =>
@@ -530,7 +521,7 @@ export const compileNode = (
       codeNode.sourceType === SourceType.EXPRESSION ||
       codeNode.sourceType === SourceType.FN_BODY_FRAGMENT
       ? shaderSectionsCons()
-      : findShaderSections(ast as Program)
+      : findShaderSections(node.id, ast as Program)
   );
 
   const filler: Filler = isDataNode(node)

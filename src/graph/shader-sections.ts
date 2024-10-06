@@ -4,23 +4,66 @@
 import {
   AstNode,
   DeclarationStatementNode,
+  DeclaratorListNode,
   InterfaceDeclaratorNode,
+  KeywordNode,
   PreprocessorNode,
+  ProgramStatement,
 } from '@shaderfrog/glsl-parser/ast';
 import { generate } from '@shaderfrog/glsl-parser';
 import { makeStatement } from '../util/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 
-export interface ShaderSections {
-  precision: DeclarationStatementNode[];
-  version: AstNode[];
-  preprocessor: PreprocessorNode[];
-  structs: AstNode[];
-  inStatements: DeclarationStatementNode[];
-  outStatements: DeclarationStatementNode[];
-  uniforms: DeclarationStatementNode[];
-  program: AstNode[];
+export type LineAndSource<T = any> = { nodeId: string; source: T };
+
+export function extractSource<T>(lineAndSource: LineAndSource<T>): T;
+export function extractSource<T>(lineAndSource: LineAndSource<T>[]): T[];
+export function extractSource<T>(
+  lineAndSource: LineAndSource<T> | LineAndSource<T>[]
+): T | T[] {
+  return Array.isArray(lineAndSource)
+    ? lineAndSource.map((l) => l.source)
+    : lineAndSource.source;
 }
+
+export interface ShaderSections {
+  precision: LineAndSource<DeclarationStatementNode>[];
+  version: LineAndSource<PreprocessorNode>[];
+  preprocessor: LineAndSource<PreprocessorNode>[];
+  structs: LineAndSource<DeclarationStatementNode>[];
+  inStatements: LineAndSource<DeclarationStatementNode>[];
+  outStatements: LineAndSource<DeclarationStatementNode>[];
+  uniforms: LineAndSource<DeclarationStatementNode>[];
+  program: LineAndSource<ProgramStatement>[];
+}
+
+export const filterSections = (
+  filter: (s: LineAndSource) => boolean,
+  sections: ShaderSections
+): ShaderSections => ({
+  precision: sections.precision.filter(filter),
+  version: sections.version.filter(filter),
+  preprocessor: sections.preprocessor.filter(filter),
+  structs: sections.structs.filter(filter),
+  inStatements: sections.inStatements.filter(filter),
+  outStatements: sections.outStatements.filter(filter),
+  uniforms: sections.uniforms.filter(filter),
+  program: sections.program.filter(filter),
+});
+
+export const mapSections = (
+  map: (s: LineAndSource) => LineAndSource,
+  sections: ShaderSections
+): ShaderSections => ({
+  precision: sections.precision.map(map),
+  version: sections.version.map(map),
+  preprocessor: sections.preprocessor.map(map),
+  structs: sections.structs.map(map),
+  inStatements: sections.inStatements.map(map),
+  outStatements: sections.outStatements.map(map),
+  uniforms: sections.uniforms.map(map),
+  program: sections.program.map(map),
+});
 
 export const shaderSectionsCons = (): ShaderSections => ({
   precision: [],
@@ -42,7 +85,8 @@ enum Precision {
 export const higherPrecision = (p1: Precision, p2: Precision): Precision =>
   Precision[p1] > Precision[p2] ? p1 : p2;
 
-export const dedupeVersions = (nodes: AstNode[]): AstNode => nodes[0];
+export const dedupeVersions = (nodes: PreprocessorNode[]) => nodes[0];
+
 export const highestPrecisions = (
   nodes: DeclarationStatementNode[]
 ): DeclarationStatementNode[] =>
@@ -65,36 +109,101 @@ export const highestPrecisions = (
       )[0] as DeclarationStatementNode
   );
 
+export const extractDeclarationNameAndType = (
+  stmt: DeclarationStatementNode
+) => {
+  const dec = stmt.declaration as DeclaratorListNode;
+  return {
+    type: (dec.specified_type.specifier.specifier as KeywordNode).token,
+    names: dec.declarations.map((decl) => decl.identifier.identifier),
+  };
+};
+
+export const filterQualifiedStatements = (
+  statements: LineAndSource<DeclarationStatementNode>[],
+  filter: (name: string) => boolean
+) =>
+  statements.reduce<LineAndSource<DeclarationStatementNode>[]>((acc, line) => {
+    const stmt = line.source;
+    const dec = stmt.declaration as DeclaratorListNode;
+    const filtered = dec.declarations.filter((decl) =>
+      filter(decl.identifier.identifier)
+    );
+    return filtered.length
+      ? acc.concat({
+          ...line,
+          source: {
+            ...line.source,
+            declaration: {
+              ...dec,
+              declarations: filtered,
+            },
+          },
+        })
+      : acc;
+  }, []);
+
 export const dedupeQualifiedStatements = (
   statements: DeclarationStatementNode[],
   qualifier: string
-): any =>
+) =>
   Object.entries(
-    statements.reduce(
-      (stmts, stmt) => ({
-        ...stmts,
-        // Like "vec2"
-        [(stmt.declaration as any).specified_type.specifier.specifier.token]: {
-          ...(stmts[
-            (stmt.declaration as any).specified_type.specifier.specifier.token
-          ] || {}),
-          ...(stmt.declaration as any).declarations.reduce(
-            (types: { [typeName: string]: string }, decl: any) => ({
-              ...types,
-              [decl.identifier.identifier]: true,
-            }),
-            {} as { [typeName: string]: string }
-          ),
-        },
-      }),
-      {} as { [key: string]: AstNode }
-    )
+    statements.reduce<{ [typeName: string]: Set<string> }>((indexed, stmt) => {
+      const { type, names } = extractDeclarationNameAndType(stmt);
+      return {
+        ...indexed,
+        [type]: new Set([...(indexed[type] || new Set<string>()), ...names]),
+      };
+    }, {})
   ).map(
-    ([type, varNames]): AstNode =>
+    ([type, varNames]) =>
       makeStatement(
-        `${qualifier} ${type} ${Object.keys(varNames).join(', ')}`
+        `${qualifier} ${type} ${Array.from(varNames).join(', ')}`
       )[0]
   );
+
+/**
+ * Remove uniform declarations by the variable names they declare
+ */
+export const filterUniformNames = (
+  declarations: LineAndSource<DeclarationStatementNode>[],
+  filter: (name: string) => boolean
+) => {
+  return declarations.reduce<LineAndSource<DeclarationStatementNode>[]>(
+    (acc, line) => {
+      const decl = line.source.declaration;
+
+      // Struct declarations like "uniform Light0 { vec4 y; } x;"
+      if (decl.type === 'interface_declarator') {
+        const identifier = decl.identifier?.identifier?.identifier;
+        // If there are no remaining declarations, remove the whole line
+        return !identifier || !filter(identifier) ? acc : [...acc, line];
+        // Standard uniform declaration, like "uniform vec4 x, y;"
+      } else if (decl.type === 'declarator_list') {
+        const filtered = decl.declarations.filter((d) =>
+          filter(d.identifier.identifier)
+        );
+        // If there are no remaining decalrations, remove the whole line.
+        // Otherwise, update the line to remove the filtered out names
+        return filtered.length
+          ? acc.concat({
+              ...line,
+              source: {
+                ...line.source,
+                declaration: { ...decl, declarations: filtered },
+              },
+            })
+          : acc;
+      } else {
+        console.error('Unknown uniform declaration type to filter:', decl);
+        throw new Error(
+          `Unknown uniform declarationt type to filter: "${decl.type}"`
+        );
+      }
+    },
+    []
+  );
+};
 
 type UniformName = Record<string, { generated: string; hasInterface: boolean }>;
 type UniformGroup = Record<string, UniformName>;
@@ -108,7 +217,7 @@ type UniformGroup = Record<string, UniformName>;
  * This function consumes uniforms as found by findShaderSections, so the
  * definitions must line up
  */
-export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
+export const dedupeUniforms = (statements: DeclarationStatementNode[]) => {
   const groupedByTypeName = Object.entries(
     statements.reduce<UniformGroup>((stmts, stmt) => {
       const decl = stmt.declaration;
@@ -209,12 +318,12 @@ export const dedupeUniforms = (statements: DeclarationStatementNode[]): any => {
     }, {})
   );
 
-  return groupedByTypeName.map(([type, variables]): AstNode => {
+  return groupedByTypeName.map(([type, variables]) => {
     return makeStatement(
       `uniform ${type} ${Object.values(variables)
         .map((v) => v.generated)
         .join(', ')}`
-    )[0];
+    )[0] as DeclarationStatementNode;
   });
 };
 
@@ -246,17 +355,19 @@ export const shaderSectionsToProgram = (
   type: 'program',
   scopes: [],
   program: [
-    ...(mergeOptions.includeVersion ? [dedupeVersions(sections.version)] : []),
-    ...(mergeOptions.includePrecisions
-      ? highestPrecisions(sections.precision)
+    ...(mergeOptions.includeVersion
+      ? [dedupeVersions(extractSource(sections.version))]
       : []),
-    ...sections.preprocessor,
-    // Structs before ins and uniforms as they can reference structs
-    ...sections.structs,
-    ...dedupeQualifiedStatements(sections.inStatements, 'in'),
-    ...dedupeQualifiedStatements(sections.outStatements, 'out'),
-    ...dedupeUniforms(sections.uniforms),
-    ...sections.program,
+    ...(mergeOptions.includePrecisions
+      ? highestPrecisions(extractSource(sections.precision))
+      : []),
+    ...extractSource(sections.preprocessor),
+    // // Structs before ins and uniforms as they can reference structs
+    ...extractSource(sections.structs),
+    ...dedupeQualifiedStatements(extractSource(sections.inStatements), 'in'),
+    ...dedupeQualifiedStatements(extractSource(sections.outStatements), 'out'),
+    ...dedupeUniforms(extractSource(sections.uniforms)),
+    ...extractSource(sections.program),
   ],
 });
 
@@ -264,7 +375,10 @@ export const shaderSectionsToProgram = (
  * Group an AST into logical sections. The output of this funciton is consumed
  * by the dedupe methods, namely dedupeUniforms, so the data shapes are coupled
  */
-export const findShaderSections = (ast: Program): ShaderSections => {
+export const findShaderSections = (
+  nodeId: string,
+  ast: Program
+): ShaderSections => {
   const initialValue: ShaderSections = {
     precision: [],
     preprocessor: [],
@@ -280,7 +394,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     if (node.type === 'preprocessor' && node.line.startsWith('#version')) {
       return {
         ...sections,
-        version: sections.version.concat(node),
+        version: sections.version.concat({ nodeId, source: node }),
       };
     } else if (
       node.type === 'declaration_statement' &&
@@ -288,12 +402,12 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     ) {
       return {
         ...sections,
-        precision: sections.precision.concat(node),
+        precision: sections.precision.concat({ nodeId, source: node }),
       };
     } else if (node.type === 'preprocessor') {
       return {
         ...sections,
-        preprocessor: sections.preprocessor.concat(node),
+        preprocessor: sections.preprocessor.concat({ nodeId, source: node }),
       };
     } else if (
       node.type === 'declaration_statement' &&
@@ -302,7 +416,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     ) {
       return {
         ...sections,
-        structs: sections.structs.concat(node),
+        structs: sections.structs.concat({ nodeId, source: node }),
       };
       // This definition of a uniform lines up with the processing we do in
       // dedupeUniforms
@@ -327,7 +441,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     ) {
       return {
         ...sections,
-        uniforms: sections.uniforms.concat(node),
+        uniforms: sections.uniforms.concat({ nodeId, source: node }),
       };
     } else if (
       node.type === 'declaration_statement' &&
@@ -338,7 +452,7 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     ) {
       return {
         ...sections,
-        inStatements: sections.inStatements.concat(node),
+        inStatements: sections.inStatements.concat({ nodeId, source: node }),
       };
     } else if (
       node.type === 'declaration_statement' &&
@@ -349,12 +463,12 @@ export const findShaderSections = (ast: Program): ShaderSections => {
     ) {
       return {
         ...sections,
-        outStatements: sections.outStatements.concat(node),
+        outStatements: sections.outStatements.concat({ nodeId, source: node }),
       };
     } else {
       return {
         ...sections,
-        program: sections.program.concat(node),
+        program: sections.program.concat({ nodeId, source: node }),
       };
     }
   }, initialValue);

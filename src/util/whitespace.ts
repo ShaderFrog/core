@@ -13,7 +13,7 @@ import {
   FunctionNode,
   Whitespace,
 } from '@shaderfrog/glsl-parser/ast';
-import { makeFnStatement } from './ast';
+import { makeFnStatement, makeLiteral } from './ast';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[31m(core.whitespace)\x1b[0m', ...args);
@@ -110,7 +110,7 @@ export const addFnStmtWithIndent = (
     ...statements,
     // This simple hack is way easier than trying to modify the function body
     // opening brace and/or the previous statement
-    { type: 'literal', literal: '', whitespace: indent },
+    makeLiteral('', indent),
     addWs(newNode, `\n`),
   ];
 };
@@ -121,11 +121,7 @@ export const unshiftFnStmtWithIndent = (
 ): AstNode[] => {
   const statements = fnBody.body.statements;
   const indent = guessFnIndent(fnBody);
-  return [
-    addWs(newNode, `\n`),
-    { type: 'literal', literal: '', whitespace: indent },
-    ...statements,
-  ];
+  return [addWs(newNode, `\n`), makeLiteral('', indent), ...statements];
 };
 
 export const spliceFnStmtWithIndent = (
@@ -138,11 +134,7 @@ export const spliceFnStmtWithIndent = (
   return [
     ...statements.slice(0, index),
     ...newNodes.map((n) => addWs(n, `\n`)),
-    {
-      type: 'literal',
-      literal: '',
-      whitespace: indent,
-    },
+    makeLiteral('', indent),
     ...statements.slice(index),
   ];
 };

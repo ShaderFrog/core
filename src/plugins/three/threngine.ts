@@ -317,7 +317,7 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   sibling
 ) => {
   const programAst = ast as Program;
-  const mainName = 'main' || nodeName(node);
+  const mainName = 'main'; // || nodeName(node);
   if (node.stage === 'vertex') {
     if (doesLinkThruShader(graph, node)) {
       returnGlPositionHardCoded(mainName, programAst, 'vec3', 'transformed');
@@ -595,6 +595,8 @@ export const threngine: Engine = {
     'shininess',
     'opacity',
     'map',
+    'IncidentLight',
+    'ReflectedLight',
     'specularTint',
     'normalScale',
     'normalMap',
@@ -654,7 +656,7 @@ export const threngine: Engine = {
         sibling
       ) => {
         const programAst = ast as Program;
-        const mainName = 'main' || nodeName(node);
+        const mainName = 'main'; // || nodeName(node);
 
         // This hinges on the vertex shader calling vec3(p)
         if (node.stage === 'vertex') {
