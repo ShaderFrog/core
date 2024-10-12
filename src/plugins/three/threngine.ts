@@ -448,6 +448,21 @@ export type ThreeRuntime = {
   };
 };
 
+export const stringifyThreeValue = (input: any): string => {
+  if (input instanceof Vector2) {
+    return `new Vector2(${input.x}, ${input.y})`;
+  } else if (input instanceof Vector3) {
+    return `new Vector3(${input.x}, ${input.y}, ${input.z})`;
+  } else if (input instanceof Vector4) {
+    return `new Vector4(${input.x}, ${input.y}, ${input.z}, ${input.w})`;
+  } else if (input instanceof Color) {
+    return `new Color(${input.r}, ${input.g}, ${input.b})`;
+  } else if (input instanceof Texture) {
+    return `new Texture()`;
+  }
+  return `${input}`;
+};
+
 const evaluateNode = (node: DataNode) => {
   if (node.type === 'number') {
     return parseFloat(node.value);

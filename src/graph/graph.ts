@@ -30,6 +30,7 @@ import {
   EdgeLink,
   Graph,
   GraphNode,
+  Grindex,
   MAGIC_OUTPUT_STMTS,
   NodeType,
 } from './graph-types';
@@ -163,11 +164,12 @@ export const resetGraphIds = (graph: Graph): Graph => {
   };
 };
 
-export const findLinkedNode = (graph: Graph, id: string) => {
+export const findLinkedNode = (graph: Graph, nodeId: string) => {
   const edgeLink = graph.edges.find(
-    (e) => e.type === EdgeLink.NEXT_STAGE && (e.from === id || e.to === id)
+    (e) =>
+      e.type === EdgeLink.NEXT_STAGE && (e.from === nodeId || e.to === nodeId)
   );
-  const otherId = edgeLink?.from === id ? edgeLink?.to : edgeLink?.from;
+  const otherId = edgeLink?.from === nodeId ? edgeLink?.to : edgeLink?.from;
 
   // Only source nodes can be linked, so cast it
   return graph.nodes.find((node): node is SourceNode => node.id === otherId);

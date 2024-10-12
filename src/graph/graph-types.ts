@@ -43,4 +43,53 @@ export interface Graph {
   edges: Edge[];
 }
 
+export type EdgesByNode = {
+  [nodeId: string]: {
+    // All the edges that flow out from this node
+    from: Edge[];
+    // All the edges that flow to this node
+    to: {
+      edges: Edge[];
+      // And each edge flowing into this node by the input it connects in to
+      edgesByInput: { [inputId: string]: Edge };
+    };
+  };
+};
+export type Grindex = {
+  nodes: { [nodeId: string]: GraphNode };
+  edges: { [edgeId: string]: Edge };
+  edgesByNode: EdgesByNode;
+};
+
+export const computeGrindex = (graph: Graph): Grindex => ({
+  nodes: graph.nodes.reduce((acc, node) => ({ ...acc, [node.id]: node }), {}),
+  edges: graph.edges.reduce((acc, edge) => ({ ...acc, [edge.id]: edge }), {}),
+  edgesByNode: graph.edges.reduce<EdgesByNode>((acc, edge) => {
+    const { to, from } = edge;
+    return {
+      ...acc,
+      [to]: {
+        to: {
+          edges: [...(acc[to]?.to?.edges || []), edge],
+          edgesByInput: {
+            ...acc[to]?.to?.edgesByInput,
+            [edge.input]: edge,
+          },
+        },
+        from: acc[to]?.from || [],
+      },
+      [from]: {
+        to: {
+          edges: acc[from]?.to?.edges || [],
+          edgesByInput: {
+            ...acc[from]?.to?.edgesByInput,
+            [edge.input]: edge,
+          },
+        },
+        from: [...(acc[from]?.from || []), edge],
+      },
+    };
+  }, {}),
+});
+
 export const MAGIC_OUTPUT_STMTS = 'mainStmts';
