@@ -661,6 +661,7 @@ export type CompileResult = {
   compileResult: CompileGraphResult;
   dataNodes: Record<string, GraphNode>;
   dataInputs: IndexedDataInputs;
+  compileMs: string;
 };
 
 export const compileSource = async (
@@ -713,5 +714,6 @@ export const compileSource = async (
     vertexResult,
     dataNodes,
     dataInputs,
+    compileMs: '',
   };
 };

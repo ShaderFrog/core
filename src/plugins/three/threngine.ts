@@ -252,15 +252,27 @@ const cacher = (
   engineContext.runtime.cache.data[cacheKey] = materialData;
   engineContext.runtime.engineMaterial = materialData.material;
 
+  engineContext.runtime.cache.nodes[node.id] = {
+    ...(engineContext.runtime.cache.nodes[node.id] || {}),
+    computedSource:
+      node.stage === 'fragment' ? materialData.fragment : materialData.vertex,
+  };
+
+  // return {
+  //   ...node,
+  //   source:
+  //   node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
+  // }
+
   // TODO: We mutate the nodes here, can we avoid that later?
-  node.source =
-    node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  if (sibling) {
-    sibling.source =
-      sibling.stage === 'fragment'
-        ? materialData.fragment
-        : materialData.vertex;
-  }
+  // node.source =
+  //   node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
+  // if (sibling) {
+  //   sibling.source =
+  //     sibling.stage === 'fragment'
+  //       ? materialData.fragment
+  //       : materialData.vertex;
+  // }
 };
 
 const onBeforeCompileMegaShader = (
