@@ -144,18 +144,17 @@ const computeNodeContext = async (
     sibling
   );
 
-  // TODO: This mutates which we can't do in immutable zustand...
-  // node.inputs = collapseNodeInputs(
-  //   node,
-  //   computedInputs.map(([i]) => ({
-  //     ...i,
-  //     displayName: mapInputName(node, i),
-  //   })),
-  // ).map((input) => ({
-  //   // Auto-bake
-  //   ...input,
-  //   ...(input.id in dataInputs ? { baked: true } : {}),
-  // }));
+  node.inputs = collapseNodeInputs(
+    node,
+    computedInputs.map(([i]) => ({
+      ...i,
+      displayName: mapInputName(node, i),
+    }))
+  ).map((input) => ({
+    // Auto-bake
+    ...input,
+    ...(input.id in dataInputs ? { baked: true } : {}),
+  }));
 
   const nodeContext: NodeContext = {
     ast,
@@ -226,11 +225,13 @@ export const computeContextForNodes = async (
           return nodeContextOrError;
         }
 
-        context[node.id] = {
-          ...(context[node.id] || {}),
-          ...nodeContextOrError,
+        return {
+          ...context,
+          [node.id]: {
+            ...(context[node.id] || {}),
+            ...nodeContextOrError,
+          },
         };
-        return context;
       },
       Promise.resolve(engineContext.nodes as Record<string, NodeContext>)
     );
@@ -243,17 +244,7 @@ export const computeAllContexts = async (
   engineContext: EngineContext,
   engine: Engine,
   graph: Graph
-) => {
-  const result = await computeContextForNodes(
-    engineContext,
-    engine,
-    graph,
-    graph.nodes
-  );
-  if (isError(result)) {
-    return result;
-  }
-};
+) => await computeContextForNodes(engineContext, engine, graph, graph.nodes);
 
 /**
  * Compute the contexts for nodes starting from the outputs, working backwards.
@@ -314,4 +305,8 @@ export const computeGraphContext = async (
   if (isError(fragNodesOrError)) {
     return fragNodesOrError;
   }
+  return {
+    ...vertNodesOrError,
+    ...fragNodesOrError,
+  };
 };

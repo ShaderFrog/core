@@ -673,7 +673,15 @@ export const compileSource = async (
   if (isError(result)) {
     return result;
   }
-  const compileResult = compileGraph(ctx, engine, graph);
+  const updatedContext = {
+    ...ctx,
+    nodes: {
+      ...ctx.nodes,
+      ...result,
+    },
+  };
+
+  const compileResult = compileGraph(updatedContext, engine, graph);
 
   const fragmentResult = generate(
     shaderSectionsToProgram(compileResult.fragment, engine.mergeOptions).program

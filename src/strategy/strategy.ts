@@ -5,7 +5,7 @@ import { UniformStrategy, applyUniformStrategy } from './uniform';
 import {
   AssignemntToStrategy,
   applyAssignmentToStrategy,
-} from './assignemntTo';
+} from './assignmentTo';
 import {
   DeclarationOfStrategy,
   constApplyDeclarationOf as constApplyDeclarationOfStrategy,
@@ -48,7 +48,7 @@ export type ComputedInput = [
   NodeInput,
   InputFiller,
   FillerArguments?,
-  FillerStmt?,
+  FillerStmt?
 ];
 
 export enum StrategyType {
@@ -81,7 +81,7 @@ export type ApplyStrategy<T> = (
   strategy: T,
   ast: AstNode | Program,
   node: SourceNode,
-  sibling?: SourceNode,
+  sibling?: SourceNode
 ) => ComputedInput[];
 
 type Strategies = Record<
@@ -107,5 +107,5 @@ export const applyStrategy = (
   strategy: Strategy,
   ast: AstNode | Program,
   node: SourceNode,
-  sibling?: SourceNode,
+  sibling?: SourceNode
 ) => strategyRunners[strategy.type](strategy, ast, node, sibling);

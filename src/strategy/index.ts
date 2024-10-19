@@ -1,6 +1,6 @@
 export * from './hardCode';
 export * from './uniform';
-export * from './assignemntTo';
+export * from './assignmentTo';
 export * from './inject';
 export * from './declarationOf';
 export * from './texture2D';
