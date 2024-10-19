@@ -3,7 +3,7 @@ import { SourceNode } from '../graph/code-nodes';
 import { HardCodeStrategy, applyHardCodeStrategy } from './hardCode';
 import { UniformStrategy, applyUniformStrategy } from './uniform';
 import {
-  AssignemntToStrategy,
+  AssignmentToStrategy,
   applyAssignmentToStrategy,
 } from './assignmentTo';
 import {
@@ -69,7 +69,7 @@ export interface BaseStrategy {
 
 export type Strategy =
   | UniformStrategy
-  | AssignemntToStrategy
+  | AssignmentToStrategy
   | Texture2DStrategy
   | NamedAttributeStrategy
   | VariableStrategy
