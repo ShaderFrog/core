@@ -5,7 +5,6 @@ import {
   doesLinkThruShader,
   prepopulatePropertyInputs,
   mangleMainFn,
-  indexById,
 } from '../../graph/graph';
 import { ShaderStage, Graph, NodeType } from '../../graph/graph-types';
 import importers from './importers';
@@ -29,9 +28,10 @@ import {
   texture2DStrategy,
   uniformStrategy,
 } from '../../strategy';
-import { NodeInput, NodePosition } from '../../graph/base-node';
+import { NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import { NodeParser } from '../../graph/parsers';
+import indexById from '@/core/util/indexByid';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[33m(playengine)\x1b[0m', ...args);

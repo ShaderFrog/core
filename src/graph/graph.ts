@@ -45,12 +45,6 @@ export const isDataNode = (node: GraphNode): node is DataNode =>
 export const isSourceNode = (node: GraphNode): node is SourceNode =>
   !isDataNode(node);
 
-export const indexById = <T extends { id: string | number }>(records: T[]) =>
-  records.reduce<Record<string, T>>(
-    (acc, record) => ({ ...acc, [record.id]: record }),
-    {}
-  );
-
 /**
  * Determine if a node's source code / AST should have a main function. Essentially
  * check if the source code is a full program or not.

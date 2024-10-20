@@ -1,7 +1,7 @@
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
 import { SourceNode } from './code-nodes';
-import { indexById } from './graph';
+import indexById from '../util/indexByid';
 
 /**
  * Core graph types.

@@ -6,26 +6,23 @@ import {
   NodeVisitors,
   Path,
   Program,
-  FunctionNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import {
   convert300MainToReturn,
-  findMain,
   findMainOrThrow,
   from2To3,
   makeExpression,
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
-  makeFnStatement,
 } from '../util/ast';
 import { applyStrategy, ComputedInput, Filler } from '../strategy';
 import { Edge } from './edge';
 import { BinaryNode, SourceNode, SourceType } from './code-nodes';
 import { nodeInput } from './base-node';
 import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
-import { nodeName, resultName } from './graph';
+import { nodeName } from './graph';
 import { Evaluate } from './evaluate';
 import { generateFiller } from '../util/ast';
 import { unshiftFnStmtWithIndent } from '../util/whitespace';
@@ -100,9 +97,11 @@ type CoreNodeParser = {
   produceFiller: ProduceNodeFiller;
   evaluate?: Evaluate;
 };
-
+enum XY {
+  x = 'y',
+}
 type CoreParser = { [key: string]: CoreNodeParser };
-
+console.log('nt', { NodeType }, { XY });
 export const coreParsers: CoreParser = {
   [NodeType.SOURCE]: {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {

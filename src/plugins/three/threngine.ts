@@ -13,20 +13,15 @@ import {
   MeshToonMaterial,
   Scene,
   WebGLRenderer,
-  Camera,
   PerspectiveCamera,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
-import {
-  prepopulatePropertyInputs,
-  mangleMainFn,
-  indexById,
-} from '../../graph/graph';
+import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
-import { doesLinkThruShader, nodeName, CompileResult } from '../../graph/graph';
+import { doesLinkThruShader, CompileResult } from '../../graph/graph';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
@@ -38,7 +33,7 @@ import {
   property,
   SourceNode,
 } from '../../graph/code-nodes';
-import { NodeInput, NodePosition } from '../../graph/base-node';
+import { NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import {
   namedAttributeStrategy,
@@ -46,6 +41,7 @@ import {
   uniformStrategy,
 } from '../../strategy';
 import { NodeParser } from '../../graph/parsers';
+import indexById from '@/core/util/indexByid';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[35m(three)\x1b[0m', ...args);

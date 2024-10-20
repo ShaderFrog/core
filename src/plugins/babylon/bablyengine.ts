@@ -18,7 +18,6 @@ import {
   doesLinkThruShader,
   prepopulatePropertyInputs,
   mangleMainFn,
-  indexById,
 } from '../../graph/graph';
 import { ShaderStage, Graph, NodeType } from '../../graph/graph-types';
 import importers from './importers';
@@ -45,6 +44,7 @@ import {
 import { NodeInput, NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import { NodeParser } from '../../graph/parsers';
+import indexById from '@/core/util/indexByid';
 
 // Setting these properties on the material have side effects, not just for the
 // GLSL, but for the material itself in JS memory apparently, maybe the bound
