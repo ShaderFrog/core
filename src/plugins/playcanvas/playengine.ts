@@ -5,6 +5,7 @@ import {
   doesLinkThruShader,
   prepopulatePropertyInputs,
   mangleMainFn,
+  indexById,
 } from '../../graph/graph';
 import { ShaderStage, Graph, NodeType } from '../../graph/graph-types';
 import importers from './importers';
@@ -83,12 +84,7 @@ const applyPlayMaterialProperties = (
   sibling?: SourceNode
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
-  const propertyInputs = node.inputs
-    .filter((i) => i.property)
-    .reduce<Record<string, NodeInput>>(
-      (acc, input) => ({ ...acc, [input.id]: input }),
-      {}
-    );
+  const propertyInputs = indexById(node.inputs.filter((i) => i.property));
 
   // Then look for any edges into those inputs and set the material property
   const props = graph.edges
@@ -414,7 +410,7 @@ const onBeforeCompileMegaShader = async (
   return new Promise((resolve) => {
     const { variants } = shaderMaterial;
     if (variants.size === 1) {
-      const [, untypedVariant] = variants.entries().next().value;
+      const [, untypedVariant] = variants.entries().next().value || [];
       const variant = untypedVariant as pc.Shader;
       const { fshader, vshader } = variant.definition;
       fragmentSource = fshader as string;
@@ -446,7 +442,7 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   sibling
 ) => {
   const programAst = ast as Program;
-  const mainName = 'main' || nodeName(node);
+  const mainName = nodeName(node);
 
   if (node.stage === 'vertex') {
     if (doesLinkThruShader(graph, node)) {
@@ -550,7 +546,7 @@ export const playengine: Engine = {
         sibling
       ) => {
         const programAst = ast as Program;
-        const mainName = 'main' || nodeName(node);
+        const mainName = nodeName(node);
 
         // This hinges on the vertex shader calling vec3(p)
         if (node.stage === 'vertex') {

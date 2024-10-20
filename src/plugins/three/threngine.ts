@@ -18,7 +18,11 @@ import {
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
-import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
+import {
+  prepopulatePropertyInputs,
+  mangleMainFn,
+  indexById,
+} from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
@@ -411,12 +415,7 @@ const threeMaterialProperties = (
   sibling?: SourceNode
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
-  const propertyInputs = node.inputs
-    .filter((i) => i.property)
-    .reduce<Record<string, NodeInput>>(
-      (acc, input) => ({ ...acc, [input.id]: input }),
-      {}
-    );
+  const propertyInputs = indexById(node.inputs.filter((i) => i.property));
 
   // Then look for any edges into those inputs and set the material property
   return graph.edges

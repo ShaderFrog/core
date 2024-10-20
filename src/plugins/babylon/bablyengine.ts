@@ -18,6 +18,7 @@ import {
   doesLinkThruShader,
   prepopulatePropertyInputs,
   mangleMainFn,
+  indexById,
 } from '../../graph/graph';
 import { ShaderStage, Graph, NodeType } from '../../graph/graph-types';
 import importers from './importers';
@@ -205,12 +206,7 @@ const babylonMaterialProperties = (
   sibling?: SourceNode
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
-  const propertyInputs = node.inputs
-    .filter((i) => i.property)
-    .reduce<Record<string, NodeInput>>(
-      (acc, input) => ({ ...acc, [input.id]: input }),
-      {}
-    );
+  const propertyInputs = indexById(node.inputs.filter((i) => i.property));
 
   // Then look for any edges into those inputs and set the material property
   const props = graph.edges
@@ -464,7 +460,7 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   sibling
 ) => {
   const programAst = ast as Program;
-  const mainName = 'main' || nodeName(node);
+  const mainName = 'main';
 
   if (node.stage === 'vertex') {
     if (doesLinkThruShader(graph, node)) {
@@ -655,7 +651,7 @@ export const babylengine: Engine = {
         sibling
       ) => {
         const programAst = ast as Program;
-        const mainName = 'main' || nodeName(node);
+        const mainName = 'main';
 
         // This hinges on the vertex shader calling vec3(p)
         if (node.stage === 'vertex') {

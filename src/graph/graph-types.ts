@@ -1,6 +1,7 @@
 import { DataNode } from './data-nodes';
 import { Edge } from './edge';
 import { SourceNode } from './code-nodes';
+import { indexById } from './graph';
 
 /**
  * Core graph types.
@@ -70,8 +71,8 @@ export const computeGrindex = (graph: Graph): Grindex => {
   }
   lastGraph = graph;
   lastGrindex = {
-    nodes: graph.nodes.reduce((acc, node) => ({ ...acc, [node.id]: node }), {}),
-    edges: graph.edges.reduce((acc, edge) => ({ ...acc, [edge.id]: edge }), {}),
+    nodes: indexById(graph.nodes),
+    edges: indexById(graph.edges),
     edgesByNode: graph.edges.reduce<EdgesByNode>((acc, edge) => {
       const { to, from } = edge;
       return {
