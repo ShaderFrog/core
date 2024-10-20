@@ -257,22 +257,6 @@ const cacher = (
     computedSource:
       node.stage === 'fragment' ? materialData.fragment : materialData.vertex,
   };
-
-  // return {
-  //   ...node,
-  //   source:
-  //   node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  // }
-
-  // TODO: We mutate the nodes here, can we avoid that later?
-  // node.source =
-  //   node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  // if (sibling) {
-  //   sibling.source =
-  //     sibling.stage === 'fragment'
-  //       ? materialData.fragment
-  //       : materialData.vertex;
-  // }
 };
 
 const onBeforeCompileMegaShader = (
