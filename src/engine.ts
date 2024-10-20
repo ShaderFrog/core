@@ -8,7 +8,7 @@ import { DataNode, UniformDataType } from './graph/data-nodes';
 import { CodeNode, NodeProperty, SourceNode } from './graph/code-nodes';
 import { Edge } from './graph/edge';
 import groupBy from 'lodash.groupby';
-import { NodeContext } from './graph/context';
+import { NodeContext, NodeContexts } from './graph/context';
 import { NodeParser } from './graph/parsers';
 import { collectNodeProperties } from './graph/graph';
 import { evaluateNode } from './graph/evaluate';
@@ -97,6 +97,31 @@ export type EngineContext<T = any> = {
     fragmentSource?: string;
   };
 };
+
+export const extendNodeContext = (
+  context: EngineContext,
+  nodeId: string,
+  nodeContext: Partial<NodeContext>
+) => ({
+  ...context,
+  nodes: {
+    ...context.nodes,
+    [nodeId]: {
+      ...(context.nodes[nodeId] || {}),
+      ...nodeContext,
+    },
+  },
+});
+export const extendNodesContext = (
+  context: EngineContext,
+  nodesContext: NodeContexts
+) => ({
+  ...context,
+  nodes: {
+    ...context.nodes,
+    ...nodesContext,
+  },
+});
 
 export type EngineImporter = {
   convertAst(ast: Program, type?: ShaderStage): void;

@@ -6,12 +6,11 @@ import indexById from '../util/indexByid';
 /**
  * Core graph types.
  *
- * Originally abstracted out of graph.ts to avoid a circular
- * dependency between graph.ts and parsers.ts. Both files need these types at
- * module initialization time, and without this third file, the types will be
- * undefined in either graph/parsers.ts at init time. If the types were only
- * used at runtime it would be fine, because the circular depenency is resolved
- * by then.
+ * Originally abstracted out of graph.ts to avoid a circular dependency between
+ * graph.ts and parsers.ts. Both files need these types at module initialization
+ * time, and without this third file, the types will be undefined in either
+ * graph/parsers.ts at init time. If the types were only used at runtime it
+ * would be fine, because the circular depenency is resolved by then.
  */
 
 export type ShaderStage = 'fragment' | 'vertex';

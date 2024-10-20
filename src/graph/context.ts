@@ -1,13 +1,13 @@
 import groupBy from 'lodash.groupby';
 import { type GlslSyntaxError } from '@shaderfrog/glsl-parser';
 
+import { AstNode, FunctionNode, Program } from '@shaderfrog/glsl-parser/ast';
 import {
-  AstNode,
-  FunctionNode,
-  FunctionPrototypeNode,
-  Program,
-} from '@shaderfrog/glsl-parser/ast';
-import { Engine, EngineContext } from '../engine';
+  Engine,
+  EngineContext,
+  extendNodeContext,
+  extendNodesContext,
+} from '../engine';
 import { CodeNode, mapInputName, SourceNode, SourceType } from './code-nodes';
 import { NodeInput } from './base-node';
 import { Graph, GraphNode, NodeType } from './graph-types';
@@ -41,6 +41,8 @@ export type NodeContext = {
   errors?: NodeErrors;
   mainFn?: FunctionNode;
 };
+
+export type NodeContexts = Record<string, NodeContext>;
 
 export type NodeErrors = {
   type: 'errors';
@@ -85,8 +87,32 @@ const computeNodeContext = async (
   const sibling = findLinkedNode(graph, node.id);
 
   const { onBeforeCompile, manipulateAst } = parser;
+
+  // Save the updated node context if onBeforeCompile() modifies it, which
+  // happens if an engine shader generates a computedSource. This is a silly
+  // data flow and a TODO: Refactor. This context function should not need to
+  // care about the overall engine context nor modifying it. It should only
+  // care about generating and returning the individual node context. At least
+  // onBeforeCompile(), and maybe others rely on being passed the engine context
+  // to mutate it (see cacher() in threngine). This and family of functions
+  // should likely be refacted to separate NodeContext and EngineContext, and
+  // have this function not modify EngineContext at all.
+  let updatedNodeContext;
+  let updatedContext = engineContext;
   if (onBeforeCompile) {
-    await onBeforeCompile(graph, engineContext, node, sibling);
+    updatedNodeContext = await onBeforeCompile(
+      graph,
+      engineContext,
+      node,
+      sibling
+    );
+    if (updatedNodeContext) {
+      updatedContext = extendNodeContext(
+        engineContext,
+        node.id,
+        updatedNodeContext
+      );
+    }
   }
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
@@ -94,7 +120,7 @@ const computeNodeContext = async (
   let mainFn: ReturnType<typeof findMain>;
   let ast: ReturnType<typeof parser.produceAst>;
   try {
-    ast = parser.produceAst(engineContext, engine, graph, node, inputEdges);
+    ast = parser.produceAst(updatedContext, engine, graph, node, inputEdges);
 
     // Find the main function before mangling
     if (shouldNodeHaveMainFn(node)) {
@@ -103,7 +129,7 @@ const computeNodeContext = async (
 
     if (manipulateAst) {
       ast = manipulateAst(
-        engineContext,
+        updatedContext,
         engine,
         graph,
         ast,
@@ -137,7 +163,7 @@ const computeNodeContext = async (
   // Find the combination if inputs (data) and fillers (runtime context data)
   // and copy the input data onto the node, and the fillers onto the context
   const computedInputs = parser.findInputs(
-    engineContext,
+    updatedContext,
     ast,
     inputEdges,
     node,
@@ -156,7 +182,25 @@ const computeNodeContext = async (
     ...(input.id in dataInputs ? { baked: true } : {}),
   }));
 
+  // Skip mangling if the node tells us to, which probably means it's an engine
+  // node where we don't care about renaming all the variables, or if it's
+  // an expression, where we want to be in the context of other variables
+  // TODO: Use global undefined engine variables here?
+  if (
+    node.config.mangle !== false &&
+    node.sourceType !== SourceType.EXPRESSION &&
+    node.sourceType !== SourceType.FN_BODY_FRAGMENT
+  ) {
+    mangleEntireProgram(
+      engine,
+      ast as Program,
+      node,
+      findLinkedNode(graph, node.id)
+    );
+  }
+
   const nodeContext: NodeContext = {
+    ...(updatedNodeContext || {}),
     ast,
     id: node.id,
     mainFn,
@@ -180,23 +224,6 @@ const computeNodeContext = async (
     ),
   };
 
-  // Skip mangling if the node tells us to, which probably means it's an engine
-  // node where we don't care about renaming all the variables, or if it's
-  // an expression, where we want to be in the context of other variables
-  // TODO: Use global undefined engine variables here?
-  if (
-    node.config.mangle !== false &&
-    node.sourceType !== SourceType.EXPRESSION &&
-    node.sourceType !== SourceType.FN_BODY_FRAGMENT
-  ) {
-    mangleEntireProgram(
-      engine,
-      ast as Program,
-      node,
-      findLinkedNode(graph, node.id)
-    );
-  }
-
   return nodeContext;
 };
 
@@ -208,33 +235,30 @@ export const computeContextForNodes = async (
 ) =>
   nodes
     .filter(isSourceNode)
-    .reduce<Promise<Record<string, NodeContext> | NodeErrors>>(
-      async (ctx, node) => {
-        const context = await ctx;
-        if (isError(context)) {
-          return context;
-        }
+    .reduce<Promise<NodeContexts | NodeErrors>>(async (ctx, node) => {
+      const context = await ctx;
+      if (isError(context)) {
+        return context;
+      }
 
-        let nodeContextOrError = await computeNodeContext(
-          engineContext,
-          engine,
-          graph,
-          node
-        );
-        if (isError(nodeContextOrError)) {
-          return nodeContextOrError;
-        }
+      let nodeContextOrError = await computeNodeContext(
+        engineContext,
+        engine,
+        graph,
+        node
+      );
+      if (isError(nodeContextOrError)) {
+        return nodeContextOrError;
+      }
 
-        return {
-          ...context,
-          [node.id]: {
-            ...(context[node.id] || {}),
-            ...nodeContextOrError,
-          },
-        };
-      },
-      Promise.resolve(engineContext.nodes as Record<string, NodeContext>)
-    );
+      return {
+        ...context,
+        [node.id]: {
+          ...(context[node.id] || {}),
+          ...nodeContextOrError,
+        },
+      };
+    }, Promise.resolve(engineContext.nodes as NodeContexts));
 
 /**
  * Compute the context for every node in the graph, done on initial graph load
@@ -291,8 +315,10 @@ export const computeGraphContext = async (
   if (isError(vertNodesOrError)) {
     return vertNodesOrError;
   }
-  const fragNodesOrError = await computeContextForNodes(
-    engineContext,
+
+  const updatedContext = extendNodesContext(engineContext, vertNodesOrError);
+  const finalNodeContextOrError = await computeContextForNodes(
+    updatedContext,
     engine,
     graph,
     [
@@ -302,11 +328,6 @@ export const computeGraphContext = async (
       ),
     ]
   );
-  if (isError(fragNodesOrError)) {
-    return fragNodesOrError;
-  }
-  return {
-    ...vertNodesOrError,
-    ...fragNodesOrError,
-  };
+
+  return finalNodeContextOrError;
 };

@@ -6,6 +6,7 @@ import { Program } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import {
   NodeContext,
+  NodeContexts,
   NodeErrors,
   computeGraphContext,
   isError,
@@ -410,9 +411,11 @@ export const compileNode = (
         engineContext.nodes[node.id],
         `No node context found for "${node.name}" (id ${node.id})!`
       );
-  const { ast, inputFillers } = (nodeContext || {}) as NodeContext;
-  if (!inputs) {
-    throw new Error("I'm drunk and I think this case should be impossible");
+  const { ast, inputFillers } = nodeContext || {};
+  if (!ast || !inputFillers) {
+    throw new Error(
+      "I'm drunk while writing this code, and I think this case should be impossible, so I'm going to throw an error and ignore it"
+    );
   }
 
   let compiledIds = activeIds;
@@ -440,7 +443,6 @@ export const compileNode = (
     }))
     .filter(({ input }) => !isDataInput(input))
     .forEach(({ fromNode, input }) => {
-      // const [inputSections, fillerFn, childIds, childDeps] = compileNode(
       const [inputSections, fillerFn, childIds] = compileNode(
         engine,
         graph,
@@ -658,6 +660,7 @@ export const collectNodeProperties = (graph: Graph): SearchResult => {
 export type IndexedDataInputs = Record<string, NodeInput[]>;
 
 export type CompileResult = {
+  updatedNodeContext: NodeContexts;
   fragmentResult: string;
   vertexResult: string;
   compileResult: CompileGraphResult;
@@ -675,12 +678,10 @@ export const compileSource = async (
   if (isError(result)) {
     return result;
   }
+  const updatedNodeContext = { ...ctx.nodes, ...result };
   const updatedContext = {
     ...ctx,
-    nodes: {
-      ...ctx.nodes,
-      ...result,
-    },
+    nodes: updatedNodeContext,
   };
 
   const compileResult = compileGraph(updatedContext, engine, graph);
@@ -719,6 +720,7 @@ export const compileSource = async (
   }, {});
 
   return {
+    updatedNodeContext,
     compileResult,
     fragmentResult,
     vertexResult,
