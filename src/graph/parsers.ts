@@ -6,26 +6,23 @@ import {
   NodeVisitors,
   Path,
   Program,
-  FunctionNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Engine, EngineContext } from '../engine';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import {
   convert300MainToReturn,
-  findMain,
   findMainOrThrow,
   from2To3,
   makeExpression,
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
-  makeFnStatement,
 } from '../util/ast';
 import { applyStrategy, ComputedInput, Filler } from '../strategy';
 import { Edge } from './edge';
 import { BinaryNode, SourceNode, SourceType } from './code-nodes';
 import { nodeInput } from './base-node';
 import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
-import { nodeName, resultName } from './graph';
+import { nodeName } from './graph';
 import { Evaluate } from './evaluate';
 import { generateFiller } from '../util/ast';
 import { unshiftFnStmtWithIndent } from '../util/whitespace';
@@ -108,6 +105,11 @@ export const coreParsers: CoreParser = {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {
       let ast: Program;
 
+      // Load the source either from the computed source at runtime, or the
+      // node's source code itself
+      const source =
+        engineContext.nodes[node.id]?.computedSource || node.source;
+
       // @ts-ignore
       if (node.expressionOnly) {
         node.sourceType = SourceType.EXPRESSION;
@@ -116,9 +118,7 @@ export const coreParsers: CoreParser = {
       }
 
       if (node.sourceType === SourceType.FN_BODY_FRAGMENT) {
-        const { statements, scope } = makeFnBodyStatementWithScopes(
-          node.source,
-        );
+        const { statements, scope } = makeFnBodyStatementWithScopes(source);
         ast = {
           type: 'program',
           scopes: [scope],
@@ -126,7 +126,7 @@ export const coreParsers: CoreParser = {
           program: statements,
         };
       } else if (node.sourceType === SourceType.EXPRESSION) {
-        const { expression, scope } = makeExpressionWithScopes(node.source);
+        const { expression, scope } = makeExpressionWithScopes(source);
         ast = {
           type: 'program',
           scopes: [scope],
@@ -136,8 +136,8 @@ export const coreParsers: CoreParser = {
       } else {
         const preprocessed =
           node.config.preprocess === false
-            ? node.source
-            : preprocess(node.source, {
+            ? source
+            : preprocess(source, {
                 preserve: {
                   version: () => true,
                 },

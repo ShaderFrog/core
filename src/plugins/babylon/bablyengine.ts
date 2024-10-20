@@ -14,7 +14,6 @@ import {
 } from 'babylonjs';
 import { Engine, EngineNodeType, EngineContext } from '../../engine';
 import {
-  nodeName,
   doesLinkThruShader,
   prepopulatePropertyInputs,
   mangleMainFn,
@@ -41,9 +40,10 @@ import {
   texture2DStrategy,
   uniformStrategy,
 } from '../../strategy';
-import { NodeInput, NodePosition } from '../../graph/base-node';
+import { NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import { NodeParser } from '../../graph/parsers';
+import indexById from '../../util/indexByid';
 
 // Setting these properties on the material have side effects, not just for the
 // GLSL, but for the material itself in JS memory apparently, maybe the bound
@@ -70,7 +70,7 @@ export const physicalNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -151,7 +151,7 @@ export const toonNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -171,7 +171,7 @@ export const toonNode = (
           'Gradient Map',
           'gradientMap',
           'texture',
-          'filler_gradientMap'
+          'filler_gradientMap',
         ),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
@@ -202,15 +202,10 @@ const babylonMaterialProperties = (
   scene: Scene,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
-  const propertyInputs = node.inputs
-    .filter((i) => i.property)
-    .reduce<Record<string, NodeInput>>(
-      (acc, input) => ({ ...acc, [input.id]: input }),
-      {}
-    );
+  const propertyInputs = indexById(node.inputs.filter((i) => i.property));
 
   // Then look for any edges into those inputs and set the material property
   const props = graph.edges
@@ -221,7 +216,7 @@ const babylonMaterialProperties = (
       if (propertyInput) {
         // Find the property itself
         const property = (node.config.properties || []).find(
-          (p) => p.property === propertyInput.property
+          (p) => p.property === propertyInput.property,
         ) as NodeProperty;
 
         // Initialize the property on the material
@@ -264,7 +259,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => {
   // The megashader source is dependent on scene information, like the number
   // and type of lights in the scene. This kinda sucks - it's duplicating
@@ -290,7 +285,7 @@ const cacher = async (
   graph: Graph,
   node: SourceNode,
   sibling: SourceNode | undefined,
-  newValue: (...args: any[]) => Promise<any>
+  newValue: (...args: any[]) => Promise<any>,
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
 
@@ -321,7 +316,7 @@ const onBeforeCompileMegaShader = async (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ): Promise<{
   material: Material;
   fragment: string;
@@ -365,7 +360,7 @@ const onBeforeCompileMegaShader = async (
       samplers,
       defines,
       attributes,
-      options
+      options,
     ) => {
       hackKey = genHackCacheKey(defines);
       log('Babylengine creating new shader', {
@@ -461,10 +456,10 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   ast,
   inputEdges,
   node,
-  sibling
+  sibling,
 ) => {
   const programAst = ast as Program;
-  const mainName = 'main' || nodeName(node);
+  const mainName = 'main';
 
   if (node.stage === 'vertex') {
     if (doesLinkThruShader(graph, node)) {
@@ -491,27 +486,27 @@ const evaluateNode = (node: DataNode) => {
     return new Vector3(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
-      parseFloat(node.value[2])
+      parseFloat(node.value[2]),
     );
   } else if (node.type === 'vector4') {
     return new Vector4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
+      parseFloat(node.value[3]),
     );
   } else if (node.type === 'rgb') {
     return new Color3(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
-      parseFloat(node.value[2])
+      parseFloat(node.value[2]),
     );
   } else if (node.type === 'rgba') {
     return new Color4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
+      parseFloat(node.value[3]),
     );
   } else {
     return node.value;
@@ -652,10 +647,10 @@ export const babylengine: Engine = {
         ast,
         inputEdges,
         node,
-        sibling
+        sibling,
       ) => {
         const programAst = ast as Program;
-        const mainName = 'main' || nodeName(node);
+        const mainName = 'main';
 
         // This hinges on the vertex shader calling vec3(p)
         if (node.stage === 'vertex') {
@@ -671,7 +666,7 @@ export const babylengine: Engine = {
     [EngineNodeType.physical]: {
       onBeforeCompile: (graph, engineContext, node, sibling) =>
         cacher(engineContext, graph, node, sibling, () =>
-          onBeforeCompileMegaShader(engineContext, graph, node, sibling)
+          onBeforeCompileMegaShader(engineContext, graph, node, sibling),
         ),
       manipulateAst: megaShaderMainpulateAst,
     },

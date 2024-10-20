@@ -13,7 +13,6 @@ import {
   MeshToonMaterial,
   Scene,
   WebGLRenderer,
-  Camera,
   PerspectiveCamera,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
@@ -22,7 +21,7 @@ import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
-import { doesLinkThruShader, nodeName, CompileResult } from '../../graph/graph';
+import { doesLinkThruShader, CompileResult } from '../../graph/graph';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
@@ -34,7 +33,7 @@ import {
   property,
   SourceNode,
 } from '../../graph/code-nodes';
-import { NodeInput, NodePosition } from '../../graph/base-node';
+import { NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import {
   namedAttributeStrategy,
@@ -42,6 +41,7 @@ import {
   uniformStrategy,
 } from '../../strategy';
 import { NodeParser } from '../../graph/parsers';
+import indexById from '../../util/indexByid';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[35m(three)\x1b[0m', ...args);
@@ -51,7 +51,7 @@ export const phongNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -71,13 +71,13 @@ export const phongNode = (
           'Emissive Map',
           'emissiveMap',
           'texture',
-          'filler_emissiveMap'
+          'filler_emissiveMap',
         ),
         property(
           'Emissive Intensity',
           'emissiveIntensity',
           'number',
-          'uniform_emissive'
+          'uniform_emissive',
         ),
         property('Texture', 'map', 'texture', 'filler_map'),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
@@ -87,7 +87,7 @@ export const phongNode = (
           'AO Intensity',
           'aoMapIntensity',
           'number',
-          'filler_aoMapIntensity'
+          'filler_aoMapIntensity',
         ),
         property('Shininess', 'shininess', 'number'),
         property('Reflectivity', 'reflectivity', 'number'),
@@ -97,13 +97,13 @@ export const phongNode = (
           'Specular Map',
           'specularMap',
           'texture',
-          'filler_specularMap'
+          'filler_specularMap',
         ),
         property(
           'Displacement Map',
           'displacementMap',
           'texture',
-          'filler_displacementMap'
+          'filler_displacementMap',
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Bump Map', 'bumpMap', 'texture', 'filler_bumpMap'),
@@ -135,7 +135,7 @@ export const physicalNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -159,7 +159,7 @@ export const physicalNode = (
           'AO Intensity',
           'aoMapIntensity',
           'number',
-          'filler_aoMapIntensity'
+          'filler_aoMapIntensity',
         ),
         property('Metalness', 'metalness', 'number', 'uniform_metalness'),
         property('Roughness', 'roughness', 'number', 'uniform_roughness'),
@@ -167,13 +167,13 @@ export const physicalNode = (
           'Roughness Map',
           'roughnessMap',
           'texture',
-          'filler_roughnessMap'
+          'filler_roughnessMap',
         ),
         property(
           'Displacement Map',
           'displacementMap',
           'texture',
-          'filler_displacementMap'
+          'filler_displacementMap',
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         // MeshPhysicalMaterial gets envMap from the scene. MeshStandardMaterial
@@ -183,14 +183,14 @@ export const physicalNode = (
           'Env Map Intensity',
           'envMapIntensity',
           'number',
-          'uniform_envMapIntensity'
+          'uniform_envMapIntensity',
         ),
         property('Transmission', 'transmission', 'number'),
         property(
           'Transmission Map',
           'transmissionMap',
           'texture',
-          'filler_transmissionMap'
+          'filler_transmissionMap',
         ),
         property('Thickness', 'thickness', 'number'),
         property('Index of Refraction', 'ior', 'number'),
@@ -206,7 +206,7 @@ export const physicalNode = (
           'iridescenceThicknessRange',
           'array',
           undefined,
-          ['100', '400']
+          ['100', '400'],
         ),
       ],
       hardCodedProperties: {
@@ -238,7 +238,7 @@ const cacher = (
   graph: Graph,
   node: SourceNode,
   sibling: SourceNode | undefined,
-  newValue: (...args: any[]) => any
+  newValue: (...args: any[]) => any,
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
 
@@ -252,20 +252,16 @@ const cacher = (
   engineContext.runtime.cache.data[cacheKey] = materialData;
   engineContext.runtime.engineMaterial = materialData.material;
 
-  // TODO: We mutate the nodes here, can we avoid that later?
-  node.source =
-    node.stage === 'fragment' ? materialData.fragment : materialData.vertex;
-  if (sibling) {
-    sibling.source =
-      sibling.stage === 'fragment'
-        ? materialData.fragment
-        : materialData.vertex;
-  }
+  engineContext.nodes[node.id] = {
+    ...(engineContext.nodes[node.id] || {}),
+    computedSource:
+      node.stage === 'fragment' ? materialData.fragment : materialData.vertex,
+  };
 };
 
 const onBeforeCompileMegaShader = (
   engineContext: EngineContext,
-  newMat: any
+  newMat: any,
 ) => {
   log('compiling three megashader!');
   const { renderer, sceneData, scene, camera } = engineContext.runtime;
@@ -314,7 +310,7 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   ast,
   inputEdges,
   node,
-  sibling
+  sibling,
 ) => {
   const programAst = ast as Program;
   const mainName = 'main'; // || nodeName(node);
@@ -353,7 +349,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => {
   // The megashader source is dependent on scene information, like the number
   // and type of lights in the scene. This kinda sucks - it's duplicating
@@ -396,15 +392,10 @@ export const defaultPropertySetting = (property: NodeProperty) => {
 const threeMaterialProperties = (
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
-  const propertyInputs = node.inputs
-    .filter((i) => i.property)
-    .reduce<Record<string, NodeInput>>(
-      (acc, input) => ({ ...acc, [input.id]: input }),
-      {}
-    );
+  const propertyInputs = indexById(node.inputs.filter((i) => i.property));
 
   // Then look for any edges into those inputs and set the material property
   return graph.edges
@@ -415,7 +406,7 @@ const threeMaterialProperties = (
       if (propertyInput) {
         // Find the property itself
         const property = (node.config.properties || []).find(
-          (p) => p.property === propertyInput.property
+          (p) => p.property === propertyInput.property,
         ) as NodeProperty;
 
         // Initialize the property on the material
@@ -474,27 +465,27 @@ const evaluateNode = (node: DataNode) => {
     return new Vector3(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
-      parseFloat(node.value[2])
+      parseFloat(node.value[2]),
     );
   } else if (node.type === 'vector4') {
     return new Vector4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
+      parseFloat(node.value[3]),
     );
   } else if (node.type === 'rgb') {
     return new Color(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
-      parseFloat(node.value[2])
+      parseFloat(node.value[2]),
     );
   } else if (node.type === 'rgba') {
     return new Vector4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
+      parseFloat(node.value[3]),
     );
   } else {
     return node.value;
@@ -506,7 +497,7 @@ export const toonNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -526,7 +517,7 @@ export const toonNode = (
           'Gradient Map',
           'gradientMap',
           'texture',
-          'filler_gradientMap'
+          'filler_gradientMap',
         ),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
@@ -535,13 +526,13 @@ export const toonNode = (
           'AO Intensity',
           'aoMapIntensity',
           'number',
-          'filler_aoMapIntensity'
+          'filler_aoMapIntensity',
         ),
         property(
           'Displacement Map',
           'displacementMap',
           'texture',
-          'filler_displacementMap'
+          'filler_displacementMap',
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
@@ -668,7 +659,7 @@ export const threngine: Engine = {
         ast,
         inputEdges,
         node,
-        sibling
+        sibling,
       ) => {
         const programAst = ast as Program;
         const mainName = 'main'; // || nodeName(node);
@@ -693,8 +684,8 @@ export const threngine: Engine = {
               // @ts-ignore
               isMeshPhongMaterial: true,
               ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
+            }),
+          ),
         );
       },
       manipulateAst: megaShaderMainpulateAst,
@@ -710,8 +701,8 @@ export const threngine: Engine = {
               // prototype. We have to hard code them for Object.keys() to work
               ...node.config.hardCodedProperties,
               ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
+            }),
+          ),
         );
       },
       manipulateAst: megaShaderMainpulateAst,
@@ -726,8 +717,8 @@ export const threngine: Engine = {
               // @ts-ignore
               isMeshToonMaterial: true,
               ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
+            }),
+          ),
         );
       },
       manipulateAst: megaShaderMainpulateAst,
@@ -737,7 +728,7 @@ export const threngine: Engine = {
 
 export const createMaterial = (
   compileResult: CompileResult,
-  ctx: EngineContext
+  ctx: EngineContext,
 ) => {
   const { engineMaterial } = ctx.runtime as ThreeRuntime;
 
@@ -763,7 +754,7 @@ export const createMaterial = (
     vertexShader: compileResult?.vertexResult.replace('#version 300 es', ''),
     fragmentShader: compileResult?.fragmentResult.replace(
       '#version 300 es',
-      ''
+      '',
     ),
   };
 
@@ -786,14 +777,14 @@ export const createMaterial = (
         // WebGLProgram
         // https://github.com/mrdoob/three.js/blob/e7042de7c1a2c70e38654a04b6fd97d9c978e781/src/renderers/webgl/WebGLProgram.js#L392
         // which occurs if we set isMeshPhysicalMaterial/isMeshStandardMaterial
-        property !== 'defines'
+        property !== 'defines',
     )
     .reduce(
       (acc, [key, value]) => ({
         ...acc,
         [key]: value,
       }),
-      {}
+      {},
     );
 
   const material = new RawShaderMaterial(initialProperties);

@@ -3,7 +3,7 @@ import { nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { AssignmentNode, AstNode } from '@shaderfrog/glsl-parser/ast';
 
-export interface AssignemntToStrategy extends BaseStrategy {
+export interface AssignmentToStrategy extends BaseStrategy {
   type: StrategyType.ASSIGNMENT_TO;
   config: {
     assignTo: string;
@@ -15,13 +15,13 @@ export interface AssignemntToStrategy extends BaseStrategy {
 export const assignemntToStrategy = (
   assignTo: string,
   nth = 1
-): AssignemntToStrategy => ({
+): AssignmentToStrategy => ({
   type: StrategyType.ASSIGNMENT_TO,
   config: { assignTo, nth },
 });
 
 // Apply the strategy
-export const applyAssignmentToStrategy: ApplyStrategy<AssignemntToStrategy> = (
+export const applyAssignmentToStrategy: ApplyStrategy<AssignmentToStrategy> = (
   strategy,
   ast,
   graphNode,

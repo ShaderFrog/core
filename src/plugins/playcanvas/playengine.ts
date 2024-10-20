@@ -28,9 +28,10 @@ import {
   texture2DStrategy,
   uniformStrategy,
 } from '../../strategy';
-import { NodeInput, NodePosition } from '../../graph/base-node';
+import { NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import { NodeParser } from '../../graph/parsers';
+import indexById from '../../util/indexByid';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[33m(playengine)\x1b[0m', ...args);
@@ -61,7 +62,7 @@ export const physicalDefaultProperties = {
  */
 export const defaultPropertySetting = (
   app: pc.Application,
-  property: NodeProperty
+  property: NodeProperty,
 ) => {
   if (property.type === 'texture') {
     return new pc.Texture(app.graphicsDevice);
@@ -80,15 +81,10 @@ const applyPlayMaterialProperties = (
   app: pc.Application,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
-  const propertyInputs = node.inputs
-    .filter((i) => i.property)
-    .reduce<Record<string, NodeInput>>(
-      (acc, input) => ({ ...acc, [input.id]: input }),
-      {}
-    );
+  const propertyInputs = indexById(node.inputs.filter((i) => i.property));
 
   // Then look for any edges into those inputs and set the material property
   const props = graph.edges
@@ -99,7 +95,7 @@ const applyPlayMaterialProperties = (
       if (propertyInput) {
         // Find the property itself
         const property = (node.config.properties || []).find(
-          (p) => p.property === propertyInput.property
+          (p) => p.property === propertyInput.property,
         ) as NodeProperty;
 
         /**
@@ -127,7 +123,7 @@ export const physicalNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -150,13 +146,13 @@ export const physicalNode = (
           'Diffuse Map',
           'diffuseMap',
           'texture',
-          'filler_texture_diffuseMap'
+          'filler_texture_diffuseMap',
         ),
         property(
           'Normal Map',
           'normalMap',
           'texture',
-          'filler_texture_normalMap'
+          'filler_texture_normalMap',
         ),
         property('Bumpiness', 'bumpiness', 'number'),
         property('Specular', 'specular', 'rgb'),
@@ -228,7 +224,7 @@ export const toonNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -248,7 +244,7 @@ export const toonNode = (
           'Gradient Map',
           'gradientMap',
           'texture',
-          'filler_gradientMap'
+          'filler_gradientMap',
         ),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
@@ -299,7 +295,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => {
   const app = engineContext.runtime.app as pc.Application;
   const lights = app.root
@@ -324,7 +320,7 @@ const cacher = async (
   graph: Graph,
   node: SourceNode,
   sibling: SourceNode | undefined,
-  newValue: (...args: any[]) => Promise<any>
+  newValue: (...args: any[]) => Promise<any>,
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
 
@@ -355,7 +351,7 @@ const onBeforeCompileMegaShader = async (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ): Promise<{
   material: pc.Material;
   fragment: string;
@@ -380,7 +376,7 @@ const onBeforeCompileMegaShader = async (
     app,
     graph,
     node,
-    sibling
+    sibling,
   );
   log('Engine megashader initial properties', { ...newProperties, ...applied });
 
@@ -414,7 +410,7 @@ const onBeforeCompileMegaShader = async (
   return new Promise((resolve) => {
     const { variants } = shaderMaterial;
     if (variants.size === 1) {
-      const [, untypedVariant] = variants.entries().next().value;
+      const [, untypedVariant] = variants.entries().next().value || [];
       const variant = untypedVariant as pc.Shader;
       const { fshader, vshader } = variant.definition;
       fragmentSource = fshader as string;
@@ -443,10 +439,10 @@ const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
   ast,
   inputEdges,
   node,
-  sibling
+  sibling,
 ) => {
   const programAst = ast as Program;
-  const mainName = 'main' || nodeName(node);
+  const mainName = nodeName(node);
 
   if (node.stage === 'vertex') {
     if (doesLinkThruShader(graph, node)) {
@@ -547,10 +543,10 @@ export const playengine: Engine = {
         ast,
         inputEdges,
         node,
-        sibling
+        sibling,
       ) => {
         const programAst = ast as Program;
-        const mainName = 'main' || nodeName(node);
+        const mainName = nodeName(node);
 
         // This hinges on the vertex shader calling vec3(p)
         if (node.stage === 'vertex') {
@@ -566,7 +562,7 @@ export const playengine: Engine = {
     [EngineNodeType.physical]: {
       onBeforeCompile: (graph, engineContext, node, sibling) =>
         cacher(engineContext, graph, node, sibling, () =>
-          onBeforeCompileMegaShader(engineContext, graph, node, sibling)
+          onBeforeCompileMegaShader(engineContext, graph, node, sibling),
         ),
       manipulateAst: megaShaderMainpulateAst,
     },
