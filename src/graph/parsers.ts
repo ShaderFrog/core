@@ -97,11 +97,9 @@ type CoreNodeParser = {
   produceFiller: ProduceNodeFiller;
   evaluate?: Evaluate;
 };
-enum XY {
-  x = 'y',
-}
+
 type CoreParser = { [key: string]: CoreNodeParser };
-console.log('nt', { NodeType }, { XY });
+
 export const coreParsers: CoreParser = {
   [NodeType.SOURCE]: {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {
