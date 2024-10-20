@@ -42,14 +42,14 @@ export type ProduceAst = (
   engine: Engine,
   graph: Graph,
   node: SourceNode,
-  inputEdges: Edge[]
+  inputEdges: Edge[],
 ) => AstNode | Program;
 
 export type OnBeforeCompile = (
   graph: Graph,
   engineContext: EngineContext,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => Promise<void>;
 
 export type ManipulateAst = (
@@ -59,7 +59,7 @@ export type ManipulateAst = (
   ast: AstNode | Program,
   inputEdges: Edge[],
   node: SourceNode,
-  sibling: SourceNode
+  sibling: SourceNode,
 ) => AstNode | Program;
 
 export type NodeParser = {
@@ -83,12 +83,12 @@ export type FindInputs = (
   ast: Program | AstNode,
   inputEdges: Edge[],
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => ComputedInput[];
 
 export type ProduceNodeFiller = (
   node: SourceNode,
-  ast: Program | AstNode
+  ast: Program | AstNode,
 ) => Filler;
 
 type CoreNodeParser = {
@@ -108,8 +108,7 @@ export const coreParsers: CoreParser = {
       // Load the source either from the computed source at runtime, or the
       // node's source code itself
       const source =
-        engineContext.runtime.cache.nodes[node.id]?.computedSource ||
-        node.source;
+        engineContext.nodes[node.id]?.computedSource || node.source;
 
       // @ts-ignore
       if (node.expressionOnly) {
@@ -177,10 +176,10 @@ export const coreParsers: CoreParser = {
           node.sourceType === SourceType.EXPRESSION
             ? ((ast as Program).program[0] as AstNode)
             : node.sourceType === SourceType.FN_BODY_FRAGMENT
-            ? ((ast as Program).program as AstNode[])
-            : // Backfilling into the call of this program's filler.
-              // Similar to texutre2D.ts filler
-              makeExpression(`${nodeName(node)}(${args.join(', ')})`);
+              ? ((ast as Program).program as AstNode[])
+              : // Backfilling into the call of this program's filler.
+                // Similar to texutre2D.ts filler
+                makeExpression(`${nodeName(node)}(${args.join(', ')})`);
         return fillerNode;
       };
     },
@@ -194,7 +193,7 @@ export const coreParsers: CoreParser = {
     findInputs: (engineContext, ast, edges, node, sibling) => {
       return [
         ...node.config.strategies.flatMap((strategy) =>
-          applyStrategy(strategy, ast, node, sibling)
+          applyStrategy(strategy, ast, node, sibling),
         ),
         [
           nodeInput(
@@ -203,13 +202,13 @@ export const coreParsers: CoreParser = {
             'filler',
             'rgba',
             ['code'],
-            false
+            false,
           ),
           (filler) => {
             const main = findMainOrThrow(ast as Program);
             main.body.statements = unshiftFnStmtWithIndent(
               main,
-              generateFiller(filler())
+              generateFiller(filler()),
             );
             return ast;
           },
@@ -230,7 +229,7 @@ export const coreParsers: CoreParser = {
                 .map((_, index) => alphabet.charAt(index))
                 .join(` ${node.operator} `)
             : `a ${node.operator} b`) +
-          ')'
+          ')',
       );
     },
     findInputs: (engineContext, ast, inputEdges, node, sibling) => {
@@ -245,7 +244,7 @@ export const coreParsers: CoreParser = {
               'filler',
               undefined,
               ['data', 'code'],
-              false
+              false,
             ),
             (filler) => {
               let foundPath: Path<any> | undefined;
@@ -261,7 +260,7 @@ export const coreParsers: CoreParser = {
               visit(ast, visitors);
               if (!foundPath) {
                 throw new Error(
-                  `Im drunk and I think this case is impossible, no "${letter}" found in binary node?`
+                  `Im drunk and I think this case is impossible, no "${letter}" found in binary node?`,
                 );
               }
 
@@ -292,7 +291,7 @@ export const coreParsers: CoreParser = {
           return num / next;
         }
         throw new Error(
-          `Don't know how to evaluate ${operator} for node ${node.name} (${node.id})`
+          `Don't know how to evaluate ${operator} for node ${node.name} (${node.id})`,
         );
       });
     },
