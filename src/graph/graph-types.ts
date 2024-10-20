@@ -61,35 +61,45 @@ export type Grindex = {
   edgesByNode: EdgesByNode;
 };
 
-export const computeGrindex = (graph: Graph): Grindex => ({
-  nodes: graph.nodes.reduce((acc, node) => ({ ...acc, [node.id]: node }), {}),
-  edges: graph.edges.reduce((acc, edge) => ({ ...acc, [edge.id]: edge }), {}),
-  edgesByNode: graph.edges.reduce<EdgesByNode>((acc, edge) => {
-    const { to, from } = edge;
-    return {
-      ...acc,
-      [to]: {
-        to: {
-          edges: [...(acc[to]?.to?.edges || []), edge],
-          edgesByInput: {
-            ...acc[to]?.to?.edgesByInput,
-            [edge.input]: edge,
+let lastGraph: Graph | undefined;
+let lastGrindex: Grindex | undefined;
+export const computeGrindex = (graph: Graph): Grindex => {
+  // Poor programmer's memoization
+  if (graph === lastGraph && lastGrindex) {
+    return lastGrindex;
+  }
+  lastGraph = graph;
+  lastGrindex = {
+    nodes: graph.nodes.reduce((acc, node) => ({ ...acc, [node.id]: node }), {}),
+    edges: graph.edges.reduce((acc, edge) => ({ ...acc, [edge.id]: edge }), {}),
+    edgesByNode: graph.edges.reduce<EdgesByNode>((acc, edge) => {
+      const { to, from } = edge;
+      return {
+        ...acc,
+        [to]: {
+          to: {
+            edges: [...(acc[to]?.to?.edges || []), edge],
+            edgesByInput: {
+              ...acc[to]?.to?.edgesByInput,
+              [edge.input]: edge,
+            },
           },
+          from: acc[to]?.from || [],
         },
-        from: acc[to]?.from || [],
-      },
-      [from]: {
-        to: {
-          edges: acc[from]?.to?.edges || [],
-          edgesByInput: {
-            ...acc[from]?.to?.edgesByInput,
-            [edge.input]: edge,
+        [from]: {
+          to: {
+            edges: acc[from]?.to?.edges || [],
+            edgesByInput: {
+              ...acc[from]?.to?.edgesByInput,
+              [edge.input]: edge,
+            },
           },
+          from: [...(acc[from]?.from || []), edge],
         },
-        from: [...(acc[from]?.from || []), edge],
-      },
-    };
-  }, {}),
-});
+      };
+    }, {}),
+  };
+  return lastGrindex;
+};
 
 export const MAGIC_OUTPUT_STMTS = 'mainStmts';

@@ -30,7 +30,6 @@ import {
   EdgeLink,
   Graph,
   GraphNode,
-  Grindex,
   MAGIC_OUTPUT_STMTS,
   NodeType,
 } from './graph-types';
@@ -230,12 +229,12 @@ export type SearchResult = {
   inputs: Record<string, NodeInput[]>;
   // Edges aren't grouped because consumers might need to look up by from/to,
   // we don't know here
-  edges: Edge[];
+  edges: Record<string, Edge>;
 };
 export const consSearchResult = (): SearchResult => ({
   nodes: {},
   inputs: {},
-  edges: [],
+  edges: {},
 });
 export const mergeSearchResults = (
   a: SearchResult,
@@ -243,7 +242,7 @@ export const mergeSearchResults = (
 ): SearchResult => ({
   nodes: { ...a.nodes, ...b.nodes },
   inputs: { ...a.inputs, ...b.inputs },
-  edges: [...a.edges, ...b.edges],
+  edges: { ...a.edges, ...b.edges },
 });
 
 /**
@@ -309,13 +308,13 @@ export const filterGraphFromNode = (
         ? { [node.id]: [...(acc.inputs[node.id] || []), input] }
         : {}),
     };
-    const edgeAcc = [
+    const edgeAcc = {
       ...acc.edges,
       ...(predicates.edge &&
       predicates.edge(input, node, inputEdge, fromNode, lastResult)
-        ? [inputEdge]
-        : []),
-    ];
+        ? { [inputEdge.id]: inputEdge }
+        : {}),
+    };
 
     // Add in the latest result of edges and inputs so that when we recurse into
     // the next node, it has the latest accumulator
@@ -333,7 +332,10 @@ export const filterGraphFromNode = (
         depth - 1,
         intermediateAcc
       );
-      return mergeSearchResults(intermediateAcc, result);
+
+      // The result is automatically the combination of the currenet acc and the
+      // result of the recursed data
+      return result;
     } else {
       return intermediateAcc;
     }
