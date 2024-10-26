@@ -25,7 +25,7 @@ import { Edge } from './edge';
 import { CodeNode, SourceNode, SourceType } from './code-nodes';
 import { nodeInput, NodeInput } from './base-node';
 import { makeId } from '../util/id';
-import { ProduceNodeFiller, coreParsers } from './parsers';
+import { ProduceNodeFiller, alphabet, coreParsers } from './parsers';
 import { toGlsl } from './evaluate';
 import {
   EdgeLink,
@@ -163,6 +163,72 @@ export const resetGraphIds = (graph: Graph): Graph => {
     })),
   };
 };
+
+/**
+ * A binary node automatically adds/removes inputs based on how many edges
+ * connect to it. If a binary node has edges to "a" and "b", removing the edge
+ * to "a" means the edge to "b" needs to be moved down to the "a" one. This
+ * function essentially groups edges by target node id, and resets the edge
+ * target to its index. This doesn't feel good to do here but I don't have a
+ * better idea at the moment. One reason the inputs to binary nodes are
+ * automatically updated after compile, but the edges are updated here
+ * at the editor layer, before compile. This also hard codes assumptions about
+ * (binary) node inputs into the graph, namely they can't have blank inputs.
+ */
+export const collapseBinaryGraphEdges = (graph: Graph): Graph => {
+  // Find all edges that flow into a binary node, grouped by the target node's
+  // id, since we need to know the total number of edges per node first
+  const binaryEdges = graph.edges.reduce<Record<string, Edge[]>>(
+    (acc, edge) => {
+      const toNode = findNode(graph, edge.to);
+      return toNode.type === NodeType.BINARY
+        ? {
+            ...acc,
+            [toNode.id]: [...(acc[toNode.id] || []), edge],
+          }
+        : acc;
+    },
+    {}
+  );
+
+  // Then collapse them
+  const updatedEdges = graph.edges.map((edge) => {
+    return edge.to in binaryEdges
+      ? {
+          ...edge,
+          input: alphabet.charAt(binaryEdges[edge.to].indexOf(edge)),
+        }
+      : edge;
+  });
+  return {
+    ...graph,
+    edges: updatedEdges,
+  };
+};
+
+/**
+ * Restrict edges so that an input handle can't have multiple edges going to it
+ */
+export const addEdgeAndPruneRestrictions = (edges: Edge[], newEdge: Edge) =>
+  edges
+    .filter(
+      (edge) =>
+        // Prevent one input handle from having multiple inputs
+        !(edge.to === newEdge.to && edge.input === newEdge.input)
+    )
+    .concat(newEdge);
+
+/**
+ * Adds an edge to the graph and enforces graph edge business logic rules:
+ * - Makes sure "binary" (add/multiply) nodes edges are collapsed
+ * - Makes sure two edges can't flow into the same input.
+ * See also editor/flow-helpers.ts
+ */
+export const addGraphEdge = (graph: Graph, newEdge: Edge): Graph =>
+  collapseBinaryGraphEdges({
+    ...graph,
+    edges: addEdgeAndPruneRestrictions(graph.edges, newEdge),
+  });
 
 export const findLinkedNode = (graph: Graph, nodeId: string) => {
   const edgeLink = graph.edges.find(
@@ -309,6 +375,7 @@ export const filterGraphFromNode = (
         ? { [node.id]: [...(acc.inputs[node.id] || []), input] }
         : {}),
     };
+
     const edgeAcc = {
       ...acc.edges,
       ...(predicates.edge &&
@@ -346,6 +413,17 @@ export const filterGraphFromNode = (
 export const collectConnectedNodes = (graph: Graph, node: GraphNode): NodeIds =>
   filterGraphFromNode(graph, node, { node: () => true }).nodes;
 
+const merge = <T>(a: Record<string, T[]>, b: Record<string, T[]>) => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return Array.from(keys).reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: [...(a[key] || []), ...(b[key] || [])],
+    }),
+    {}
+  );
+};
+
 export const filterGraphNodes = (
   graph: Graph,
   nodes: GraphNode[],
@@ -356,7 +434,7 @@ export const filterGraphNodes = (
     const result = filterGraphFromNode(graph, node, filter, depth);
     return {
       nodes: { ...acc.nodes, ...result.nodes },
-      inputs: { ...acc.inputs, ...result.inputs },
+      inputs: merge(acc.inputs, result.inputs),
       edges: { ...acc.edges, ...result.edges },
     };
   }, consSearchResult());
