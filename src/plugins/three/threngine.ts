@@ -199,6 +199,7 @@ export const physicalNode = (
         // property('Sheen', 'sheen', 'number'),
         property('Reflectivity', 'reflectivity', 'number'),
         property('Clearcoat', 'clearcoat', 'number'),
+        property('Clearcoat Roughness', 'clearcoatRoughness', 'number'),
         property('Iridescence', 'iridescence', 'number'),
         property('Iridescence IOR', 'iridescenceIOR', 'number'),
         property(
