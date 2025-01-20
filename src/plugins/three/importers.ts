@@ -1,9 +1,12 @@
+import preprocess from '@shaderfrog/glsl-parser/preprocessor';
+import { generate, parser } from '@shaderfrog/glsl-parser';
 import {
   renameBindings,
   renameFunction,
 } from '@shaderfrog/glsl-parser/parser/utils';
 import { EngineImporters } from '../../engine';
 import { findMainOrThrow, makeStatement } from '../../util/ast';
+import { Program } from '@shaderfrog/glsl-parser/ast';
 
 export const defaultShadertoyVertex = `
 precision highp float;
@@ -24,18 +27,25 @@ const importers: EngineImporters = {
     code: {
       defaultShadertoyVertex,
     },
-    convertAst: (ast, type) => {
-      ast.program.unshift(
-        makeStatement('uniform vec2 renderResolution', '\n')[0]
-      );
+    convertAst: (ast, options) => {
+      const isUv = options?.importType === 'uv';
+      const isScreen = !isUv;
+
+      if (isScreen) {
+        ast.program.unshift(
+          makeStatement('uniform vec2 renderResolution', '\n')[0]
+        );
+      } else {
+        ast.program.unshift(makeStatement('varying vec2 vUv', '\n')[0]);
+      }
 
       // These do not catch variables in preprocessor definitions! See "SAD HACK"
-      //if (ast.scopes.some((s) => 'iTime' in s.bindings)) {
-      ast.program.unshift(makeStatement('uniform float time')[0]);
-      //}
-      //if (ast.scopes.some((s) => 'iMouse' in s.bindings)) {
-      ast.program.unshift(makeStatement('uniform vec2 mouse')[0]);
-      //}
+      if (ast.scopes.some((s) => 'iTime' in s.bindings)) {
+        ast.program.unshift(makeStatement('uniform float time')[0]);
+      }
+      if (ast.scopes.some((s) => 'iMouse' in s.bindings)) {
+        ast.program.unshift(makeStatement('uniform vec2 mouse')[0]);
+      }
 
       ast.program.unshift(makeStatement('precision highp int', '\n')[0]);
       ast.program.unshift(makeStatement('precision highp float')[0]);
@@ -62,13 +72,21 @@ const importers: EngineImporters = {
               return 'mouse';
             }
             if (name === 'iResolution') {
-              return 'renderResolution';
+              if (isUv) {
+                return 'vec2(1.0)';
+              } else {
+                return 'renderResolution';
+              }
             }
             if (name === 'fragColor') {
               return 'gl_FragColor';
             }
             if (name === 'fragCoord') {
-              return 'gl_FragCoord.xy';
+              if (isUv) {
+                return 'gl_FragCoord.xy';
+              } else {
+                return 'vUv';
+              }
             }
             return name;
           }
@@ -79,7 +97,7 @@ const importers: EngineImporters = {
     edgeMap: {},
   },
   babylon: {
-    convertAst: (ast, type) => {
+    convertAst: (ast, options) => {
       ast.scopes[0].bindings = renameBindings(ast.scopes[0].bindings, (name) =>
         name === 'vMainUV1' ? 'vUv' : name === 'vNormalW' ? 'vNormal' : name
       );

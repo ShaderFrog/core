@@ -12,7 +12,7 @@ const nodeInputMap = {
 
 const importers: EngineImporters = {
   three: {
-    convertAst(ast, type) {
+    convertAst(ast, options) {
       throw new Error('Not implemented');
     },
     nodeInputMap: {

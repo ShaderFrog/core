@@ -145,7 +145,7 @@ export const coreParsers: CoreParser = {
                 },
               });
 
-        ast = parser.parse(preprocessed);
+        ast = parser.parse(preprocessed, { stage: node.stage });
 
         if (node.config.version === 2 && node.stage) {
           from2To3(ast, node.stage);

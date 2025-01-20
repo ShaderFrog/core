@@ -124,7 +124,12 @@ export const extendNodesContext = (
 });
 
 export type EngineImporter = {
-  convertAst(ast: Program, type?: ShaderStage): void;
+  convertAst(
+    ast: Program,
+    options?: Record<string, unknown> & {
+      type?: ShaderStage;
+    }
+  ): void;
   nodeInputMap: Partial<Record<EngineNodeType, Record<string, string | null>>>;
   edgeMap: { [oldInput: string]: string };
   code?: Record<string, string>;
@@ -148,8 +153,8 @@ export const convertNode = (
       define: () => true,
     },
   });
-  const ast = parser.parse(preprocessed);
-  converter.convertAst(ast, node.stage);
+  const ast = parser.parse(preprocessed, { stage: node.stage });
+  converter.convertAst(ast, { type: node.stage });
   const source = generate(ast);
 
   return {

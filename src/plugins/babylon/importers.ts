@@ -19,7 +19,7 @@ const importers: EngineImporters = {
     // from the original shader and the right imports added
     //
     // Also need to show babylon compile errors in the UI
-    convertAst(ast, type) {
+    convertAst(ast, options) {
       // Babylon has no normalmatrix. They do have a normal attribute. So undo any
       // multiplication by normalMatrix?
       const seen: Record<string, boolean> = {};
@@ -31,29 +31,29 @@ const importers: EngineImporters = {
             name === 'vUv'
               ? 'vMainUV1'
               : name === 'vNormal'
-                ? 'vNormalW'
-                : name === 'projectionMatrix'
-                  ? seen[name]
-                    ? 'viewProjection'
-                    : 'hobgoblin'
-                  : name === 'modelMatrix'
-                    ? seen[name]
-                      ? 'world'
-                      : name
-                    : name === 'modelViewMatrix'
-                      ? seen[name]
-                        ? '(world * viewProjection)'
-                        : name
-                      : name === 'vPosition'
-                        ? seen[name]
-                          ? 'vPositionW'
-                          : name
-                        : name;
+              ? 'vNormalW'
+              : name === 'projectionMatrix'
+              ? seen[name]
+                ? 'viewProjection'
+                : 'hobgoblin'
+              : name === 'modelMatrix'
+              ? seen[name]
+                ? 'world'
+                : name
+              : name === 'modelViewMatrix'
+              ? seen[name]
+                ? '(world * viewProjection)'
+                : name
+              : name === 'vPosition'
+              ? seen[name]
+                ? 'vPositionW'
+                : name
+              : name;
 
           seen[name] = true;
 
           return renamed;
-        },
+        }
       );
     },
     nodeInputMap: {
