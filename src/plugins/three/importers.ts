@@ -1,24 +1,35 @@
-import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-import { generate, parser } from '@shaderfrog/glsl-parser';
 import {
   renameBindings,
   renameFunction,
 } from '@shaderfrog/glsl-parser/parser/utils';
 import { EngineImporters } from '../../engine';
 import { findMainOrThrow, makeStatement } from '../../util/ast';
-import { Program } from '@shaderfrog/glsl-parser/ast';
+import { range } from '@editor/util/math';
 
 export const defaultShadertoyVertex = `
 precision highp float;
 precision highp int;
 
+uniform mat4 modelMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 viewMatrix;
+uniform mat3 normalMatrix;
+
 attribute vec3 position;
+attribute vec3 normal;
 attribute vec2 uv;
+attribute vec2 uv2;
+
 varying vec2 vUv;
+varying vec3 vPosition;
+varying vec3 vNormal;
 
 void main() {
   vUv = uv;
-  gl_Position = vec4(position * 2.0, 1.0);
+  vPosition = position;
+  vNormal = normal;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
 
@@ -46,6 +57,13 @@ const importers: EngineImporters = {
       if (ast.scopes.some((s) => 'iMouse' in s.bindings)) {
         ast.program.unshift(makeStatement('uniform vec2 mouse')[0]);
       }
+      range(0, 9).forEach((i) => {
+        if (ast.scopes.some((s) => `iChannel${i}` in s.bindings)) {
+          ast.program.unshift(
+            makeStatement(`uniform sampler2D iChannel${i}`)[0]
+          );
+        }
+      });
 
       ast.program.unshift(makeStatement('precision highp int', '\n')[0]);
       ast.program.unshift(makeStatement('precision highp float')[0]);
