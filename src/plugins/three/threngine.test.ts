@@ -157,7 +157,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ){
 `;
 
   const p = parser.parse(testImport);
-  importers.shadertoy.convertAst(p, 'fragment');
+  importers.shadertoy.convertAst(p, { type: 'fragment' });
   expect(generate(p)).toContain(`
 precision highp float;
 precision highp int;
