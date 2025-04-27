@@ -1,7 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { parser } from '@shaderfrog/glsl-parser';
-import { generate } from '@shaderfrog/glsl-parser';
+import { parse, generate } from '@shaderfrog/glsl-parser';
 
 import { addFnStmtWithIndent } from './whitespace';
 import { findMainOrThrow } from './ast';
@@ -11,7 +10,7 @@ it(`addFnStmtWithIndent`, () => {
   vec2 y;
 }
 `;
-  const ast = parser.parse(source, { quiet: true });
+  const ast = parse(source, { quiet: true });
   const m = findMainOrThrow(ast);
   m.body.statements = addFnStmtWithIndent(m, `return x`);
 

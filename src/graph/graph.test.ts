@@ -2,8 +2,7 @@ import { expect, describe, it } from 'vitest';
 
 import util from 'util';
 
-import { parser } from '@shaderfrog/glsl-parser';
-import { generate } from '@shaderfrog/glsl-parser';
+import { generate, parse } from '@shaderfrog/glsl-parser';
 
 import { Graph, ShaderStage } from './graph-types';
 import { addNode, outputNode, sourceNode } from './graph-node';
@@ -39,16 +38,16 @@ const mergeBlocks = (ast1: Program, ast2: Program): string => {
     shaderSectionsToProgram(merged, {
       includePrecisions: true,
       includeVersion: true,
-    })
+    }),
   );
 };
 
 const dedupe = (code: string) =>
   generate(
-    shaderSectionsToProgram(findShaderSections('', parser.parse(code)), {
+    shaderSectionsToProgram(findShaderSections('', parse(code)), {
       includePrecisions: true,
       includeVersion: true,
-    })
+    }),
   );
 
 const p = { x: 0, y: 0 };
@@ -97,7 +96,7 @@ const makeSourceNode = (
   id: string,
   source: string,
   stage: ShaderStage,
-  strategies = [texture2DStrategy()]
+  strategies = [texture2DStrategy()],
 ) =>
   sourceNode(
     id,
@@ -110,7 +109,7 @@ const makeSourceNode = (
       uniforms: [],
     },
     source,
-    stage
+    stage,
   );
 
 it('compileSource() fragment produces inlined output without', async () => {
@@ -126,7 +125,7 @@ void main() {
   gl_FragColor = vec4(col1 + col2, 1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
   const input1 = makeSourceNode(
     makeId(),
@@ -135,7 +134,7 @@ void main() {
   gl_FragColor = vec4(0.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
   const input2 = makeSourceNode(
     makeId(),
@@ -144,7 +143,7 @@ void main() {
   gl_FragColor = vec4(1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   const graph: Graph = {
@@ -156,7 +155,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment'
+        'fragment',
       ),
       makeEdge(
         makeId(),
@@ -164,7 +163,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image1',
-        'fragment'
+        'fragment',
       ),
       makeEdge(
         makeId(),
@@ -172,7 +171,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image2',
-        'fragment'
+        'fragment',
       ),
     ],
   };
@@ -217,7 +216,7 @@ void main() {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex'
+    'vertex',
   );
 
   const graph: Graph = {
@@ -229,7 +228,7 @@ void main() {
         outV.id,
         'out',
         'filler_gl_Position',
-        'vertex'
+        'vertex',
       ),
     ],
   };
@@ -267,7 +266,7 @@ void main() {
   gl_FragColor = vec4(col1 + col2, 1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   imageReplacemMe.backfillers = {
@@ -286,7 +285,7 @@ void main() {
   gl_FragColor = vec4(vUv, 1.0, 1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   const graph: Graph = {
@@ -298,7 +297,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment'
+        'fragment',
       ),
       makeEdge(
         makeId(),
@@ -306,7 +305,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image1',
-        'fragment'
+        'fragment',
       ),
     ],
   };
@@ -358,7 +357,7 @@ void main() {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex'
+    'vertex',
   );
 
   const frag = makeSourceNode(
@@ -368,7 +367,7 @@ void main() {
   gl_FragColor = vec4(vUv, 0.0, 1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   const graph: Graph = {
@@ -380,7 +379,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment'
+        'fragment',
       ),
       linkFromVertToFrag(makeId(), vert.id, frag.id),
     ],
@@ -418,7 +417,7 @@ void main() {
   gl_FragColor = vec4(col1, 1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   // Inine an expression source node
@@ -434,7 +433,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment'
+        'fragment',
       ),
       makeEdge(
         makeId(),
@@ -442,7 +441,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image1',
-        'fragment'
+        'fragment',
       ),
     ],
   };
@@ -476,7 +475,7 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   // Inine an expression source node
@@ -495,7 +494,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment'
+        'fragment',
       ),
     ],
   };
@@ -527,7 +526,7 @@ void main() {
   gl_FragColor = vec4(1.0);
 }
 `,
-    'fragment'
+    'fragment',
   );
 
   const graph: Graph = {
@@ -539,7 +538,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment'
+        'fragment',
       ),
     ],
   };
@@ -585,27 +584,27 @@ describe('evaluateNode()', () => {
 });
 
 it('should merge uniforms with interface blocks', () => {
-  let astX = parser.parse(`uniform vec2 x;`);
-  let astY = parser.parse(`uniform vec2 y, z;
+  let astX = parse(`uniform vec2 x;`);
+  let astY = parse(`uniform vec2 y, z;
 uniform vec3 a;`);
   expect(mergeBlocks(astX, astY)).toEqual(`uniform vec2 x, y, z;
 uniform vec3 a;
 `);
 
-  const astL01 = parser.parse(`uniform Light0 { vec4 y; } x;`, { quiet: true });
-  const astL02 = parser.parse(`uniform Light0 { vec4 y; } x;`, { quiet: true });
+  const astL01 = parse(`uniform Light0 { vec4 y; } x;`, { quiet: true });
+  const astL02 = parse(`uniform Light0 { vec4 y; } x;`, { quiet: true });
   expect(mergeBlocks(astL01, astL02)).toEqual(`uniform Light0 { vec4 y; } x;
 `);
 
-  const astL001 = parser.parse(`uniform Light0 { vec4 y; } x;`, {
+  const astL001 = parse(`uniform Light0 { vec4 y; } x;`, {
     quiet: true,
   });
-  const astL002 = parser.parse(`uniform Light0 x;`, { quiet: true });
+  const astL002 = parse(`uniform Light0 x;`, { quiet: true });
   expect(mergeBlocks(astL001, astL002)).toEqual(`uniform Light0 { vec4 y; } x;
 `);
 
-  const astLo01 = parser.parse(`uniform Light0 x;`, { quiet: true });
-  const astLo02 = parser.parse(`uniform Light0 { vec4 y; } x;`, {
+  const astLo01 = parse(`uniform Light0 x;`, { quiet: true });
+  const astLo02 = parse(`uniform Light0 { vec4 y; } x;`, {
     quiet: true,
   });
   expect(mergeBlocks(astLo01, astLo02)).toEqual(`uniform Light0 { vec4 y; } x;
@@ -613,35 +612,33 @@ uniform vec3 a;
 
   // This may be a bug, look at how the uniforms are merged. I at least want to
   // note its current behavior in this test
-  const vec2Arr1 = parser.parse(`uniform vec2 y[5];`);
-  const vec2Arr2 = parser.parse(`uniform vec2 y[10];`);
+  const vec2Arr1 = parse(`uniform vec2 y[5];`);
+  const vec2Arr2 = parse(`uniform vec2 y[10];`);
   expect(mergeBlocks(vec2Arr1, vec2Arr2)).toEqual(`uniform vec2 y[10];
 `);
 
-  const block1 = parser.parse(`uniform Scene { mat4 view; };`);
-  const block2 = parser.parse(`uniform Scene { mat4 view; };`);
+  const block1 = parse(`uniform Scene { mat4 view; };`);
+  const block2 = parse(`uniform Scene { mat4 view; };`);
   expect(mergeBlocks(block1, block2)).toEqual(`uniform Scene { mat4 view; };
 `);
 
   // Verify these lines are preserved (they go through dedupeUniforms)
   expect(dedupe(`layout(std140,column_major) uniform;`)).toEqual(
-    `layout(std140,column_major) uniform;`
+    `layout(std140,column_major) uniform;`,
   );
 });
 
 it('filterUniformNames', () => {
-  const stmts = parser
-    .parse(
-      `uniform vec4 x,y;
+  const stmts = parse(
+    `uniform vec4 x,y;
 uniform vec2 x, y[5];
 uniform Light0 { vec4 y; } x;
 uniform Light0 { vec4 x; } y;
-`
-    )
-    .program.filter((s) => s.type === 'declaration_statement');
+`,
+  ).program.filter((s) => s.type === 'declaration_statement');
   const filtered = filterUniformNames(
     stmts.map((x) => ({ nodeId: '', source: x })),
-    (name) => name !== 'x'
+    (name) => name !== 'x',
   );
 
   expect(generate(extractSource(filtered))).toEqual(`uniform vec4 y;
@@ -651,16 +648,14 @@ uniform Light0 { vec4 x; } y;
 });
 
 it('filterQualifiedStatements', () => {
-  const stmts = parser
-    .parse(
-      `in vec2 x, y;
+  const stmts = parse(
+    `in vec2 x, y;
 out vec2 x;
-`
-    )
-    .program.filter((s) => s.type === 'declaration_statement');
+`,
+  ).program.filter((s) => s.type === 'declaration_statement');
   const filtered = filterQualifiedStatements(
     stmts.map((x) => ({ nodeId: '', source: x })),
-    (name) => name !== 'x'
+    (name) => name !== 'x',
   );
 
   expect(generate(extractSource(filtered))).toEqual(`in vec2 y;

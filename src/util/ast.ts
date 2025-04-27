@@ -2,7 +2,7 @@
  * Utility functions to work with ASTs
  */
 
-import { parser, generate } from '@shaderfrog/glsl-parser';
+import { parse, generate } from '@shaderfrog/glsl-parser';
 import {
   visit,
   AstNode,
@@ -64,7 +64,7 @@ export const findVec4Constructor = (ast: AstNode): AstNode | undefined => {
 export const findAssignmentTo = (
   ast: AstNode | Program,
   assignTo: string,
-  nth = 1
+  nth = 1,
 ) => {
   let assign: ExpressionStatementNode | DeclarationNode | undefined;
   let foundth = 0;
@@ -89,7 +89,7 @@ export const findAssignmentTo = (
         const foundDecl = (
           path.node.declaration as DeclaratorListNode
         )?.declarations?.find(
-          (decl) => decl?.identifier?.identifier === assignTo
+          (decl) => decl?.identifier?.identifier === assignTo,
         );
         if (foundDecl?.initializer) {
           foundth++;
@@ -108,7 +108,7 @@ export const findAssignmentTo = (
 
 export const findDeclarationOf = (
   ast: AstNode | Program,
-  declarationOf: string
+  declarationOf: string,
 ): DeclarationNode | undefined => {
   let declaration: DeclarationNode | undefined;
   const visitors: NodeVisitors = {
@@ -117,7 +117,7 @@ export const findDeclarationOf = (
         const foundDecl = (
           path.node.declaration as DeclaratorListNode
         )?.declarations?.find(
-          (decl) => decl?.identifier?.identifier === declarationOf
+          (decl) => decl?.identifier?.identifier === declarationOf,
         );
         if (foundDecl) {
           declaration = foundDecl;
@@ -183,10 +183,10 @@ export const makeStatement = (stmt: string, ws = '') => {
   // log(`Parsing "${stmt}"`);
   let ast: Program;
   try {
-    ast = parser.parse(
+    ast = parse(
       `${stmt};${ws}
 `,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ stmt, error });
@@ -200,7 +200,7 @@ export const makeFnStatement = (fnStmt: string) => {
   let ast: FrogProgram;
   try {
     // Create a statement with no trailing nor leading whitespace
-    ast = parser.parse(`void main() {${fnStmt};}`, { quiet: true });
+    ast = parse(`void main() {${fnStmt};}`, { quiet: true });
   } catch (error: any) {
     console.error({ fnStmt, error });
     throw new Error(`Error parsing fnStmt "${fnStmt}": ${error?.message}`);
@@ -235,11 +235,11 @@ export const addNewScope = (left: Scope, right: Scope): Scope => ({
 export const makeExpression = (expr: string): AstNode => {
   let ast: Program;
   try {
-    ast = parser.parse(
+    ast = parse(
       `void main() {
           a = ${expr};
         }`,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ expr, error });
@@ -255,18 +255,18 @@ export const makeExpression = (expr: string): AstNode => {
 };
 
 export const makeExpressionWithScopes = (
-  expr: string
+  expr: string,
 ): {
   scope: Scope;
   expression: AstNode;
 } => {
   let ast: Program;
   try {
-    ast = parser.parse(
+    ast = parse(
       `void main() {
           ${expr};
         }`,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ expr, error });
@@ -284,18 +284,18 @@ export const makeExpressionWithScopes = (
 };
 
 export const makeFnBodyStatementWithScopes = (
-  body: string
+  body: string,
 ): {
   scope: Scope;
   statements: AstNode[];
 } => {
   let ast: Program;
   try {
-    ast = parser.parse(
+    ast = parse(
       `void main() {
 ${body}
         }`,
-      { quiet: true }
+      { quiet: true },
     );
   } catch (error: any) {
     console.error({ body, error });
@@ -315,7 +315,7 @@ export const findFn =
     ast.program.find(
       (stmt): stmt is FunctionNode =>
         stmt.type === 'function' &&
-        stmt.prototype.header.name.identifier === name
+        stmt.prototype.header.name.identifier === name,
     );
 
 export const findMain = findFn('main');
@@ -333,17 +333,17 @@ export const returnGlPosition = (fnName: string, ast: Program): void =>
     fnName,
     ast,
     'vec4',
-    (assign) => (assign.expression as AssignmentNode).right
+    (assign) => (assign.expression as AssignmentNode).right,
   );
 
 export const returnGlPositionHardCoded = (
   fnName: string,
   ast: Program,
   returnType: string,
-  hardCodedReturn: string
+  hardCodedReturn: string,
 ): void =>
   convertVertexMain(fnName, ast, returnType, () =>
-    makeExpression(hardCodedReturn)
+    makeExpression(hardCodedReturn),
   );
 
 export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
@@ -366,7 +366,7 @@ export const returnGlPositionVec3Right = (fnName: string, ast: Program): void =>
     if (!found) {
       console.error(generate(ast));
       throw new Error(
-        'Could not find position assignment to convert to return!'
+        'Could not find position assignment to convert to return!',
       );
     }
     return found;
@@ -378,7 +378,7 @@ const convertVertexMain = (
   fnName: string,
   ast: Program,
   returnType: string,
-  generateRight: (positionAssign: ExpressionStatementNode) => AstNode
+  generateRight: (positionAssign: ExpressionStatementNode) => AstNode,
 ) => {
   const mainReturnVar = `frogOut`;
 
@@ -396,14 +396,14 @@ const convertVertexMain = (
     (stmt: AstNode): stmt is ExpressionStatementNode =>
       stmt.type === 'expression_statement' &&
       ((stmt.expression as AssignmentNode).left as IdentifierNode)
-        ?.identifier === 'gl_Position'
+        ?.identifier === 'gl_Position',
   );
   if (!assign) {
     throw new Error(`No gl position assign found in main fn!`);
   }
 
   const rtnStmt = makeFnStatement(
-    `${returnType} ${mainReturnVar} = 1.0`
+    `${returnType} ${mainReturnVar} = 1.0`,
   )[0] as DeclarationStatementNode;
   (rtnStmt.declaration as DeclaratorListNode).declarations[0].initializer =
     generateRight(assign);
@@ -432,7 +432,7 @@ export const convert300MainToReturn = (ast: FrogProgram): void => {
     if (
       // line.type === 'declaration_statement' &&
       declaration?.specified_type?.qualifiers?.find(
-        (n) => (n as KeywordNode).token === 'out'
+        (n) => (n as KeywordNode).token === 'out',
       ) &&
       (declaration.specified_type.specifier.specifier as KeywordNode).token ===
         'vec4'
@@ -457,25 +457,25 @@ export const convert300MainToReturn = (ast: FrogProgram): void => {
   // all references to our new variable
   ast.scopes[0].bindings[replacedReturn] = renameBinding(
     ast.scopes[0].bindings[outName],
-    replacedReturn
+    replacedReturn,
   );
   delete ast.scopes[0].bindings[outName];
 
   // Add the declaration of the return variable to the top of the program, and
   // add it to the AST scope, including the declaration
   const decl = makeStatement(
-    `vec4 ${replacedReturn}`
+    `vec4 ${replacedReturn}`,
   )[0] as DeclarationStatementNode;
   ast.program.unshift(decl);
   ast.scopes[0].bindings[replacedReturn].declaration = decl;
   ast.scopes[0].bindings[replacedReturn].references.push(
-    (decl.declaration as DeclaratorListNode).declarations[0]
+    (decl.declaration as DeclaratorListNode).declarations[0],
   );
 
   // Add a return statement to the main() function and add the return variable
   // to scope
   const rtn = makeFnStatement(
-    `return ${replacedReturn}`
+    `return ${replacedReturn}`,
   )[0] as ReturnStatementNode;
   main.body.statements = addFnStmtWithIndent(main, rtn);
   ast.scopes[0].bindings[replacedReturn].references.push(rtn.expression);
@@ -489,7 +489,7 @@ export const generateFiller = (ast: AstNode | AstNode[] | void) => {
 };
 
 export const isDeclarationStatement = (
-  node: Program['program'][0]
+  node: Program['program'][0],
 ): node is DeclarationStatementNode =>
   node.type === 'declaration_statement' &&
   node.declaration.type === 'declarator_list';
@@ -498,13 +498,13 @@ export const backfillAst = (
   ast: Program,
   fromType: string,
   targetVariable: string,
-  mainFn?: FunctionNode
+  mainFn?: FunctionNode,
 ) => {
   if (!ast.scopes[0].bindings[targetVariable]) {
     console.warn(
       `Variable "${targetVariable}" not found in global program scope to backfill! Variables: ${Object.keys(
-        ast.scopes[0].bindings
-      )}`
+        ast.scopes[0].bindings,
+      )}`,
     );
   }
 
@@ -513,13 +513,13 @@ export const backfillAst = (
     mainFn.prototype.parameters = (mainFn.prototype.parameters || [])
       .filter(
         // Watch out for the main(void){} case!
-        (arg) => (arg.specifier.specifier as KeywordNode).token !== 'void'
+        (arg) => (arg.specifier.specifier as KeywordNode).token !== 'void',
       )
       .concat(
         (
-          parser.parse(`void x(${fromType} ${targetVariable}) {}`)
+          parse(`void x(${fromType} ${targetVariable}) {}`)
             .program[0] as FunctionNode
-        ).prototype.parameters
+        ).prototype.parameters,
       );
   }
 

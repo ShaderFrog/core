@@ -12,7 +12,7 @@ import { threngine } from './threngine';
 import { makeId } from '../../util/id';
 import { fail } from '../../test-util';
 import importers from './importers';
-import { generate, parser } from '@shaderfrog/glsl-parser';
+import { generate, parse } from '@shaderfrog/glsl-parser';
 
 const p = { x: 0, y: 0 };
 
@@ -156,7 +156,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ){
 }
 `;
 
-  const p = parser.parse(testImport);
+  const p = parse(testImport);
   importers.shadertoy.convertAst(p, { type: 'fragment' });
   expect(generate(p)).toContain(`
 precision highp float;

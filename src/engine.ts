@@ -1,7 +1,7 @@
 import { Program } from '@shaderfrog/glsl-parser/ast';
 import { MergeOptions } from './graph/shader-sections';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
-import { generate, parser } from '@shaderfrog/glsl-parser';
+import { generate, parse } from '@shaderfrog/glsl-parser';
 import { Graph, ShaderStage, GraphNode, NodeType } from './graph/graph-types';
 import { NodeInput, NodePosition } from './graph/base-node';
 import { DataNode, UniformDataType } from './graph/data-nodes';
@@ -31,7 +31,7 @@ export type PhongNodeConstructor = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ) => CodeNode;
 
 export type PhysicalNodeConstructor = (
@@ -39,7 +39,7 @@ export type PhysicalNodeConstructor = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ) => CodeNode;
 
 export type ToonNodeConstructor = (
@@ -47,7 +47,7 @@ export type ToonNodeConstructor = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ) => CodeNode;
 
 export interface Engine {
@@ -101,7 +101,7 @@ export type EngineContext<T = any> = {
 export const extendNodeContext = (
   context: EngineContext,
   nodeId: string,
-  nodeContext: Partial<NodeContext>
+  nodeContext: Partial<NodeContext>,
 ) => ({
   ...context,
   nodes: {
@@ -114,7 +114,7 @@ export const extendNodeContext = (
 });
 export const extendNodesContext = (
   context: EngineContext,
-  nodesContext: NodeContexts
+  nodesContext: NodeContexts,
 ) => ({
   ...context,
   nodes: {
@@ -128,7 +128,7 @@ export type EngineImporter = {
     ast: Program,
     options?: Record<string, unknown> & {
       type?: ShaderStage;
-    }
+    },
   ): void;
   nodeInputMap: Partial<Record<EngineNodeType, Record<string, string | null>>>;
   edgeMap: { [oldInput: string]: string };
@@ -143,7 +143,7 @@ export type EngineImporters = {
 
 export const convertNode = (
   node: SourceNode,
-  converter: EngineImporter
+  converter: EngineImporter,
 ): SourceNode => {
   log(`Converting ${node.name} (${node.id})`);
   const preprocessed = preprocess(node.source, {
@@ -153,7 +153,7 @@ export const convertNode = (
       define: () => true,
     },
   });
-  const ast = parser.parse(preprocessed, { stage: node.stage });
+  const ast = parse(preprocessed, { stage: node.stage });
   converter.convertAst(ast, { type: node.stage });
   const source = generate(ast);
 
@@ -166,12 +166,12 @@ export const convertNode = (
 export const convertToEngine = (
   oldEngine: Engine,
   newEngine: Engine,
-  graph: Graph
+  graph: Graph,
 ): Graph => {
   const converter = newEngine.importers[oldEngine.name];
   if (!converter) {
     throw new Error(
-      `The engine ${newEngine.name} has no importer for ${oldEngine.name}`
+      `The engine ${newEngine.name} has no importer for ${oldEngine.name}`,
     );
   }
 
@@ -194,12 +194,12 @@ export const convertToEngine = (
             source.name,
             source.position,
             source.config.uniforms,
-            source.stage
+            source.stage,
           );
         // Bail if no conversion
       } else {
         throw new Error(
-          `Can't convert ${oldEngine.name} to ${newEngine.name} because ${newEngine.name} does not have a "${node.type}" constructor`
+          `Can't convert ${oldEngine.name} to ${newEngine.name} because ${newEngine.name} does not have a "${node.type}" constructor`,
         );
       }
     } else if (NodeType.SOURCE === node.type) {
@@ -224,7 +224,7 @@ export const convertToEngine = (
             edge.input,
             'as there is no edge mapping in the',
             newEngine.name,
-            'importer'
+            'importer',
           );
           edgeUpdates[edge.id] = null;
         }
@@ -277,7 +277,7 @@ export type DefaultPropertySetter = (p: NodeProperty) => any;
 export const collectInitialEvaluatedGraphProperties = (
   engine: Engine,
   graph: Graph,
-  defaultPropertySetting: DefaultPropertySetter
+  defaultPropertySetting: DefaultPropertySetter,
 ) => {
   const graphProperties: Record<string, any> = {};
 
@@ -294,7 +294,7 @@ export const collectInitialEvaluatedGraphProperties = (
       // predicate search enforces
       const input = i as NodeInput & { property: string };
       const edge = graph.edges.find(
-        ({ to, input: i }) => to === node.id && i === input.id
+        ({ to, input: i }) => to === node.id && i === input.id,
       );
       // In the case where a node has been deleted from the graph,
       // dataInputs won't have been udpated until a recompile completes
@@ -306,7 +306,7 @@ export const collectInitialEvaluatedGraphProperties = (
           // Find the corresponding property on the node and get the default
           // setting
           const property = (node.config.properties || []).find(
-            (p) => p.property === input.property
+            (p) => p.property === input.property,
           );
           if (property) {
             graphProperties[input.property] = defaultPropertySetting(property);
@@ -320,7 +320,7 @@ export const collectInitialEvaluatedGraphProperties = (
             graphProperties[input.property] = evaluateNode(
               engine,
               graph,
-              fromNode
+              fromNode,
             );
           } catch (err) {
             console.error('Tried to evaluate a non-data node!', {

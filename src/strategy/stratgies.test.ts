@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { parser } from '@shaderfrog/glsl-parser';
+import { parse } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
 
 import { applyStrategy, StrategyType } from '.';
@@ -19,7 +19,7 @@ void main() {
   vec2 y = replaceThisAtrribute;
 }
 `;
-  const ast = parser.parse(source, { quiet: true });
+  const ast = parse(source, { quiet: true });
   const fillers = applyStrategy(
     {
       type: StrategyType.NAMED_ATTRIBUTE,
@@ -60,7 +60,7 @@ re(x, y, z);
 re(x, y, z);
 // Final comment
 }`;
-  const ast = parser.parse(source, { quiet: true });
+  const ast = parse(source, { quiet: true });
   const fillers = applyStrategy(
     {
       type: StrategyType.INJECT,
@@ -112,7 +112,7 @@ re(x, y, z);
 re(x, y, z);
 // Final comment
 }`;
-  const ast = parser.parse(source, { quiet: true });
+  const ast = parse(source, { quiet: true });
   const fillers = applyStrategy(
     {
       type: StrategyType.INJECT,
@@ -193,7 +193,7 @@ const engine: Engine = {
 };
 
 it('correctly fills with uniform strategy', () => {
-  const ast = parser.parse(
+  const ast = parse(
     `
 layout(std140,column_major) uniform;
 uniform sampler2D image;
@@ -254,7 +254,7 @@ void main() {
 });
 
 it('correctly fills with uniform strategy through mangling', () => {
-  const ast = parser.parse(
+  const ast = parse(
     `
 uniform sampler2D image;
 uniform vec4 input, output;
@@ -301,7 +301,7 @@ void main() {
 });
 
 it('uses name without suffix for single call', () => {
-  const ast = parser.parse(
+  const ast = parse(
     `
 void main() {
   vec4 computed = texture2D(noiseImage, uvPow * 1.0);
@@ -319,7 +319,7 @@ void main() {
 });
 
 it('finds one texture2D input for one texture2D() call', () => {
-  const ast = parser.parse(
+  const ast = parse(
     `
 void main() {
   vec4 computed = texture2D(noiseImage, uvPow * 1.0);
@@ -353,7 +353,7 @@ void getNormal() {
       version: () => true,
     },
   });
-  const ast = parser.parse(pp, { quiet: true });
+  const ast = parse(pp, { quiet: true });
   expect(
     applyStrategy(
       { type: StrategyType.TEXTURE_2D, config: {} },
