@@ -4,7 +4,7 @@ import {
 } from '@shaderfrog/glsl-parser/parser/utils';
 import { EngineImporters } from '../../engine';
 import { findMainOrThrow, makeStatement } from '../../util/ast';
-import { range } from '@editor/util/math';
+import { range } from '../../util/math';
 
 export const defaultShadertoyVertex = `
 precision highp float;
@@ -44,7 +44,7 @@ const importers: EngineImporters = {
 
       if (isScreen) {
         ast.program.unshift(
-          makeStatement('uniform vec2 renderResolution', '\n')[0]
+          makeStatement('uniform vec2 renderResolution', '\n')[0],
         );
       } else {
         ast.program.unshift(makeStatement('varying vec2 vUv', '\n')[0]);
@@ -60,7 +60,7 @@ const importers: EngineImporters = {
       range(0, 9).forEach((i) => {
         if (ast.scopes.some((s) => `iChannel${i}` in s.bindings)) {
           ast.program.unshift(
-            makeStatement(`uniform sampler2D iChannel${i}`)[0]
+            makeStatement(`uniform sampler2D iChannel${i}`)[0],
           );
         }
       });
@@ -70,7 +70,7 @@ const importers: EngineImporters = {
 
       ast.scopes[0].functions.main = renameFunction(
         ast.scopes[0].functions.mainImage,
-        'main'
+        'main',
       );
       const main = findMainOrThrow(ast);
       main.prototype.parameters = [];
@@ -107,7 +107,7 @@ const importers: EngineImporters = {
               }
             }
             return name;
-          }
+          },
         );
       }
     },
@@ -117,7 +117,7 @@ const importers: EngineImporters = {
   babylon: {
     convertAst: (ast, options) => {
       ast.scopes[0].bindings = renameBindings(ast.scopes[0].bindings, (name) =>
-        name === 'vMainUV1' ? 'vUv' : name === 'vNormalW' ? 'vNormal' : name
+        name === 'vMainUV1' ? 'vUv' : name === 'vNormalW' ? 'vNormal' : name,
       );
     },
     nodeInputMap: {},
