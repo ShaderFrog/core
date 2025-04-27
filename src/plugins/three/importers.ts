@@ -101,9 +101,9 @@ const importers: EngineImporters = {
             }
             if (name === 'fragCoord') {
               if (isUv) {
-                return 'gl_FragCoord.xy';
-              } else {
                 return 'vUv';
+              } else {
+                return 'gl_FragCoord.xy';
               }
             }
             return name;

@@ -1,5 +1,5 @@
 import groupBy from 'lodash.groupby';
-import { type GlslSyntaxError } from '@shaderfrog/glsl-parser';
+import { GlslSyntaxError } from '@shaderfrog/glsl-parser';
 
 import { AstNode, FunctionNode, Program } from '@shaderfrog/glsl-parser/ast';
 import {

@@ -34,7 +34,7 @@
     "@babel/core": "^7.21.8",
     "@babel/preset-env": "^7.21.5",
     "@babel/preset-typescript": "^7.21.5",
-    "@shaderfrog/glsl-parser": "^5.4.1",
+    "@shaderfrog/glsl-parser": "^6.0.0-beta.7",
     "@swc/core": "^1.6.7",
     "@types/lodash.groupby": "^4.6.7",
     "@types/three": "^0.169.0",
@@ -48,7 +48,7 @@
     "lodash.groupby": "^4.6.0"
   },
   "peerDependencies": {
-    "@shaderfrog/glsl-parser": "^5.0.0-beta.4",
+    "@shaderfrog/glsl-parser": "^6.0.0-beta.7",
     "babylonjs": ">=4",
     "playcanvas": "^1.65.3",
     "three": ">=0.50"
