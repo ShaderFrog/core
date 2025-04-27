@@ -162,7 +162,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ){
 precision highp float;
 precision highp int;
 
-uniform vec2 mouse;
 uniform float time;
 uniform vec2 renderResolution;
 
