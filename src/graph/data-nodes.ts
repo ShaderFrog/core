@@ -26,6 +26,26 @@ export type GraphDataType =
   | 'number'
   | ArrayType;
 
+const TypeCompatibility: Set<GraphDataType>[] = [
+  new Set(['vector4', 'rgba']),
+  new Set(['vector3', 'rgb']),
+  new Set(['texture', 'samplerCube']),
+];
+
+export const canMapType = (
+  fromType: GraphDataType | undefined,
+  toType: GraphDataType | undefined
+) => {
+  if (fromType === toType || !fromType || !toType) {
+    return true;
+  }
+  return (
+    TypeCompatibility.find((compatibility) => compatibility.has(fromType))?.has(
+      toType
+    ) || false
+  );
+};
+
 export interface NumberNode extends BaseNode {
   type: 'number';
   value: string;
@@ -118,7 +138,7 @@ export const textureNode = (
     {
       name: 'texture',
       id: '1',
-      dataType: 'vector4',
+      dataType: 'texture',
       category: 'data',
     },
   ],
@@ -151,7 +171,7 @@ export const samplerCubeNode = (
     {
       name: 'samplerCube',
       id: '1',
-      dataType: 'vector4',
+      dataType: 'samplerCube',
       category: 'data',
     },
   ],
