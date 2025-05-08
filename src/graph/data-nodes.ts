@@ -29,7 +29,10 @@ export type GraphDataType =
 const TypeCompatibility: Set<GraphDataType>[] = [
   new Set(['vector4', 'rgba']),
   new Set(['vector3', 'rgb']),
-  new Set(['texture', 'samplerCube']),
+  // Note vector4 is wrong here - you can't plug a *data* vector4 into a
+  // texture. But the output of a shader node is a *bakeable* vector4. This
+  // allows that. Needs updating to take into account data vs code
+  new Set(['texture', 'samplerCube', 'vector4']),
 ];
 
 export const canMapType = (
@@ -39,10 +42,8 @@ export const canMapType = (
   if (fromType === toType || !fromType || !toType) {
     return true;
   }
-  return (
-    TypeCompatibility.find((compatibility) => compatibility.has(fromType))?.has(
-      toType
-    ) || false
+  return TypeCompatibility.some(
+    (compatibility) => compatibility.has(fromType) && compatibility.has(toType)
   );
 };
 
