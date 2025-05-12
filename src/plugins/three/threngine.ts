@@ -117,6 +117,11 @@ export const phongNode = (
           : namedAttributeStrategy('position'),
       ],
     },
+    display: {
+      visibilities: {
+        Uniforms: 'hidden',
+      },
+    },
     inputs: [],
     outputs: [
       {
@@ -220,6 +225,11 @@ export const physicalNode = (
           ? texture2DStrategy()
           : namedAttributeStrategy('position'),
       ],
+    },
+    display: {
+      visibilities: {
+        Uniforms: 'hidden',
+      },
     },
     inputs: [],
     outputs: [
@@ -546,6 +556,11 @@ export const toonNode = (
           ? texture2DStrategy()
           : namedAttributeStrategy('position'),
       ],
+    },
+    display: {
+      visibilities: {
+        Uniforms: 'hidden',
+      },
     },
     inputs: [],
     outputs: [

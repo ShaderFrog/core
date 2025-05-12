@@ -23,7 +23,7 @@ export const nodeInput = (
   dataType: GraphDataType | undefined,
   accepts: InputCategory[],
   bakeable: boolean,
-  property?: string,
+  property?: string
 ): NodeInput => ({
   displayName,
   id,
@@ -46,6 +46,9 @@ export interface NodeOutput {
 
 export type NodePosition = { x: number; y: number };
 
+export type NodeInputSectionVisibility = 'visible' | 'hidden';
+export type NodeInputSection = 'Properties' | 'Uniforms' | 'Code';
+
 export interface BaseNode {
   id: string;
   parentId?: string;
@@ -54,4 +57,7 @@ export interface BaseNode {
   inputs: NodeInput[];
   outputs: NodeOutput[];
   position: NodePosition;
+  display?: {
+    visibilities: Partial<Record<NodeInputSection, NodeInputSectionVisibility>>;
+  };
 }
