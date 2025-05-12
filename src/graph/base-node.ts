@@ -48,6 +48,9 @@ export type NodePosition = { x: number; y: number };
 
 export type NodeInputSectionVisibility = 'visible' | 'hidden';
 export type NodeInputSection = 'Properties' | 'Uniforms' | 'Code';
+export type NodeDisplay = {
+  visibilities: Partial<Record<NodeInputSection, NodeInputSectionVisibility>>;
+};
 
 export interface BaseNode {
   id: string;
@@ -57,7 +60,5 @@ export interface BaseNode {
   inputs: NodeInput[];
   outputs: NodeOutput[];
   position: NodePosition;
-  display?: {
-    visibilities: Partial<Record<NodeInputSection, NodeInputSectionVisibility>>;
-  };
+  display?: NodeDisplay;
 }
