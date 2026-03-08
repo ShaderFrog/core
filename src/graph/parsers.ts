@@ -1,4 +1,4 @@
-import { generate, parse } from '@shaderfrog/glsl-parser';
+import { parse } from '@shaderfrog/glsl-parser';
 
 import {
   visit,
@@ -11,7 +11,6 @@ import { Engine, EngineContext } from '../engine';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import {
   convert300MainToReturn,
-  findMain,
   findMainOrThrow,
   from2To3,
   makeExpression,
