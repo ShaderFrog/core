@@ -3,6 +3,7 @@ import { expect, describe, it } from 'vitest';
 import util from 'util';
 
 import { generate, parse } from '@shaderfrog/glsl-parser';
+import { Program } from '@shaderfrog/glsl-parser/ast';
 
 import { Graph, ShaderStage } from './graph-types';
 import { addNode, outputNode, sourceNode } from './graph-node';
@@ -15,7 +16,6 @@ import {
   filterUniformNames,
   filterQualifiedStatements,
 } from './shader-sections';
-import { Program } from '@shaderfrog/glsl-parser/ast';
 import { numberNode } from './data-nodes';
 import { linkFromVertToFrag, makeEdge } from './edge';
 import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
