@@ -240,6 +240,7 @@ export interface Vector2Node extends BaseNode {
   value: Vector2;
   range?: [string, string, string, string];
   stepper?: string | number;
+  locked?: boolean;
 }
 export interface Vector3Node extends BaseNode {
   type: 'vector3';
@@ -257,7 +258,7 @@ export function vectorNode(
   name: string,
   position: NodePosition,
   value: Vector2 | Vector3 | Vector4,
-  options?: { stepper?: string | number },
+  options?: { stepper?: string | number; locked?: boolean },
 ): Vector2Node | Vector3Node | Vector4Node {
   const dataType: GraphDataType =
     value.length === 2 ? 'vector2' : value.length === 3 ? 'vector3' : 'vector4';
@@ -282,6 +283,7 @@ export function vectorNode(
       dimensions: 2 as const,
       type: 'vector2' as const,
       stepper: options?.stepper,
+      locked: options?.locked,
     };
   } else if (value.length === 3) {
     return { ...base, value: value as Vector3, dimensions: 3 as const, type: 'vector3' as const };
@@ -307,7 +309,7 @@ export const arrayUniformData = (
 
 export type Vector2DataUniform = Pick<
   Vector2Node,
-  'type' | 'value' | 'name' | 'dimensions' | 'stepper'
+  'type' | 'value' | 'name' | 'dimensions' | 'stepper' | 'locked'
 >;
 export type Vector3DataUniform = Pick<
   Vector3Node,
@@ -321,11 +323,11 @@ export type Vector4DataUniform = Pick<
 export const vectorUniformData = (
   name: string,
   value: Vector2 | Vector3 | Vector4,
-  options?: { stepper?: string | number },
+  options?: { stepper?: string | number; locked?: boolean },
 ): Vector2DataUniform | Vector3DataUniform | Vector4DataUniform => ({
   name,
   ...(value.length === 2
-    ? { value, dimensions: 2, type: 'vector2', stepper: options?.stepper }
+    ? { value, dimensions: 2, type: 'vector2', stepper: options?.stepper, locked: options?.locked }
     : value.length === 3
       ? { value, dimensions: 3, type: 'vector3' }
       : { value, dimensions: 4, type: 'vector4' }),
