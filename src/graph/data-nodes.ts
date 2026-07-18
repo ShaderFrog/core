@@ -239,6 +239,7 @@ export interface Vector2Node extends BaseNode {
   dimensions: 2;
   value: Vector2;
   range?: [string, string, string, string];
+  stepper?: string | number;
 }
 export interface Vector3Node extends BaseNode {
   type: 'vector3';
@@ -256,10 +257,11 @@ export function vectorNode(
   name: string,
   position: NodePosition,
   value: Vector2 | Vector3 | Vector4,
+  options?: { stepper?: string | number },
 ): Vector2Node | Vector3Node | Vector4Node {
-  const dataType =
+  const dataType: GraphDataType =
     value.length === 2 ? 'vector2' : value.length === 3 ? 'vector3' : 'vector4';
-  return {
+  const base = {
     id,
     name,
     position,
@@ -268,17 +270,24 @@ export function vectorNode(
       {
         name: `vector${value.length}`,
         id: '1',
-        category: 'data',
+        category: 'data' as const,
         dataType,
       },
     ],
-    // Have to specify dimensions and type together to avoid type errors!
-    ...(value.length === 2
-      ? { value, dimensions: 2, type: 'vector2' }
-      : value.length === 3
-        ? { value, dimensions: 3, type: 'vector3' }
-        : { value, dimensions: 4, type: 'vector4' }),
   };
+  if (value.length === 2) {
+    return {
+      ...base,
+      value: value as Vector2,
+      dimensions: 2 as const,
+      type: 'vector2' as const,
+      stepper: options?.stepper,
+    };
+  } else if (value.length === 3) {
+    return { ...base, value: value as Vector3, dimensions: 3 as const, type: 'vector3' as const };
+  } else {
+    return { ...base, value: value as Vector4, dimensions: 4 as const, type: 'vector4' as const };
+  }
 }
 
 export type ArrayDataUniform = Pick<
@@ -298,7 +307,7 @@ export const arrayUniformData = (
 
 export type Vector2DataUniform = Pick<
   Vector2Node,
-  'type' | 'value' | 'name' | 'dimensions'
+  'type' | 'value' | 'name' | 'dimensions' | 'stepper'
 >;
 export type Vector3DataUniform = Pick<
   Vector3Node,
@@ -312,10 +321,11 @@ export type Vector4DataUniform = Pick<
 export const vectorUniformData = (
   name: string,
   value: Vector2 | Vector3 | Vector4,
+  options?: { stepper?: string | number },
 ): Vector2DataUniform | Vector3DataUniform | Vector4DataUniform => ({
   name,
   ...(value.length === 2
-    ? { value, dimensions: 2, type: 'vector2' }
+    ? { value, dimensions: 2, type: 'vector2', stepper: options?.stepper }
     : value.length === 3
       ? { value, dimensions: 3, type: 'vector3' }
       : { value, dimensions: 4, type: 'vector4' }),
