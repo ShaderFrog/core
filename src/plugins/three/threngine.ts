@@ -16,12 +16,22 @@ import {
   PerspectiveCamera,
 } from 'three';
 import { Program } from '@shaderfrog/glsl-parser/ast';
-import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
-import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
+import { Graph, NodeType, ShaderStage, MAGIC_OUTPUT_STMTS } from '../../graph/graph-types';
+import { prepopulatePropertyInputs, mangleMainFn, nodeName, isDataNode } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
 import { doesLinkThruShader, CompileResult } from '../../graph/graph';
+import {
+  filterSections,
+  filterQualifiedStatements,
+  filterUniformNames,
+  LineAndSource,
+  ShaderSections,
+  shaderSectionsToProgram,
+} from '../../graph/shader-sections';
+import { generate } from '@shaderfrog/glsl-parser';
+import { FrogMaterial } from './FrogMaterial';
 import {
   returnGlPosition,
   returnGlPositionHardCoded,
@@ -811,4 +821,134 @@ export const createMaterial = (
   });
 
   return material;
+};
+
+export const engineNodeTypeToConstructor = (type: string) => {
+  if (type === EngineNodeType.physical) return MeshPhysicalMaterial;
+  if (type === EngineNodeType.phong) return MeshPhongMaterial;
+  if (type === EngineNodeType.toon) return MeshToonMaterial;
+  return null;
+};
+
+const frogMergeOptions = { includePrecisions: false, includeVersion: false };
+
+// Varyings that Three.js unconditionally declares (or declares when features are
+// forced via dummy textures below). User declarations of these names would
+// redefine Three's, so strip them. `vPosition` and other user-coined names are
+// NOT in this set — they're in threngine.preserve to prevent mangling, but
+// Three doesn't declare them.
+const THREE_PROVIDED_VARYINGS = new Set(['vNormal', 'vViewPosition', 'vUv', 'vUv2']);
+
+// Strip declarations that Three.js already provides so injected GLSL doesn't
+// redefine them.
+// Vertex `in` (attributes): Three always provides all of them — strip everything.
+// Fragment `in` (varyings from vertex): only strip Three-provided ones, keep
+//   user-defined custom varyings like vPosition, worldPos_*, etc.
+// Both `out` and `uniform`: strip only the Three-provided ones.
+const stripThreeDeclarations = (
+  sections: ShaderSections,
+  stage: 'vertex' | 'fragment'
+): ShaderSections => {
+  const notProvidedByThree = (name: string) => !THREE_PROVIDED_VARYINGS.has(name);
+  const notPreserved = (name: string) => !threngine.preserve.has(name);
+  return {
+    ...sections,
+    inStatements:
+      stage === 'vertex'
+        ? []
+        : filterQualifiedStatements(sections.inStatements, notProvidedByThree),
+    outStatements: filterQualifiedStatements(sections.outStatements, notProvidedByThree),
+    uniforms: filterUniformNames(sections.uniforms, notPreserved),
+  };
+};
+
+export const createFrogMaterialResult = (
+  compileResult: CompileResult,
+  ctx: EngineContext,
+  graph: Graph
+) => {
+  const { compileResult: graphResult } = compileResult;
+  const { engineNodeIds, filledProperties } = graphResult;
+
+  const engineNode = graph.nodes.find(
+    (n) => (n as CodeNode).engine && engineNodeIds.has(n.id)
+  ) as CodeNode | undefined;
+
+  const BaseMaterial = engineNode
+    ? engineNodeTypeToConstructor(engineNode.type)
+    : null;
+
+  if (!BaseMaterial) {
+    return createMaterial(compileResult, ctx);
+  }
+
+  // Filter out engine node and output node sections — their GLSL comes from
+  // Three.js and the output wrapper, neither of which should be injected
+  const skipIds = new Set([
+    ...Array.from(engineNodeIds),
+    graphResult.outputFrag.id,
+    graphResult.outputVert.id,
+  ]);
+  const noSkip = (s: LineAndSource) => !skipIds.has(s.nodeId);
+
+  const fragmentShader = generate(
+    shaderSectionsToProgram(
+      stripThreeDeclarations(filterSections(noSkip, graphResult.fragment), 'fragment'),
+      frogMergeOptions
+    ).program
+  );
+  const vertexShader = generate(
+    shaderSectionsToProgram(
+      stripThreeDeclarations(filterSections(noSkip, graphResult.vertex), 'vertex'),
+      frogMergeOptions
+    ).program
+  );
+
+  // Find the node connected to each output node's primary input
+  const fragEdge = graph.edges.find(
+    (e) =>
+      e.to === graphResult.outputFrag.id &&
+      e.input !== `filler_${MAGIC_OUTPUT_STMTS}`
+  );
+  const vertEdge = graph.edges.find(
+    (e) =>
+      e.to === graphResult.outputVert.id &&
+      e.input !== `filler_${MAGIC_OUTPUT_STMTS}`
+  );
+
+  const fragFromNode = fragEdge && graph.nodes.find((n) => n.id === fragEdge.from);
+  const vertFromNode = vertEdge && graph.nodes.find((n) => n.id === vertEdge.from);
+
+  const fragmentOutput = fragFromNode
+    ? nodeName(fragFromNode) + '()'
+    : 'vec4(1.0)';
+  const vertexOutput = vertFromNode
+    ? `gl_Position = ${nodeName(vertFromNode)}();`
+    : 'gl_Position = vec4(1.0);';
+
+  const uniforms: Record<string, { value: any }> = {
+    time: { value: 0 },
+    cameraPosition: { value: new Vector3(1.0) },
+    renderResolution: { value: new Vector2(1.0) },
+  };
+
+  const mat = new FrogMaterial({
+    baseMaterial: BaseMaterial as any,
+    fragmentShader,
+    fragmentOutput,
+    vertexShader,
+    vertexOutput,
+    uniforms,
+    ...(filledProperties as any),
+  });
+
+  // Force USE_UV / USE_UV2 defines so Three's vertex pars declare vUv, uv,
+  // vUv2, uv2. User shaders commonly assign these varyings; dummy textures
+  // are unreliable because Three checks texture.image before setting the define.
+  const m = mat as any;
+  m.defines = m.defines ?? {};
+  m.defines.USE_UV = '';
+  m.defines.USE_UV2 = '';
+
+  return mat;
 };

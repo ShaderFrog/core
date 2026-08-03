@@ -590,8 +590,16 @@ export const compileNode = (
             );
           });
         }
+        if (window.xx) {
+          console.log('hi', { fillerName, input });
+          debugger;
+        }
         nodeContext.ast = filler.filler(fillerFn);
       } else {
+        if (window.xx) {
+          console.log('hi', { fillerName, input });
+          debugger;
+        }
         // Don't backfill by discarding the backfiller args
         nodeContext.ast = filler.filler(() => fillerFn());
       }
@@ -622,6 +630,8 @@ export type CompileGraphResult = {
   outputVert: GraphNode;
   orphanNodes: GraphNode[];
   activeNodeIds: Set<string>;
+  engineNodeIds: Set<string>;
+  filledProperties: Record<string, string>;
 };
 
 export const compileGraph = (
@@ -679,19 +689,46 @@ export const compileGraph = (
     outputVert
   );
 
-  // Every compileNode returns the AST so far, as well as the filler for the
-  // next node with inputs. On the final step, we discard the filler
+  const allCompiledIds = [
+    ...Object.keys(vertexIds),
+    ...Object.keys(fragmentIds),
+    ...orphanNodes.map((node) => node.id),
+  ];
+
+  const engineNodeIds = new Set<string>(
+    allCompiledIds.filter((id) => {
+      const node = graph.nodes.find((n) => n.id === id);
+      return node && (node as CodeNode).engine;
+    })
+  );
+
+  // For each engine node, capture property inputs filled by code nodes as GLSL expressions
+  const filledProperties: Record<string, string> = {};
+  graph.nodes
+    .filter((node) => engineNodeIds.has(node.id))
+    .forEach((node) => {
+      graph.edges
+        .filter((edge) => edge.to === node.id)
+        .forEach((edge) => {
+          const input = node.inputs.find((i) => i.id === edge.input);
+          if (input?.property) {
+            const fromNode = graph.nodes.find((n) => n.id === edge.from);
+            if (fromNode && !isDataNode(fromNode)) {
+              filledProperties[input.property] = nodeName(fromNode) + '()';
+            }
+          }
+        });
+    });
+
   return {
     fragment,
     vertex,
     outputFrag,
     outputVert,
     orphanNodes,
-    activeNodeIds: new Set<string>([
-      ...Object.keys(vertexIds),
-      ...Object.keys(fragmentIds),
-      ...orphanNodes.map((node) => node.id),
-    ]),
+    activeNodeIds: new Set<string>(allCompiledIds),
+    engineNodeIds,
+    filledProperties,
   };
 };
 
