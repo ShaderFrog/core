@@ -218,7 +218,8 @@ function _create<C extends MaterialConstructor>({
     shader.fragmentShader =
       shader.fragmentShader.replace(
         'void main() {',
-        fragmentShader +
+        'vec4 main_MeshPhysicalMaterial();\n' +
+          fragmentShader +
           '\n\nvec4 main_MeshPhysicalMaterial() {\n    vec4 fragColor = vec4(0.0);'
       ) + `\n\nvoid main() { gl_FragColor = ${fragmentOutput}; }`;
 
@@ -247,7 +248,8 @@ function _create<C extends MaterialConstructor>({
     shader.vertexShader =
       shader.vertexShader.replace(
         'void main() {',
-        vertexShader +
+        'vec4 main_MeshPhysicalMaterial();\n' +
+          vertexShader +
           '\n\nvec4 main_MeshPhysicalMaterial() {\n    vec4 fragPosition = vec4(0.0);'
       ) + `\n\nvoid main() { ${vertexOutput} }`;
 
