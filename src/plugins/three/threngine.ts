@@ -15,9 +15,14 @@ import {
   WebGLRenderer,
   PerspectiveCamera,
 } from 'three';
-import { Program } from '@shaderfrog/glsl-parser/ast';
-import { Graph, NodeType, ShaderStage, MAGIC_OUTPUT_STMTS } from '../../graph/graph-types';
-import { prepopulatePropertyInputs, mangleMainFn, nodeName, isDataNode } from '../../graph/graph';
+import {
+  Program,
+  FunctionNode,
+  ExpressionStatementNode,
+  AssignmentNode,
+} from '@shaderfrog/glsl-parser/ast';
+import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
+import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
@@ -832,25 +837,33 @@ export const engineNodeTypeToConstructor = (type: string) => {
 
 const frogMergeOptions = { includePrecisions: false, includeVersion: false };
 
-// Varyings that Three.js unconditionally declares (or declares when features are
-// forced via dummy textures below). User declarations of these names would
-// redefine Three's, so strip them. `vPosition` and other user-coined names are
-// NOT in this set — they're in threngine.preserve to prevent mangling, but
-// Three doesn't declare them.
+// Varyings that Three.js unconditionally declares. User declarations of these
+// names would redefine Three's, so strip them. `vPosition` and other
+// user-coined names are NOT in this set — they're in threngine.preserve to
+// prevent mangling, but Three doesn't declare them.
 const THREE_PROVIDED_VARYINGS = new Set(['vNormal', 'vViewPosition', 'vUv', 'vUv2']);
+
+// Uniforms that Three's WebGLProgram prefix unconditionally declares for every
+// program. Anything else (time, renderResolution, color, roughness, etc.) is
+// either user-defined or engine-node-defined (and engine sections are skipped
+// separately), so must NOT be stripped.
+const THREE_PREFIX_UNIFORMS = new Set([
+  'modelMatrix', 'modelViewMatrix', 'projectionMatrix', 'viewMatrix', 'normalMatrix',
+  'cameraPosition', 'isOrthographic',
+]);
 
 // Strip declarations that Three.js already provides so injected GLSL doesn't
 // redefine them.
 // Vertex `in` (attributes): Three always provides all of them — strip everything.
 // Fragment `in` (varyings from vertex): only strip Three-provided ones, keep
 //   user-defined custom varyings like vPosition, worldPos_*, etc.
-// Both `out` and `uniform`: strip only the Three-provided ones.
+// Uniforms: only strip the WebGLProgram prefix uniforms (matrices + camera).
 const stripThreeDeclarations = (
   sections: ShaderSections,
   stage: 'vertex' | 'fragment'
 ): ShaderSections => {
   const notProvidedByThree = (name: string) => !THREE_PROVIDED_VARYINGS.has(name);
-  const notPreserved = (name: string) => !threngine.preserve.has(name);
+  const notPrefixUniform = (name: string) => !THREE_PREFIX_UNIFORMS.has(name);
   return {
     ...sections,
     inStatements:
@@ -858,8 +871,35 @@ const stripThreeDeclarations = (
         ? []
         : filterQualifiedStatements(sections.inStatements, notProvidedByThree),
     outStatements: filterQualifiedStatements(sections.outStatements, notProvidedByThree),
-    uniforms: filterUniformNames(sections.uniforms, notPreserved),
+    uniforms: filterUniformNames(sections.uniforms, notPrefixUniform),
   };
+};
+
+// Extract the right-hand side of `assignTarget = <expr>` from the output
+// node's compiled main function. Works for both code nodes (which produce
+// `frogFragOut = main_NodeName()`) and expression nodes (which produce
+// `frogFragOut = inlined_expression`).
+const extractOutputExpr = (
+  sections: ShaderSections,
+  outputNodeId: string,
+  assignTarget: string,
+  fallback: string
+): string => {
+  const entry = sections.program.find((s) => s.nodeId === outputNodeId);
+  if (!entry) return fallback;
+  const fn = entry.source as FunctionNode;
+  if (fn.type !== 'function') return fallback;
+  const body = fn.body;
+  for (const stmt of body.statements) {
+    const es = stmt as ExpressionStatementNode;
+    if (es.type !== 'expression_statement') continue;
+    const assign = es.expression as AssignmentNode;
+    if (assign.type !== 'assignment') continue;
+    const left = assign.left as any;
+    if (left?.identifier !== assignTarget) continue;
+    return generate(assign.right);
+  }
+  return fallback;
 };
 
 export const createFrogMaterialResult = (
@@ -904,27 +944,22 @@ export const createFrogMaterialResult = (
     ).program
   );
 
-  // Find the node connected to each output node's primary input
-  const fragEdge = graph.edges.find(
-    (e) =>
-      e.to === graphResult.outputFrag.id &&
-      e.input !== `filler_${MAGIC_OUTPUT_STMTS}`
+  // Extract the final output expressions from the output nodes' compiled AST.
+  // This handles both code nodes (frogFragOut = main_NodeName()) and expression
+  // nodes like add (frogFragOut = inlined_expr) without guessing the function name.
+  const fragmentOutput = extractOutputExpr(
+    graphResult.fragment,
+    graphResult.outputFrag.id,
+    'frogFragOut',
+    'vec4(1.0)'
   );
-  const vertEdge = graph.edges.find(
-    (e) =>
-      e.to === graphResult.outputVert.id &&
-      e.input !== `filler_${MAGIC_OUTPUT_STMTS}`
+  const vertexOutputExpr = extractOutputExpr(
+    graphResult.vertex,
+    graphResult.outputVert.id,
+    'gl_Position',
+    'vec4(1.0)'
   );
-
-  const fragFromNode = fragEdge && graph.nodes.find((n) => n.id === fragEdge.from);
-  const vertFromNode = vertEdge && graph.nodes.find((n) => n.id === vertEdge.from);
-
-  const fragmentOutput = fragFromNode
-    ? nodeName(fragFromNode) + '()'
-    : 'vec4(1.0)';
-  const vertexOutput = vertFromNode
-    ? `gl_Position = ${nodeName(vertFromNode)}();`
-    : 'gl_Position = vec4(1.0);';
+  const vertexOutput = `gl_Position = ${vertexOutputExpr};`;
 
   const uniforms: Record<string, { value: any }> = {
     time: { value: 0 },
