@@ -99,21 +99,21 @@ const computeNodeContext = async (
   // have this function not modify EngineContext at all.
   let updatedNodeContext;
   let updatedContext = engineContext;
-  if (onBeforeCompile) {
-    updatedNodeContext = await onBeforeCompile(
-      graph,
-      engineContext,
-      node,
-      sibling
-    );
-    if (updatedNodeContext) {
-      updatedContext = extendNodeContext(
-        engineContext,
-        node.id,
-        updatedNodeContext
-      );
-    }
-  }
+  // if (onBeforeCompile) {
+  //   updatedNodeContext = await onBeforeCompile(
+  //     graph,
+  //     engineContext,
+  //     node,
+  //     sibling
+  //   );
+  //   if (updatedNodeContext) {
+  //     updatedContext = extendNodeContext(
+  //       engineContext,
+  //       node.id,
+  //       updatedNodeContext
+  //     );
+  //   }
+  // }
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
