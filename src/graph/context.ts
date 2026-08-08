@@ -122,7 +122,7 @@ const computeNodeContext = async (
     return y;
   }
 
-  const { onBeforeCompile, manipulateAst } = parser;
+  const { manipulateAst } = parser;
 
   // Save the updated node context if onBeforeCompile() modifies it, which
   // happens if an engine shader generates a computedSource. This is a silly
@@ -135,23 +135,6 @@ const computeNodeContext = async (
   // have this function not modify EngineContext at all.
   let updatedNodeContext;
   let updatedContext = engineContext;
-  // if (onBeforeCompile) {
-  //   updatedNodeContext = await onBeforeCompile(
-  //     graph,
-  //     engineContext,
-  //     node,
-  //     sibling
-  //   );
-  //   if (updatedNodeContext) {
-  //     updatedContext = extendNodeContext(
-  //       engineContext,
-  //       node.id,
-  //       updatedNodeContext
-  //     );
-  //   }
-  // }
-
-  console.log('context for ', node.name, node.stage, node.inputs);
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 

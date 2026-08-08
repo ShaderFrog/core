@@ -1,11 +1,18 @@
-import * as THREE from 'three';
+import {
+  IUniform,
+  WebGLProgramParametersWithUniforms,
+  WebGLRenderer,
+  Material,
+  Texture,
+  ShaderChunk,
+} from 'three';
 
 // ── Shader transformation utilities ──────────────────────────────────────────
 
 export const expandChunks = (glsl: string, depth = 0): string => {
   if (depth > 12) return glsl;
   return glsl.replace(/#include <(\w+)>/g, (_, chunkName: string) => {
-    const chunk = (THREE.ShaderChunk as Record<string, string>)[chunkName];
+    const chunk = (ShaderChunk as Record<string, string>)[chunkName];
     if (chunk !== undefined) {
       return `/* ~~~ #include <${chunkName}> ~~~ */\n${expandChunks(
         chunk,
@@ -133,12 +140,12 @@ interface ShaderInjection {
   replace: string;
 }
 
-type MaterialConstructor = new (...args: any[]) => THREE.Material;
+type MaterialConstructor = new (...args: any[]) => Material;
 
 type ConstructorParams<C extends MaterialConstructor> = C extends new (
   params?: infer P,
   ...args: any[]
-) => THREE.Material
+) => Material
   ? NonNullable<P>
   : never;
 
@@ -161,14 +168,14 @@ export type FrogMaterialParams<
   fragmentOutput: string;
   vertexShader: string;
   vertexOutput: string;
-  uniforms?: Record<string, THREE.IUniform>;
+  uniforms?: Record<string, IUniform>;
   fragmentInjections?: ShaderInjection[];
   /** GLSL expression replacing `vec3 transformed = vec3(position)` */
   position?: string;
   /** Called after all frog transforms are applied to the shader */
   onBeforeCompile?: (
-    shader: THREE.WebGLProgramParametersWithUniforms,
-    renderer: THREE.WebGLRenderer
+    shader: WebGLProgramParametersWithUniforms,
+    renderer: WebGLRenderer
   ) => void;
 } & Omit<WithInjectables<ConstructorParams<C>>, FrogSpecificKeys>;
 
@@ -183,7 +190,7 @@ function _create<C extends MaterialConstructor>({
   position,
   onBeforeCompile: userOnBeforeCompile,
   ...baseProps
-}: FrogMaterialParams<C>): THREE.Material {
+}: FrogMaterialParams<C>): Material {
   // Split baseProps: injectable strings become GLSL injections + dummy textures
   const glslInjections: Array<{ find: RegExp; replace: string }> = [];
   const materialProps: Record<string, unknown> = {};
@@ -195,9 +202,9 @@ function _create<C extends MaterialConstructor>({
       const inj = FRAGMENT_INJECTABLE[key as InjectableKey];
       if (inj) {
         glslInjections.push({ find: inj.find, replace: inj.replace(value) });
-        materialProps[inj.forceProperty] = new THREE.Texture();
+        materialProps[inj.forceProperty] = new Texture();
       } else {
-        materialProps[key] = new THREE.Texture();
+        materialProps[key] = new Texture();
       }
     } else {
       materialProps[key] = value;
@@ -290,7 +297,7 @@ function _create<C extends MaterialConstructor>({
 // so instances can be used wherever THREE.Material is expected.
 export interface FrogMaterial<
   C extends MaterialConstructor = MaterialConstructor
-> extends THREE.Material {}
+> extends Material {}
 export class FrogMaterial<C extends MaterialConstructor = MaterialConstructor> {
   constructor(params: FrogMaterialParams<C>) {
     return _create(params) as unknown as FrogMaterial<C>;

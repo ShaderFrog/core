@@ -611,30 +611,6 @@ export const compileNode = (
       } else {
         nodeContext.ast = filler.filler(finalFillerFn);
       }
-
-      // Test if it needs to be backfilled - this only goes one level deep
-      // because we're only backfilling fromNode
-      // let backfillers = codeNode.backfillers?.[input.id];
-      // if (backfillers && shouldNodeHaveMainFn(fromNode)) {
-      //   const childAst = engineContext.nodes[fromNode.id].ast;
-      //   // For now we can only backfill programs
-      //   if (childAst.type === 'program') {
-      //     backfillers.forEach((backfiller) => {
-      //       // This is where the variable name gets injected into the main
-      //       // function parameter of the backfilled child
-      //       backfillAst(
-      //         childAst,
-      //         backfiller.argType,
-      //         backfiller.targetVariable,
-      //         engineContext.nodes[fromNode.id].mainFn
-      //       );
-      //     });
-      //   }
-      //   nodeContext.ast = filler.filler(fillerFn);
-      // } else {
-      //   // Don't backfill by discarding the backfiller args
-      //   nodeContext.ast = filler.filler(() => fillerFn());
-      // }
     });
 
   // Order matters here! *Prepend* the input nodes to this one, because
@@ -664,7 +640,6 @@ export type CompileGraphResult = {
   orphanNodes: GraphNode[];
   activeNodeIds: Set<string>;
   engineNodeIds: Set<string>;
-  // filledProperties: Record<string, string>;
 };
 
 export const compileGraph = (
@@ -735,62 +710,6 @@ export const compileGraph = (
     })
   );
 
-  // For each engine node, capture property inputs and named attribute filler inputs
-  // filled by code/expression nodes as GLSL expressions
-  // const filledProperties: Record<string, string> = {};
-  // graph.nodes
-  //   .filter((node) => engineNodeIds.has(node.id))
-  //   .forEach((node) => {
-  //     graph.edges
-  //       .filter((edge) => edge.to === node.id)
-  //       .forEach((edge) => {
-  //         const input = node.inputs.find((i) => i.id === edge.input);
-  //         if (!input) return;
-  //         const fromNode = graph.nodes.find((n) => n.id === edge.from);
-  //         if (!fromNode || isDataNode(fromNode)) return;
-
-  //         // Determine which material property name this edge fills.
-  //         // Property inputs (texture maps, etc.) carry input.property directly.
-  //         // Named attribute filler inputs (e.g. filler_position) encode the name
-  //         // after the "filler_" prefix.
-  //         let propertyName: string | undefined;
-  //         if (input.property) {
-  //           propertyName = input.property;
-  //         } else if (
-  //           input.type === 'filler' &&
-  //           input.id.startsWith('filler_')
-  //         ) {
-  //           const attrName = input.id.slice('filler_'.length);
-  //           if (attrName !== MAGIC_OUTPUT_STMTS) {
-  //             propertyName = attrName;
-  //           }
-  //         }
-  //         if (!propertyName) return;
-
-  //         // Get the GLSL expression string.
-  //         // Expression/binary nodes are inlined — generate from their compiled AST.
-  //         // Code nodes produce a function call.
-  //         const fromCodeNode = fromNode as CodeNode;
-  //         if (
-  //           fromCodeNode.sourceType === SourceType.EXPRESSION ||
-  //           fromNode.type === NodeType.BINARY
-  //         ) {
-  //           const fromAst = engineContext.nodes[fromNode.id]?.ast;
-  //           if (fromAst) {
-  //             const exprNode =
-  //               fromAst.type === 'program'
-  //                 ? (fromAst as Program).program[0]
-  //                 : fromAst;
-  //             filledProperties[propertyName] = generate(exprNode as any);
-  //           }
-  //         } else {
-  //           filledProperties[propertyName] = nodeName(fromNode) + '()';
-  //         }
-  //       });
-  //   });
-
-  console.log({ engineContext });
-
   return {
     fragment,
     vertex,
@@ -799,7 +718,6 @@ export const compileGraph = (
     orphanNodes,
     activeNodeIds: new Set<string>(allCompiledIds),
     engineNodeIds,
-    // filledProperties,
   };
 };
 
