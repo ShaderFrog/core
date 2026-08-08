@@ -65,12 +65,22 @@ type InjectableKey =
   | 'gradientMap';
 
 const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
-  'map', 'normalMap', 'aoMap', 'emissiveMap', 'roughnessMap',
-  'specularMap', 'displacementMap', 'bumpMap', 'transmissionMap', 'gradientMap',
+  'map',
+  'normalMap',
+  'aoMap',
+  'emissiveMap',
+  'roughnessMap',
+  'specularMap',
+  'displacementMap',
+  'bumpMap',
+  'transmissionMap',
+  'gradientMap',
 ]);
 
 // Injection implementations for the properties where we know the pattern
-const FRAGMENT_INJECTABLE: Partial<Record<InjectableKey, FragmentInjectionPoint>> = {
+const FRAGMENT_INJECTABLE: Partial<
+  Record<InjectableKey, FragmentInjectionPoint>
+> = {
   map: {
     find: /vec4 sampledDiffuseColor = [^;]+;/,
     replace: (call: string) => `vec4 sampledDiffuseColor = ${call};`,
@@ -192,6 +202,7 @@ function _create<C extends MaterialConstructor>({
     } else {
       materialProps[key] = value;
     }
+    console.log('Frogmaterial Properties for Constructor', materialProps);
   }
 
   const mat = new BaseMaterial(materialProps as ConstructorParams<C>);
@@ -262,6 +273,15 @@ function _create<C extends MaterialConstructor>({
 
     userOnBeforeCompile?.(shader, renderer);
   };
+
+  mat.customProgramCacheKey = () =>
+    fragmentShader +
+    '\x00' +
+    fragmentOutput +
+    '\x00' +
+    vertexShader +
+    '\x00' +
+    vertexOutput;
 
   return mat;
 }

@@ -90,6 +90,7 @@ export type EngineContext<T = any> = {
   engine: string;
   nodes: Record<string, NodeContext>;
   runtime: T;
+  engineNodeProperties: Record<string, any>;
   debuggingNonsense: {
     vertexSource?: string;
     vertexPreprocessed?: string;

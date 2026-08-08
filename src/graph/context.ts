@@ -86,6 +86,42 @@ const computeNodeContext = async (
   };
   const sibling = findLinkedNode(graph, node.id);
 
+  // This adds the inputs defined on the node config
+  // it doesn't add the strategies. those probably don't make sense anymore
+  // except for find and replace. and migrate the shaders
+  // currently there is no position input on the nodes
+  if (node.engine) {
+    const y: NodeContext = {
+      ast: {
+        type: 'program',
+        program: [],
+        scopes: [],
+      },
+      id: node.id,
+      mainFn: undefined,
+      inputFillers: node.inputs.reduce<InputFillers>((acc, input) => {
+        const fillerGroup: InputFillerGroup = {
+          filler: () => ({
+            type: 'literal',
+            literal: '',
+            whitespace: '',
+          }),
+          fillerArgs: [],
+          fillerStmt: {
+            type: 'literal',
+            literal: '',
+            whitespace: '',
+          },
+        };
+        return {
+          ...acc,
+          [input.id]: fillerGroup,
+        };
+      }, {}),
+    };
+    return y;
+  }
+
   const { onBeforeCompile, manipulateAst } = parser;
 
   // Save the updated node context if onBeforeCompile() modifies it, which
@@ -114,6 +150,8 @@ const computeNodeContext = async (
   //     );
   //   }
   // }
+
+  console.log('context for ', node.name, node.stage, node.inputs);
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
