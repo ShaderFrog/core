@@ -500,6 +500,7 @@ export const compileNode = (
 
   const inputEdges = edges.filter((edge) => edge.to === node.id);
   let continuation = shaderSectionsCons();
+  const isEngineNode = isSourceNode(node) && node.engine;
 
   // Compile children recursively
   inputEdges
@@ -521,6 +522,9 @@ export const compileNode = (
     }))
     .filter(({ input }) => !isDataInput(input))
     .forEach(({ fromNode, input }) => {
+      // if(isDataInput(input) && isEngineNode) {
+      //   engineContext.engineNodeProperties[input.id] =
+      // }
       const [inputSections, fillerFn, childIds] = compileNode(
         engine,
         graph,
@@ -541,6 +545,30 @@ export const compileNode = (
       // Continue on if there's no context I don't know what case causes this
       if (!nodeContext) {
         return;
+      }
+
+      // Don't backfill by discarding the backfiller args
+      let finalFillerFn = () => fillerFn();
+
+      // Test if it needs to be backfilled - this only goes one level deep
+      // because we're only backfilling fromNode
+      let backfillers = codeNode.backfillers?.[input.id];
+      if (backfillers && shouldNodeHaveMainFn(fromNode)) {
+        const childAst = engineContext.nodes[fromNode.id].ast;
+        // For now we can only backfill programs
+        if (childAst.type === 'program') {
+          backfillers.forEach((backfiller) => {
+            // This is where the variable name gets injected into the main
+            // function parameter of the backfilled child
+            backfillAst(
+              childAst,
+              backfiller.argType,
+              backfiller.targetVariable,
+              engineContext.nodes[fromNode.id].mainFn
+            );
+          });
+        }
+        finalFillerFn = fillerFn;
       }
 
       // Produce the input filler
@@ -572,37 +600,41 @@ export const compileNode = (
         // );
       }
 
+      if (isEngineNode) {
+        // Migration hack: property_map and filler_position -> map and position
+        const totalHackPropertyName = input.id.includes('_')
+          ? input.id.split('_')[1]
+          : input.id;
+        engineContext.engineNodeProperties[totalHackPropertyName] = generate(
+          finalFillerFn() ?? []
+        );
+      } else {
+        nodeContext.ast = filler.filler(finalFillerFn);
+      }
+
       // Test if it needs to be backfilled - this only goes one level deep
       // because we're only backfilling fromNode
-      let backfillers = codeNode.backfillers?.[input.id];
-      if (backfillers && shouldNodeHaveMainFn(fromNode)) {
-        const childAst = engineContext.nodes[fromNode.id].ast;
-        // For now we can only backfill programs
-        if (childAst.type === 'program') {
-          backfillers.forEach((backfiller) => {
-            // This is where the variable name gets injected into the main
-            // function parameter of the backfilled child
-            backfillAst(
-              childAst,
-              backfiller.argType,
-              backfiller.targetVariable,
-              engineContext.nodes[fromNode.id].mainFn
-            );
-          });
-        }
-        if (window.xx) {
-          console.log('hi', { fillerName, input });
-          debugger;
-        }
-        nodeContext.ast = filler.filler(fillerFn);
-      } else {
-        if (window.xx) {
-          console.log('hi', { fillerName, input });
-          debugger;
-        }
-        // Don't backfill by discarding the backfiller args
-        nodeContext.ast = filler.filler(() => fillerFn());
-      }
+      // let backfillers = codeNode.backfillers?.[input.id];
+      // if (backfillers && shouldNodeHaveMainFn(fromNode)) {
+      //   const childAst = engineContext.nodes[fromNode.id].ast;
+      //   // For now we can only backfill programs
+      //   if (childAst.type === 'program') {
+      //     backfillers.forEach((backfiller) => {
+      //       // This is where the variable name gets injected into the main
+      //       // function parameter of the backfilled child
+      //       backfillAst(
+      //         childAst,
+      //         backfiller.argType,
+      //         backfiller.targetVariable,
+      //         engineContext.nodes[fromNode.id].mainFn
+      //       );
+      //     });
+      //   }
+      //   nodeContext.ast = filler.filler(fillerFn);
+      // } else {
+      //   // Don't backfill by discarding the backfiller args
+      //   nodeContext.ast = filler.filler(() => fillerFn());
+      // }
     });
 
   // Order matters here! *Prepend* the input nodes to this one, because
@@ -610,6 +642,7 @@ export const compileNode = (
   const sections = mergeShaderSections(
     continuation,
     isDataNode(node) ||
+      isEngineNode ||
       codeNode.sourceType === SourceType.EXPRESSION ||
       codeNode.sourceType === SourceType.FN_BODY_FRAGMENT
       ? shaderSectionsCons()
@@ -631,7 +664,7 @@ export type CompileGraphResult = {
   orphanNodes: GraphNode[];
   activeNodeIds: Set<string>;
   engineNodeIds: Set<string>;
-  filledProperties: Record<string, string>;
+  // filledProperties: Record<string, string>;
 };
 
 export const compileGraph = (
@@ -702,23 +735,61 @@ export const compileGraph = (
     })
   );
 
-  // For each engine node, capture property inputs filled by code nodes as GLSL expressions
-  const filledProperties: Record<string, string> = {};
-  graph.nodes
-    .filter((node) => engineNodeIds.has(node.id))
-    .forEach((node) => {
-      graph.edges
-        .filter((edge) => edge.to === node.id)
-        .forEach((edge) => {
-          const input = node.inputs.find((i) => i.id === edge.input);
-          if (input?.property) {
-            const fromNode = graph.nodes.find((n) => n.id === edge.from);
-            if (fromNode && !isDataNode(fromNode)) {
-              filledProperties[input.property] = nodeName(fromNode) + '()';
-            }
-          }
-        });
-    });
+  // For each engine node, capture property inputs and named attribute filler inputs
+  // filled by code/expression nodes as GLSL expressions
+  // const filledProperties: Record<string, string> = {};
+  // graph.nodes
+  //   .filter((node) => engineNodeIds.has(node.id))
+  //   .forEach((node) => {
+  //     graph.edges
+  //       .filter((edge) => edge.to === node.id)
+  //       .forEach((edge) => {
+  //         const input = node.inputs.find((i) => i.id === edge.input);
+  //         if (!input) return;
+  //         const fromNode = graph.nodes.find((n) => n.id === edge.from);
+  //         if (!fromNode || isDataNode(fromNode)) return;
+
+  //         // Determine which material property name this edge fills.
+  //         // Property inputs (texture maps, etc.) carry input.property directly.
+  //         // Named attribute filler inputs (e.g. filler_position) encode the name
+  //         // after the "filler_" prefix.
+  //         let propertyName: string | undefined;
+  //         if (input.property) {
+  //           propertyName = input.property;
+  //         } else if (
+  //           input.type === 'filler' &&
+  //           input.id.startsWith('filler_')
+  //         ) {
+  //           const attrName = input.id.slice('filler_'.length);
+  //           if (attrName !== MAGIC_OUTPUT_STMTS) {
+  //             propertyName = attrName;
+  //           }
+  //         }
+  //         if (!propertyName) return;
+
+  //         // Get the GLSL expression string.
+  //         // Expression/binary nodes are inlined — generate from their compiled AST.
+  //         // Code nodes produce a function call.
+  //         const fromCodeNode = fromNode as CodeNode;
+  //         if (
+  //           fromCodeNode.sourceType === SourceType.EXPRESSION ||
+  //           fromNode.type === NodeType.BINARY
+  //         ) {
+  //           const fromAst = engineContext.nodes[fromNode.id]?.ast;
+  //           if (fromAst) {
+  //             const exprNode =
+  //               fromAst.type === 'program'
+  //                 ? (fromAst as Program).program[0]
+  //                 : fromAst;
+  //             filledProperties[propertyName] = generate(exprNode as any);
+  //           }
+  //         } else {
+  //           filledProperties[propertyName] = nodeName(fromNode) + '()';
+  //         }
+  //       });
+  //   });
+
+  console.log({ engineContext });
 
   return {
     fragment,
@@ -728,7 +799,7 @@ export const compileGraph = (
     orphanNodes,
     activeNodeIds: new Set<string>(allCompiledIds),
     engineNodeIds,
-    filledProperties,
+    // filledProperties,
   };
 };
 

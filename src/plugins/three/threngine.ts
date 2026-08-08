@@ -48,7 +48,7 @@ import {
   property,
   SourceNode,
 } from '../../graph/code-nodes';
-import { NodePosition } from '../../graph/base-node';
+import { nodeInput, NodePosition } from '../../graph/base-node';
 import { DataNode, UniformDataType } from '../../graph/data-nodes';
 import {
   namedAttributeStrategy,
@@ -137,7 +137,16 @@ export const phongNode = (
         Uniforms: 'hidden',
       },
     },
-    inputs: [],
+    inputs: [
+      nodeInput(
+        'Position',
+        `position`,
+        'filler',
+        undefined, // Data type for what plugs into this filler
+        ['code', 'data'],
+        true
+      ),
+    ],
     outputs: [
       {
         name: 'vector4',
@@ -246,7 +255,22 @@ export const physicalNode = (
         Uniforms: 'hidden',
       },
     },
-    inputs: [],
+    inputs:
+      // Andy note for migrating: if filler_position is already found on saved
+      // shaders, found from computedInputs, it will not need to be
+      // reconstructed / migrated
+      stage === 'vertex'
+        ? [
+            nodeInput(
+              'Position',
+              `filler_position`,
+              'filler',
+              undefined, // Data type for what plugs into this filler
+              ['code', 'data'],
+              true
+            ),
+          ]
+        : [],
     outputs: [
       {
         name: 'vector4',
@@ -841,15 +865,25 @@ const frogMergeOptions = { includePrecisions: false, includeVersion: false };
 // names would redefine Three's, so strip them. `vPosition` and other
 // user-coined names are NOT in this set — they're in threngine.preserve to
 // prevent mangling, but Three doesn't declare them.
-const THREE_PROVIDED_VARYINGS = new Set(['vNormal', 'vViewPosition', 'vUv', 'vUv2']);
+const THREE_PROVIDED_VARYINGS = new Set([
+  'vNormal',
+  'vViewPosition',
+  'vUv',
+  'vUv2',
+]);
 
 // Uniforms that Three's WebGLProgram prefix unconditionally declares for every
 // program. Anything else (time, renderResolution, color, roughness, etc.) is
 // either user-defined or engine-node-defined (and engine sections are skipped
 // separately), so must NOT be stripped.
 const THREE_PREFIX_UNIFORMS = new Set([
-  'modelMatrix', 'modelViewMatrix', 'projectionMatrix', 'viewMatrix', 'normalMatrix',
-  'cameraPosition', 'isOrthographic',
+  'modelMatrix',
+  'modelViewMatrix',
+  'projectionMatrix',
+  'viewMatrix',
+  'normalMatrix',
+  'cameraPosition',
+  'isOrthographic',
 ]);
 
 // Strip declarations that Three.js already provides so injected GLSL doesn't
@@ -862,7 +896,8 @@ const stripThreeDeclarations = (
   sections: ShaderSections,
   stage: 'vertex' | 'fragment'
 ): ShaderSections => {
-  const notProvidedByThree = (name: string) => !THREE_PROVIDED_VARYINGS.has(name);
+  const notProvidedByThree = (name: string) =>
+    !THREE_PROVIDED_VARYINGS.has(name);
   const notPrefixUniform = (name: string) => !THREE_PREFIX_UNIFORMS.has(name);
   return {
     ...sections,
@@ -870,7 +905,10 @@ const stripThreeDeclarations = (
       stage === 'vertex'
         ? []
         : filterQualifiedStatements(sections.inStatements, notProvidedByThree),
-    outStatements: filterQualifiedStatements(sections.outStatements, notProvidedByThree),
+    outStatements: filterQualifiedStatements(
+      sections.outStatements,
+      notProvidedByThree
+    ),
     uniforms: filterUniformNames(sections.uniforms, notPrefixUniform),
   };
 };
@@ -908,7 +946,10 @@ export const createFrogMaterialResult = (
   graph: Graph
 ) => {
   const { compileResult: graphResult } = compileResult;
-  const { engineNodeIds, filledProperties } = graphResult;
+  const { engineNodeIds } = graphResult;
+
+  // hack
+  const filledProperties = ctx.engineNodeProperties;
 
   const engineNode = graph.nodes.find(
     (n) => (n as CodeNode).engine && engineNodeIds.has(n.id)
@@ -933,13 +974,19 @@ export const createFrogMaterialResult = (
 
   const fragmentShader = generate(
     shaderSectionsToProgram(
-      stripThreeDeclarations(filterSections(noSkip, graphResult.fragment), 'fragment'),
+      stripThreeDeclarations(
+        filterSections(noSkip, graphResult.fragment),
+        'fragment'
+      ),
       frogMergeOptions
     ).program
   );
   const vertexShader = generate(
     shaderSectionsToProgram(
-      stripThreeDeclarations(filterSections(noSkip, graphResult.vertex), 'vertex'),
+      stripThreeDeclarations(
+        filterSections(noSkip, graphResult.vertex),
+        'vertex'
+      ),
       frogMergeOptions
     ).program
   );
@@ -974,7 +1021,7 @@ export const createFrogMaterialResult = (
     vertexShader,
     vertexOutput,
     uniforms,
-    ...(filledProperties as any),
+    ...filledProperties,
   });
 
   // Force USE_UV / USE_UV2 defines so Three's vertex pars declare vUv, uv,
@@ -983,7 +1030,7 @@ export const createFrogMaterialResult = (
   const m = mat as any;
   m.defines = m.defines ?? {};
   m.defines.USE_UV = '';
-  m.defines.USE_UV2 = '';
+  // m.defines.USE_UV2 = '';
 
   return mat;
 };
