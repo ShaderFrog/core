@@ -14,6 +14,8 @@ import {
   Scene,
   WebGLRenderer,
   PerspectiveCamera,
+  DataTexture,
+  RGBAFormat,
 } from 'three';
 import {
   Program,
@@ -948,9 +950,6 @@ export const createFrogMaterialResult = (
   const { compileResult: graphResult } = compileResult;
   const { engineNodeIds } = graphResult;
 
-  // hack
-  const filledProperties = ctx.engineNodeProperties;
-
   const engineNode = graph.nodes.find(
     (n) => (n as CodeNode).engine && engineNodeIds.has(n.id)
   ) as CodeNode | undefined;
@@ -1021,16 +1020,15 @@ export const createFrogMaterialResult = (
     vertexShader,
     vertexOutput,
     uniforms,
-    ...filledProperties,
+    ...ctx.engineNodeProperties,
   });
 
-  // Force USE_UV / USE_UV2 defines so Three's vertex pars declare vUv, uv,
-  // vUv2, uv2. User shaders commonly assign these varyings; dummy textures
-  // are unreliable because Three checks texture.image before setting the define.
+  // Three has switched to vMapUv / vNormalMapUv / vBumpMapUv etc. Most legacy
+  // ShaderFrog shaders depend on uv.
   const m = mat as any;
   m.defines = m.defines ?? {};
   m.defines.USE_UV = '';
-  // m.defines.USE_UV2 = '';
+  m.defines.USE_UV2 = '';
 
   return mat;
 };
