@@ -826,7 +826,10 @@ export const createMaterial = (
         property !== 'type' &&
         // "precision" adds a precision preprocessor line
         property !== 'precision' &&
+        // For debugging, these pull in the frogmaterial set properties, which
+        // then messes up the rawshadermaterial
         property !== 'onBeforeCompile' &&
+        property !== 'userData' &&
         // Ignore existing properties
         !(property in initialProperties) &&
         // Ignore STANDARD and PHYSICAL defines to the top of the shader in
