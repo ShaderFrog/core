@@ -826,6 +826,7 @@ export const createMaterial = (
         property !== 'type' &&
         // "precision" adds a precision preprocessor line
         property !== 'precision' &&
+        property !== 'onBeforeCompile' &&
         // Ignore existing properties
         !(property in initialProperties) &&
         // Ignore STANDARD and PHYSICAL defines to the top of the shader in
@@ -1029,6 +1030,7 @@ export const createFrogMaterialResult = (
   m.defines = m.defines ?? {};
   m.defines.USE_UV = '';
   m.defines.USE_UV2 = '';
+  m.defines.USE_TANGENT = '';
 
   return mat;
 };
