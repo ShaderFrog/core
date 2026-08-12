@@ -38,8 +38,9 @@ import {
   shaderSectionsToProgram,
 } from '../../graph/shader-sections';
 import { generate } from '@shaderfrog/glsl-parser';
-import { FrogMaterial } from './FrogMaterial';
+import { FrogMaterial, ShaderInjection } from './FrogMaterial';
 import {
+  makeExpression,
   returnGlPosition,
   returnGlPositionHardCoded,
   returnGlPositionVec3Right,
@@ -127,12 +128,7 @@ export const phongNode = (
         property('Bump Scale', 'bumpScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
       ],
-      strategies: [
-        uniformStrategy(),
-        stage === 'fragment'
-          ? texture2DStrategy()
-          : namedAttributeStrategy('position'),
-      ],
+      strategies: [],
     },
     display: {
       visibilities: {
@@ -591,12 +587,7 @@ export const toonNode = (
         property('Env Map', 'envMap', 'samplerCube'),
         property('Env Map Intensity', 'envMapIntensity', 'number'),
       ],
-      strategies: [
-        uniformStrategy(),
-        stage === 'fragment'
-          ? texture2DStrategy()
-          : namedAttributeStrategy('position'),
-      ],
+      strategies: [],
     },
     display: {
       visibilities: {
@@ -734,6 +725,10 @@ export const threngine: Engine = {
       },
     },
     [EngineNodeType.phong]: {
+      produceFiller:
+        (_node, _ast) =>
+        (...args: string[]) =>
+          makeExpression(`main_MeshPhongMaterial(${args.join(', ')})`),
       onBeforeCompile: async (graph, engineContext, node, sibling) =>
         cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
@@ -748,6 +743,10 @@ export const threngine: Engine = {
       manipulateAst: megaShaderMainpulateAst,
     },
     [EngineNodeType.physical]: {
+      produceFiller:
+        (_node, _ast) =>
+        (...args: string[]) =>
+          makeExpression(`main_MeshPhysicalMaterial(${args.join(', ')})`),
       onBeforeCompile: async (graph, engineContext, node, sibling) =>
         cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
@@ -764,6 +763,10 @@ export const threngine: Engine = {
       manipulateAst: megaShaderMainpulateAst,
     },
     [EngineNodeType.toon]: {
+      produceFiller:
+        (_node, _ast) =>
+        (...args: string[]) =>
+          makeExpression(`main_MeshToonMaterial(${args.join(', ')})`),
       onBeforeCompile: async (graph, engineContext, node, sibling) =>
         cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
@@ -871,12 +874,7 @@ const frogMergeOptions = { includePrecisions: false, includeVersion: false };
 // names would redefine Three's, so strip them. `vPosition` and other
 // user-coined names are NOT in this set — they're in threngine.preserve to
 // prevent mangling, but Three doesn't declare them.
-const THREE_PROVIDED_VARYINGS = new Set([
-  'vNormal',
-  'vViewPosition',
-  'vUv',
-  'vUv2',
-]);
+const THREE_PROVIDED_VARYINGS = new Set(['vNormal', 'vViewPosition', 'vUv']);
 
 // Uniforms that Three's WebGLProgram prefix unconditionally declares for every
 // program. Anything else (time, renderResolution, color, roughness, etc.) is
@@ -946,6 +944,21 @@ const extractOutputExpr = (
   return fallback;
 };
 
+// Extract all statements from the output node's main() body. The
+// MAGIC_OUTPUT_STMTS filler prepends orphan vertex main() calls before the
+// gl_Position assignment; extractOutputExpr only grabs the RHS and drops them.
+const extractVertexMainStmts = (
+  sections: ShaderSections,
+  outputNodeId: string,
+  fallback: string
+): string => {
+  const entry = sections.program.find((s) => s.nodeId === outputNodeId);
+  if (!entry) return `gl_Position = ${fallback};`;
+  const fn = entry.source as FunctionNode;
+  if (fn.type !== 'function') return `gl_Position = ${fallback};`;
+  return fn.body.statements.map((stmt) => generate(stmt)).join('\n  ');
+};
+
 export const createFrogMaterialResult = (
   compileResult: CompileResult,
   ctx: EngineContext,
@@ -1003,13 +1016,11 @@ export const createFrogMaterialResult = (
     'frogFragOut',
     'vec4(1.0)'
   );
-  const vertexOutputExpr = extractOutputExpr(
+  const vertexOutput = extractVertexMainStmts(
     graphResult.vertex,
     graphResult.outputVert.id,
-    'gl_Position',
     'vec4(1.0)'
   );
-  const vertexOutput = `gl_Position = ${vertexOutputExpr};`;
 
   const uniforms: Record<string, { value: any }> = {
     time: { value: 0 },
@@ -1017,6 +1028,33 @@ export const createFrogMaterialResult = (
     renderResolution: { value: new Vector2(1.0) },
   };
 
+  const x = ctx.engineNodeProperties;
+  let fragmentInjections: ShaderInjection[] = [];
+  let vertexInjections: ShaderInjection[] = [];
+  const additionalProperties = Object.entries(x).reduce<Record<string, any>>(
+    (acc, [name, property]) => {
+      if (property.fillerGroup.filler.toString().includes('assignmentTo')) {
+        fragmentInjections.push({
+          search: new RegExp(`(${name} = ).+;`),
+          replace: `$1${property.result.toString()};`,
+        });
+        vertexInjections.push({
+          search: new RegExp(`(${name} = ).+;`),
+          replace: `$1${property.result.toString()};`,
+        });
+      } else {
+        acc[name] = property.result;
+      }
+      return acc;
+    },
+    {}
+  );
+
+  console.log({
+    engineNodeProperties: ctx.engineNodeProperties,
+    fragmentInjections,
+    vertexInjections,
+  });
   const mat = new FrogMaterial({
     baseMaterial: BaseMaterial as any,
     fragmentShader,
@@ -1024,7 +1062,9 @@ export const createFrogMaterialResult = (
     vertexShader,
     vertexOutput,
     uniforms,
-    ...ctx.engineNodeProperties,
+    fragmentInjections,
+    vertexInjections,
+    ...additionalProperties,
   });
 
   // Three has switched to vMapUv / vNormalMapUv / vBumpMapUv etc. Most legacy

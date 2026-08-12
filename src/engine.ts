@@ -12,6 +12,7 @@ import { NodeContext, NodeContexts } from './graph/context';
 import { NodeParser } from './graph/parsers';
 import { collectNodeProperties } from './graph/graph';
 import { evaluateNode } from './graph/evaluate';
+import { Filler, InputFillerGroup } from './strategy';
 
 const log = (...args: any[]) =>
   console.log.call(console, '\x1b[32m(core)\x1b[0m', ...args);
@@ -90,7 +91,13 @@ export type EngineContext<T = any> = {
   engine: string;
   nodes: Record<string, NodeContext>;
   runtime: T;
-  engineNodeProperties: Record<string, any>;
+  engineNodeProperties: Record<
+    string,
+    {
+      fillerGroup: InputFillerGroup;
+      result: any;
+    }
+  >;
   debuggingNonsense: {
     vertexSource?: string;
     vertexPreprocessed?: string;

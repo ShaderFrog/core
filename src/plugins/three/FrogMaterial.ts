@@ -52,10 +52,10 @@ export const replaceLast = (
 // strings in the TypeScript type but produce no automatic shader replacement
 // (the caller can still handle them via fragmentInjections).
 
-type FragmentInjectionPoint = {
+export type InjectionPoint = {
   find: RegExp;
   replace: (callExpr: string) => string;
-  forceProperty: string;
+  forceProperty?: string;
 };
 
 // All texture-typed property names across phong / physical / toon in threngine
@@ -69,7 +69,8 @@ type InjectableKey =
   | 'displacementMap'
   | 'bumpMap'
   | 'transmissionMap'
-  | 'gradientMap';
+  | 'gradientMap'
+  | 'position';
 
 const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
   'map',
@@ -82,12 +83,11 @@ const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
   'bumpMap',
   'transmissionMap',
   'gradientMap',
+  'position',
 ]);
 
 // Injection implementations for the properties where we know the pattern
-const FRAGMENT_INJECTABLE: Partial<
-  Record<InjectableKey, FragmentInjectionPoint>
-> = {
+const FRAGMENT_INJECTABLE: Partial<Record<InjectableKey, InjectionPoint>> = {
   map: {
     find: /vec4 sampledDiffuseColor = [^;]+;/,
     replace: (call: string) => `vec4 sampledDiffuseColor = ${call};`,
@@ -121,22 +121,29 @@ const FRAGMENT_INJECTABLE: Partial<
   },
 };
 
+// ── Vertex position injection ─────────────────────────────────────────────────
+
+const VERTEX_INJECTABLES: Partial<Record<InjectableKey, InjectionPoint>> = {
+  position: {
+    find: /vec3 transformed = vec3\( position \);/,
+    replace: (call: string) => `vec3 transformed = ${call}.xyz;`,
+  },
+  displacementMap: {
+    find: /texture2D\( displacementMap, vDisplacementMapUv \)/,
+    replace: (call: string) => call,
+    forceProperty: 'displacementMap',
+  },
+};
+
 // For injectable properties, also allow a GLSL expression string
 type WithInjectables<P> = {
   [K in keyof P]: K extends InjectableKey ? P[K] | string : P[K];
 };
 
-// ── Vertex position injection ─────────────────────────────────────────────────
-
-const POSITION_INJECTION = {
-  find: /vec3 transformed = vec3\( position \);/,
-  replace: (call: string) => `vec3 transformed = ${call}.xyz;`,
-};
-
 // ── FrogMaterial ──────────────────────────────────────────────────────────────
 
-interface ShaderInjection {
-  search: string;
+export interface ShaderInjection {
+  search: string | RegExp;
   replace: string;
 }
 
@@ -157,7 +164,7 @@ type FrogSpecificKeys =
   | 'vertexOutput'
   | 'uniforms'
   | 'fragmentInjections'
-  | 'position'
+  | 'vertexInjections'
   | 'onBeforeCompile';
 
 export type FrogMaterialParams<
@@ -170,8 +177,7 @@ export type FrogMaterialParams<
   vertexOutput: string;
   uniforms?: Record<string, IUniform>;
   fragmentInjections?: ShaderInjection[];
-  /** GLSL expression replacing `vec3 transformed = vec3(position)` */
-  position?: string;
+  vertexInjections?: ShaderInjection[];
   /** Called after all frog transforms are applied to the shader */
   onBeforeCompile?: (
     shader: WebGLProgramParametersWithUniforms,
@@ -187,7 +193,7 @@ function _create<C extends MaterialConstructor>({
   vertexOutput,
   uniforms = {},
   fragmentInjections = [],
-  position,
+  vertexInjections = [],
   onBeforeCompile: userOnBeforeCompile,
   ...baseProps
 }: FrogMaterialParams<C>): Material {
@@ -199,10 +205,14 @@ function _create<C extends MaterialConstructor>({
     baseProps as Record<string, unknown>
   )) {
     if (INJECTABLE_KEYS.has(key) && typeof value === 'string') {
-      const inj = FRAGMENT_INJECTABLE[key as InjectableKey];
+      const inj =
+        FRAGMENT_INJECTABLE[key as InjectableKey] ||
+        VERTEX_INJECTABLES[key as InjectableKey];
       if (inj) {
         glslInjections.push({ find: inj.find, replace: inj.replace(value) });
-        materialProps[inj.forceProperty] = new Texture();
+        if (inj.forceProperty) {
+          materialProps[inj.forceProperty] = new Texture();
+        }
       } else {
         materialProps[key] = new Texture();
       }
@@ -213,6 +223,7 @@ function _create<C extends MaterialConstructor>({
   }
 
   const mat = new BaseMaterial(materialProps as ConstructorParams<C>);
+  const engineFnName = `main_${BaseMaterial.name || 'BaseMaterial'}`;
 
   mat.onBeforeCompile = (shader, renderer) => {
     Object.assign(shader.uniforms, uniforms);
@@ -236,14 +247,15 @@ function _create<C extends MaterialConstructor>({
     shader.fragmentShader =
       shader.fragmentShader.replace(
         'void main() {',
-        'vec4 main_MeshPhysicalMaterial();\n' +
+        `vec4 ${engineFnName}();\n` +
           fragmentShader +
-          '\n\nvec4 main_MeshPhysicalMaterial() {\n    vec4 fragColor = vec4(0.0);'
+          `\n\nvec4 ${engineFnName}() {\n    vec4 fragColor = vec4(0.0);`
       ) + `\n\nvoid main() { gl_FragColor = ${fragmentOutput}; }`;
 
     for (const { find, replace } of glslInjections) {
       shader.fragmentShader = shader.fragmentShader.replace(find, replace);
     }
+
     for (const { search, replace } of fragmentInjections) {
       shader.fragmentShader = shader.fragmentShader.replace(search, replace);
     }
@@ -266,16 +278,17 @@ function _create<C extends MaterialConstructor>({
     shader.vertexShader =
       shader.vertexShader.replace(
         'void main() {',
-        'vec4 main_MeshPhysicalMaterial();\n' +
+        `vec4 ${engineFnName}();\n` +
           vertexShader +
-          '\n\nvec4 main_MeshPhysicalMaterial() {\n    vec4 fragPosition = vec4(0.0);'
+          `\n\nvec4 ${engineFnName}() {\n    vec4 fragPosition = vec4(0.0);`
       ) + `\n\nvoid main() { ${vertexOutput} }`;
 
-    if (position) {
-      shader.vertexShader = shader.vertexShader.replace(
-        POSITION_INJECTION.find,
-        POSITION_INJECTION.replace(position)
-      );
+    for (const { find, replace } of glslInjections) {
+      shader.vertexShader = shader.vertexShader.replace(find, replace);
+    }
+
+    for (const { search, replace } of vertexInjections) {
+      shader.vertexShader = shader.vertexShader.replace(search, replace);
     }
 
     userOnBeforeCompile?.(shader, renderer);

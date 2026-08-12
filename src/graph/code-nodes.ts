@@ -73,6 +73,9 @@ export interface CodeNode extends BaseNode {
   originalEngine?: string;
   // Record of the filler id to the backfiller target variable
   backfillers?: Backfillers;
+  // Overrides node.name for GLSL function mangling. Set by engine plugins so
+  // the compiled main fn name stays stable regardless of user display name.
+  mainFnName?: string;
 }
 
 export interface BinaryNode extends CodeNode {
