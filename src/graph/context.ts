@@ -90,37 +90,37 @@ const computeNodeContext = async (
   // it doesn't add the strategies. those probably don't make sense anymore
   // except for find and replace. and migrate the shaders
   // currently there is no position input on the nodes
-  if (node.engine) {
-    const y: NodeContext = {
-      ast: {
-        type: 'program',
-        program: [],
-        scopes: [],
-      },
-      id: node.id,
-      mainFn: undefined,
-      inputFillers: node.inputs.reduce<InputFillers>((acc, input) => {
-        const fillerGroup: InputFillerGroup = {
-          filler: () => ({
-            type: 'literal',
-            literal: '',
-            whitespace: '',
-          }),
-          fillerArgs: [],
-          fillerStmt: {
-            type: 'literal',
-            literal: '',
-            whitespace: '',
-          },
-        };
-        return {
-          ...acc,
-          [input.id]: fillerGroup,
-        };
-      }, {}),
-    };
-    return y;
-  }
+  // if (node.engine) {
+  //   const y: NodeContext = {
+  //     ast: {
+  //       type: 'program',
+  //       program: [],
+  //       scopes: [],
+  //     },
+  //     id: node.id,
+  //     mainFn: undefined,
+  //     inputFillers: node.inputs.reduce<InputFillers>((acc, input) => {
+  //       const fillerGroup: InputFillerGroup = {
+  //         filler: () => ({
+  //           type: 'literal',
+  //           literal: '',
+  //           whitespace: '',
+  //         }),
+  //         fillerArgs: [],
+  //         fillerStmt: {
+  //           type: 'literal',
+  //           literal: '',
+  //           whitespace: '',
+  //         },
+  //       };
+  //       return {
+  //         ...acc,
+  //         [input.id]: fillerGroup,
+  //       };
+  //     }, {}),
+  //   };
+  //   return y;
+  // }
 
   const { manipulateAst } = parser;
 
@@ -140,28 +140,36 @@ const computeNodeContext = async (
 
   let mainFn: ReturnType<typeof findMain>;
   let ast: ReturnType<typeof parser.produceAst>;
-  try {
-    ast = parser.produceAst(updatedContext, engine, graph, node, inputEdges);
+  if (node.engine) {
+    ast = {
+      type: 'program',
+      program: [],
+      scopes: [],
+    };
+  } else {
+    try {
+      ast = parser.produceAst(updatedContext, engine, graph, node, inputEdges);
 
-    // Find the main function before mangling
-    if (shouldNodeHaveMainFn(node)) {
-      mainFn = findMain(ast as Program);
-    }
+      // Find the main function before mangling
+      if (shouldNodeHaveMainFn(node)) {
+        mainFn = findMain(ast as Program);
+      }
 
-    if (manipulateAst) {
-      ast = manipulateAst(
-        updatedContext,
-        engine,
-        graph,
-        ast,
-        inputEdges,
-        node,
-        sibling as SourceNode
-      );
+      if (manipulateAst) {
+        ast = manipulateAst(
+          updatedContext,
+          engine,
+          graph,
+          ast,
+          inputEdges,
+          node,
+          sibling as SourceNode
+        );
+      }
+    } catch (error) {
+      console.error('Error parsing source code!', { error, node });
+      return makeError(node.id, error as GlslSyntaxError);
     }
-  } catch (error) {
-    console.error('Error parsing source code!', { error, node });
-    return makeError(node.id, error as GlslSyntaxError);
   }
 
   // Find all the inputs of this node where a "source" code node flows into it,

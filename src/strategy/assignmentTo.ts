@@ -2,6 +2,7 @@ import { findAssignmentTo } from '../util/ast';
 import { nodeInput } from '../graph/base-node';
 import { BaseStrategy, ApplyStrategy, StrategyType } from '.';
 import { AssignmentNode, AstNode } from '@shaderfrog/glsl-parser/ast';
+import { SourceNode } from '../graph';
 
 export interface AssignmentToStrategy extends BaseStrategy {
   type: StrategyType.ASSIGNMENT_TO;
@@ -27,11 +28,14 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignmentToStrategy> = (
   graphNode,
   siblingNode
 ) => {
-  const assignNode = findAssignmentTo(
-    ast,
-    strategy.config.assignTo,
-    strategy.config.nth || 1
-  );
+  const assignNode = (graphNode as SourceNode).engine
+    ? {
+        type: 'expression_statement',
+        expression: '',
+        semi: ';',
+      }
+    : findAssignmentTo(ast, strategy.config.assignTo, strategy.config.nth || 1);
+  console.log('holf', { assignNode, graphNode });
 
   const name = strategy.config.assignTo;
   return assignNode
@@ -46,6 +50,7 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignmentToStrategy> = (
             false
           ),
           (filler) => {
+            'assignmentTo';
             const filled = filler();
             if ('expression' in assignNode) {
               (assignNode.expression as AssignmentNode).right =

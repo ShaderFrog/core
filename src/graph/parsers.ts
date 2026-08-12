@@ -161,7 +161,7 @@ export const coreParsers: CoreParser = {
     },
     findInputs: (engineContext, ast, edges, node, sibling) => {
       let seen = new Set<string>();
-      return node.config.strategies
+      let inputs = node.config.strategies
         .flatMap((strategy) => applyStrategy(strategy, ast, node, sibling))
         .filter(([input, _]) => {
           if (!seen.has(input.id)) {
@@ -170,6 +170,29 @@ export const coreParsers: CoreParser = {
           }
           return false;
         });
+      if (node.engine) {
+        console.log('starting from', {
+          name: node.name,
+          stage: node.stage,
+          inputsn: node.inputs,
+          inputs,
+        });
+        inputs.unshift(
+          ...node.inputs.map((i) => {
+            const ci: ComputedInput = [
+              i,
+              () => ({
+                type: 'literal',
+                literal: i.id,
+                whitespace: '',
+              }),
+            ];
+            return ci;
+          })
+        );
+      }
+      console.log({ node, name: node.name, stage: node.stage, inputs });
+      return inputs;
     },
     produceFiller: (node, ast) => {
       return (...args) => {

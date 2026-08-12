@@ -89,8 +89,10 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
   }, false);
 };
 
-export const nodeName = (node: GraphNode): string =>
-  'main_' + node.name.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
+export const nodeName = (node: GraphNode): string => {
+  const base = (node as CodeNode).mainFnName ?? node.name;
+  return 'main_' + base.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
+};
 
 export const resultName = (node: GraphNode): string => nodeName(node) + '_out';
 
@@ -522,9 +524,6 @@ export const compileNode = (
     }))
     .filter(({ input }) => !isDataInput(input))
     .forEach(({ fromNode, input }) => {
-      // if(isDataInput(input) && isEngineNode) {
-      //   engineContext.engineNodeProperties[input.id] =
-      // }
       const [inputSections, fillerFn, childIds] = compileNode(
         engine,
         graph,
@@ -593,11 +592,6 @@ export const compileNode = (
           fillerName,
         });
         return;
-        // throw new Error(
-        //   `Node "${node.name}"${
-        //     (node as SourceNode).stage ? ` (${(node as SourceNode).stage})` : ''
-        //   } has no filler for input "${input.displayName}" named ${fillerName}`,
-        // );
       }
 
       if (isEngineNode) {
@@ -605,9 +599,10 @@ export const compileNode = (
         const totalHackPropertyName = input.id.includes('_')
           ? input.id.split('_')[1]
           : input.id;
-        engineContext.engineNodeProperties[totalHackPropertyName] = generate(
-          finalFillerFn() ?? []
-        );
+        engineContext.engineNodeProperties[totalHackPropertyName] = {
+          fillerGroup: filler,
+          result: generate(finalFillerFn() ?? []),
+        };
       } else {
         nodeContext.ast = filler.filler(finalFillerFn);
       }
