@@ -70,6 +70,8 @@ type InjectableKey =
   | 'bumpMap'
   | 'transmissionMap'
   | 'gradientMap'
+  | 'thickness'
+  | 'transmission'
   | 'position';
 
 const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
@@ -83,6 +85,8 @@ const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
   'bumpMap',
   'transmissionMap',
   'gradientMap',
+  'thickness',
+  'transmission',
   'position',
 ]);
 
@@ -118,6 +122,16 @@ const FRAGMENT_INJECTABLE: Partial<Record<InjectableKey, InjectionPoint>> = {
     find: /vec4 texelSpecular = [^;]+;/,
     replace: (call: string) => `vec4 texelSpecular = ${call};`,
     forceProperty: 'specularMap',
+  },
+  thickness: {
+    find: /material.thickness = [^;]+;/,
+    replace: (call: string) => `material.thickness = ${call};`,
+    forceProperty: 'thickness',
+  },
+  transmission: {
+    find: /material.transmission = [^;]+;/,
+    replace: (call: string) => `material.transmission = ${call};`,
+    forceProperty: 'transmission',
   },
 };
 
