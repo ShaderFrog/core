@@ -329,8 +329,8 @@ export const prepopulatePropertyInputs = (node: CodeNode): CodeNode => ({
         `property_${property.property}`,
         'property',
         property.type,
-        ['data'],
-        !!property.fillerName, // bakeable
+        ['data', 'code'],
+        true, // bakeable
         property.property
       )
     ),
