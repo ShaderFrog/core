@@ -91,6 +91,7 @@ export type EngineContext<T = any> = {
   engine: string;
   nodes: Record<string, NodeContext>;
   runtime: T;
+  // TODO: Could move this onto compileResult only and use that in createFrogMaterialResult ?
   engineNodeProperties: Record<
     string,
     {
@@ -98,12 +99,6 @@ export type EngineContext<T = any> = {
       result: any;
     }
   >;
-  debuggingNonsense: {
-    vertexSource?: string;
-    vertexPreprocessed?: string;
-    fragmentPreprocessed?: string;
-    fragmentSource?: string;
-  };
 };
 
 export const extendNodeContext = (

@@ -603,6 +603,11 @@ export const compileNode = (
           fillerGroup: filler,
           result: generate(finalFillerFn() ?? []),
         };
+        console.log(
+          'setting...',
+          totalHackPropertyName,
+          engineContext.engineNodeProperties
+        );
       } else {
         nodeContext.ast = filler.filler(finalFillerFn);
       }
@@ -635,6 +640,7 @@ export type CompileGraphResult = {
   orphanNodes: GraphNode[];
   activeNodeIds: Set<string>;
   engineNodeIds: Set<string>;
+  // updatedEngineNodeProperties: EngineContext['engineNodeProperties'];
 };
 
 export const compileGraph = (
@@ -643,6 +649,20 @@ export const compileGraph = (
   graph: Graph
 ): CompileGraphResult => {
   // computeGraphContext(engineContext, engine, graph);
+
+  // TODO: Adding this line causes the fillers not to inject. I can't figure out
+  // why. This should be mutating the threecomponent created context object.
+  // then the graph mutates this object. then three has it and create material
+  // time because it as mutated. but this makes threecomponent lose the
+  // reference to the object
+  // oh it happens because of setEngineContext({ ... in initializeGraph() in
+  // Editor.tsx. So the zustand store has its own copy of engine context.
+
+  // Why? why does zustand need an updated copy of context, vs ThreeComponent
+  // has its own copy that's not mutated? ThreeComponent references runtime,
+  // but nothing else... can these be separated? into runtime state in
+  // threecomponent, and graph computed context?
+  engineContext.engineNodeProperties = {};
 
   const outputFrag = graph.nodes.find(
     (node) => node.type === 'output' && node.stage === 'fragment'
@@ -713,6 +733,7 @@ export const compileGraph = (
     orphanNodes,
     activeNodeIds: new Set<string>(allCompiledIds),
     engineNodeIds,
+    // updatedEngineNodeProperties: engineContext.engineNodeProperties,
   };
 };
 

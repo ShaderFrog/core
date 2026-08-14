@@ -233,8 +233,11 @@ function _create<C extends MaterialConstructor>({
     } else {
       materialProps[key] = value;
     }
-    console.log('Frogmaterial Properties for Constructor', materialProps);
   }
+  console.log('Frogmaterial Properties for Constructor', {
+    materialProps,
+    glslInjections,
+  });
 
   const mat = new BaseMaterial(materialProps as ConstructorParams<C>);
   const engineFnName = `main_${BaseMaterial.name || 'BaseMaterial'}`;

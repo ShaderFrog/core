@@ -35,7 +35,6 @@ export const applyAssignmentToStrategy: ApplyStrategy<AssignmentToStrategy> = (
         semi: ';',
       }
     : findAssignmentTo(ast, strategy.config.assignTo, strategy.config.nth || 1);
-  console.log('holf', { assignNode, graphNode });
 
   const name = strategy.config.assignTo;
   return assignNode

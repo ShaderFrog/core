@@ -171,27 +171,17 @@ export const coreParsers: CoreParser = {
           return false;
         });
       if (node.engine) {
-        console.log('starting from', {
-          name: node.name,
-          stage: node.stage,
-          inputsn: node.inputs,
-          inputs,
-        });
         inputs.unshift(
-          ...node.inputs.map((i) => {
-            const ci: ComputedInput = [
-              i,
-              () => ({
-                type: 'literal',
-                literal: i.id,
-                whitespace: '',
-              }),
-            ];
-            return ci;
-          })
+          ...node.inputs.map<ComputedInput>((i) => [
+            i,
+            () => ({
+              type: 'literal',
+              literal: i.id,
+              whitespace: '',
+            }),
+          ])
         );
       }
-      console.log({ node, name: node.name, stage: node.stage, inputs });
       return inputs;
     },
     produceFiller: (node, ast) => {

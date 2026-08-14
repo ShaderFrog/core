@@ -747,6 +747,7 @@ export const threngine: Engine = {
         (_node, _ast) =>
         (...args: string[]) =>
           makeExpression(`main_MeshPhysicalMaterial(${args.join(', ')})`),
+      // TODO: REMOVE
       onBeforeCompile: async (graph, engineContext, node, sibling) =>
         cacher(engineContext, graph, node, sibling, () =>
           onBeforeCompileMegaShader(
@@ -1028,29 +1029,29 @@ export const createFrogMaterialResult = (
     renderResolution: { value: new Vector2(1.0) },
   };
 
-  const x = ctx.engineNodeProperties;
   let fragmentInjections: ShaderInjection[] = [];
   let vertexInjections: ShaderInjection[] = [];
-  const additionalProperties = Object.entries(x).reduce<Record<string, any>>(
-    (acc, [name, property]) => {
-      if (property.fillerGroup.filler.toString().includes('assignmentTo')) {
-        fragmentInjections.push({
-          search: new RegExp(`(${name} = ).+;`),
-          replace: `$1${property.result.toString()};`,
-        });
-        vertexInjections.push({
-          search: new RegExp(`(${name} = ).+;`),
-          replace: `$1${property.result.toString()};`,
-        });
-      } else {
-        acc[name] = property.result;
-      }
-      return acc;
-    },
-    {}
-  );
 
-  console.log({
+  const additionalProperties = Object.entries(ctx.engineNodeProperties).reduce<
+    Record<string, any>
+  >((acc, [name, property]) => {
+    if (property.fillerGroup.filler.toString().includes('assignmentTo')) {
+      fragmentInjections.push({
+        search: new RegExp(`(${name} = ).+;`),
+        replace: `$1${property.result.toString()};`,
+      });
+      vertexInjections.push({
+        search: new RegExp(`(${name} = ).+;`),
+        replace: `$1${property.result.toString()};`,
+      });
+    } else {
+      acc[name] = property.result;
+    }
+    return acc;
+  }, {});
+
+  console.log('CreateFrogMaterialResult', {
+    ctx,
     engineNodeProperties: ctx.engineNodeProperties,
     fragmentInjections,
     vertexInjections,
