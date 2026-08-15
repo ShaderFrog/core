@@ -91,14 +91,6 @@ export type EngineContext<T = any> = {
   engine: string;
   nodes: Record<string, NodeContext>;
   runtime: T;
-  // TODO: Could move this onto compileResult only and use that in createFrogMaterialResult ?
-  engineNodeProperties: Record<
-    string,
-    {
-      fillerGroup: InputFillerGroup;
-      result: any;
-    }
-  >;
 };
 
 export const extendNodeContext = (
