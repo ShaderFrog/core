@@ -281,151 +281,6 @@ export const physicalNode = (
     stage,
   });
 
-const cacher = (
-  engineContext: EngineContext,
-  graph: Graph,
-  node: SourceNode,
-  sibling: SourceNode | undefined,
-  newValue: (...args: any[]) => any
-) => {
-  const cacheKey = programCacheKey(engineContext, graph, node, sibling);
-
-  if (engineContext.runtime.cache.data[cacheKey]) {
-    log('Cache hit', cacheKey);
-  } else {
-    log('Cache miss', cacheKey);
-  }
-  const materialData = engineContext.runtime.cache.data[cacheKey] || newValue();
-
-  // This is nasty: We mutate the runtime context here, and return the partial
-  // nodeContext later. See also the TODO: Refactor in context.ts.
-  engineContext.runtime.cache.data[cacheKey] = materialData;
-  engineContext.runtime.engineMaterial = materialData.material;
-
-  return {
-    computedSource:
-      node.stage === 'fragment' ? materialData.fragment : materialData.vertex,
-  };
-};
-
-const onBeforeCompileMegaShader = (
-  engineContext: EngineContext,
-  newMat: any
-) => {
-  log('compiling three megashader!');
-  const { renderer, sceneData, scene, camera } = engineContext.runtime;
-  const { mesh } = sceneData;
-
-  // Temporarily swap the mesh material to the new one, since materials can
-  // be mesh specific, render, then get its source code
-  const originalMaterial = mesh.material;
-  mesh.material = newMat;
-  renderer.compile(scene, camera);
-
-  // The references to the compiled shaders in WebGL
-  const fragmentRef = renderer.properties
-    .get(mesh.material)
-    .programs.values()
-    .next().value.fragmentShader;
-  const vertexRef = renderer.properties
-    .get(mesh.material)
-    .programs.values()
-    .next().value.vertexShader;
-
-  const gl = renderer.getContext();
-  const fragment = gl.getShaderSource(fragmentRef);
-  const vertex = gl.getShaderSource(vertexRef);
-
-  // Reset the material on the mesh, since the shader we're computing context
-  // for might not be the one actually want on the mesh - like if a toon node
-  // was added to the graph but not connected
-  mesh.material = originalMaterial;
-
-  // Do we even need to do this? This is just for debugging right? Using the
-  // source on the node is the important thing.
-  return {
-    material: newMat,
-    fragmentRef,
-    vertexRef,
-    fragment,
-    vertex,
-  };
-};
-
-const megaShaderMainpulateAst: NodeParser['manipulateAst'] = (
-  engineContext,
-  engine,
-  graph,
-  ast,
-  inputEdges,
-  node,
-  sibling
-) => {
-  const programAst = ast as Program;
-  const mainName = 'main'; // || nodeName(node);
-  if (node.stage === 'vertex') {
-    if (doesLinkThruShader(graph, node)) {
-      returnGlPositionHardCoded(mainName, programAst, 'vec3', 'transformed');
-    } else {
-      returnGlPosition(mainName, programAst);
-    }
-  }
-
-  // We specify engine nodes are mangle: false, which is the graph step that
-  // handles renaming the main fn, so we have to do it ourselves
-  mangleMainFn(programAst, node, sibling);
-  return programAst;
-};
-
-const nodeCacheKey = (graph: Graph, node: SourceNode) => {
-  return (
-    '[ID:' +
-    node.id +
-    'Edges:' +
-    graph.edges
-      .filter((edge) => edge.to === node.id)
-      .map((edge) => `(${edge.to}->${edge.input})`)
-      .sort()
-      .join(',') +
-    ']'
-    // Currently excluding node inputs because these are calculated *after*
-    // the onbeforecompile, so the next compile, they'll all change!
-    // node.inputs.map((i) => `${i.id}${i.bakeable}`)
-  );
-};
-
-const programCacheKey = (
-  engineContext: EngineContext,
-  graph: Graph,
-  node: SourceNode,
-  sibling?: SourceNode
-) => {
-  // The megashader source is dependent on scene information, like the number
-  // and type of lights in the scene. This kinda sucks - it's duplicating
-  // three's material cache key, and is coupled to how three builds shaders
-  const { scene } = engineContext.runtime;
-  const lights: string[] = [];
-  scene.traverse((obj: any) => {
-    if (obj instanceof Light) {
-      lights.push(obj.uuid);
-    }
-  });
-
-  return (
-    ([node, sibling] as SourceNode[])
-      .filter((n) => !!n)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .map((n) => nodeCacheKey(graph, n))
-      .join('-') +
-    '|Lights:' +
-    lights.join(',') +
-    '|Bg:' +
-    scene.background?.uuid +
-    '|Env:' +
-    scene.environment?.uuid
-  );
-};
-
 export const defaultPropertySetting = (property: NodeProperty) => {
   if (property.type === 'texture') {
     return new Texture();
@@ -729,58 +584,18 @@ export const threngine: Engine = {
         (_node, _ast) =>
         (...args: string[]) =>
           makeExpression(`main_MeshPhongMaterial(${args.join(', ')})`),
-      onBeforeCompile: async (graph, engineContext, node, sibling) =>
-        cacher(engineContext, graph, node, sibling, () =>
-          onBeforeCompileMegaShader(
-            engineContext,
-            new MeshPhongMaterial({
-              // @ts-ignore
-              isMeshPhongMaterial: true,
-              ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
-        ),
-      manipulateAst: megaShaderMainpulateAst,
     },
     [EngineNodeType.physical]: {
       produceFiller:
         (_node, _ast) =>
         (...args: string[]) =>
           makeExpression(`main_MeshPhysicalMaterial(${args.join(', ')})`),
-      // TODO: REMOVE
-      onBeforeCompile: async (graph, engineContext, node, sibling) =>
-        cacher(engineContext, graph, node, sibling, () =>
-          onBeforeCompileMegaShader(
-            engineContext,
-            new MeshPhysicalMaterial({
-              // These properties are copied onto the runtime RawShaderMaterial.
-              // These exist on the MeshPhysicalMaterial but only in the
-              // prototype. We have to hard code them for Object.keys() to work
-              ...node.config.hardCodedProperties,
-              ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
-        ),
-      manipulateAst: megaShaderMainpulateAst,
     },
     [EngineNodeType.toon]: {
       produceFiller:
         (_node, _ast) =>
         (...args: string[]) =>
           makeExpression(`main_MeshToonMaterial(${args.join(', ')})`),
-      onBeforeCompile: async (graph, engineContext, node, sibling) =>
-        cacher(engineContext, graph, node, sibling, () =>
-          onBeforeCompileMegaShader(
-            engineContext,
-            new MeshToonMaterial({
-              gradientMap: new Texture(),
-              // @ts-ignore
-              isMeshToonMaterial: true,
-              ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
-        ),
-      manipulateAst: megaShaderMainpulateAst,
     },
   },
 };
