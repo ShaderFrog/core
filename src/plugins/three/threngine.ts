@@ -1032,9 +1032,9 @@ export const createFrogMaterialResult = (
   let fragmentInjections: ShaderInjection[] = [];
   let vertexInjections: ShaderInjection[] = [];
 
-  const additionalProperties = Object.entries(ctx.engineNodeProperties).reduce<
-    Record<string, any>
-  >((acc, [name, property]) => {
+  const additionalProperties = Object.entries(
+    compileResult.compileResult.engineNodeProperties
+  ).reduce<Record<string, any>>((acc, [name, property]) => {
     if (property.fillerGroup.filler.toString().includes('assignmentTo')) {
       fragmentInjections.push({
         search: new RegExp(`(${name} = ).+;`),
@@ -1052,7 +1052,7 @@ export const createFrogMaterialResult = (
 
   console.log('CreateFrogMaterialResult', {
     ctx,
-    engineNodeProperties: ctx.engineNodeProperties,
+    engineNodeProperties: compileResult.compileResult.engineNodeProperties,
     fragmentInjections,
     vertexInjections,
   });

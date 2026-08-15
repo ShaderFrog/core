@@ -467,6 +467,7 @@ export const compileNode = (
   edges: Edge[],
   engineContext: EngineContext,
   node: GraphNode,
+  engineNodeProperties: EngineNodeProperties,
   activeIds: NodeIds = {}
 ): CompileNodeResult => {
   // THIS DUPLICATES OTHER LINE
@@ -530,6 +531,7 @@ export const compileNode = (
         edges,
         engineContext,
         fromNode,
+        engineNodeProperties,
         activeIds
       );
       if (!fillerFn) {
@@ -599,15 +601,10 @@ export const compileNode = (
         const totalHackPropertyName = input.id.includes('_')
           ? input.id.split('_')[1]
           : input.id;
-        engineContext.engineNodeProperties[totalHackPropertyName] = {
+        engineNodeProperties[totalHackPropertyName] = {
           fillerGroup: filler,
           result: generate(finalFillerFn() ?? []),
         };
-        console.log(
-          'setting...',
-          totalHackPropertyName,
-          engineContext.engineNodeProperties
-        );
       } else {
         nodeContext.ast = filler.filler(finalFillerFn);
       }
@@ -640,7 +637,7 @@ export type CompileGraphResult = {
   orphanNodes: GraphNode[];
   activeNodeIds: Set<string>;
   engineNodeIds: Set<string>;
-  // updatedEngineNodeProperties: EngineContext['engineNodeProperties'];
+  engineNodeProperties: EngineNodeProperties;
 };
 
 export const compileGraph = (
@@ -662,7 +659,7 @@ export const compileGraph = (
   // has its own copy that's not mutated? ThreeComponent references runtime,
   // but nothing else... can these be separated? into runtime state in
   // threecomponent, and graph computed context?
-  engineContext.engineNodeProperties = {};
+  const engineNodeProperties = {};
 
   const outputFrag = graph.nodes.find(
     (node) => node.type === 'output' && node.stage === 'fragment'
@@ -676,7 +673,8 @@ export const compileGraph = (
     graph,
     graph.edges,
     engineContext,
-    outputFrag
+    outputFrag,
+    engineNodeProperties
   );
 
   const outputVert = graph.nodes.find(
@@ -709,7 +707,8 @@ export const compileGraph = (
     graph,
     [...graph.edges, ...orphanEdges],
     engineContext,
-    outputVert
+    outputVert,
+    engineNodeProperties
   );
 
   const allCompiledIds = [
@@ -733,6 +732,7 @@ export const compileGraph = (
     orphanNodes,
     activeNodeIds: new Set<string>(allCompiledIds),
     engineNodeIds,
+    engineNodeProperties,
     // updatedEngineNodeProperties: engineContext.engineNodeProperties,
   };
 };
@@ -778,6 +778,14 @@ export const collectNodeProperties = (graph: Graph): SearchResult => {
 };
 
 export type IndexedDataInputs = Record<string, NodeInput[]>;
+
+export type EngineNodeProperties = Record<
+  string,
+  {
+    fillerGroup: InputFillerGroup;
+    result: any;
+  }
+>;
 
 export type CompileResult = {
   updatedNodeContext: NodeContexts;
