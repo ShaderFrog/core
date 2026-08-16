@@ -90,8 +90,7 @@ export const doesLinkThruShader = (graph: Graph, node: GraphNode): boolean => {
 };
 
 export const nodeName = (node: GraphNode): string => {
-  const base = (node as CodeNode).mainFnName ?? node.name;
-  return 'main_' + base.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
+  return 'main_' + node.name.replace(/[^a-zA-Z0-9]/g, ' ').replace(/ +/g, '_');
 };
 
 export const resultName = (node: GraphNode): string => nodeName(node) + '_out';
