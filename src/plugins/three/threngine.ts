@@ -22,6 +22,8 @@ import {
   FunctionNode,
   ExpressionStatementNode,
   AssignmentNode,
+  DeclarationStatementNode,
+  DeclaratorListNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { Graph, NodeType, ShaderStage } from '../../graph/graph-types';
 import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
@@ -33,6 +35,8 @@ import {
   filterSections,
   filterQualifiedStatements,
   filterUniformNames,
+  findShaderSections,
+  shaderSectionsCons,
   LineAndSource,
   ShaderSections,
   shaderSectionsToProgram,
@@ -320,6 +324,141 @@ const threeMaterialProperties = (
     }, {});
 };
 
+const nodeCacheKey = (graph: Graph, node: SourceNode) => {
+  return (
+    '[ID:' +
+    node.id +
+    'Edges:' +
+    graph.edges
+      .filter((edge) => edge.to === node.id)
+      .map((edge) => `(${edge.to}->${edge.input})`)
+      .sort()
+      .join(',') +
+    ']'
+  );
+};
+
+const programCacheKey = (
+  engineContext: EngineContext,
+  graph: Graph,
+  node: SourceNode,
+  sibling?: SourceNode
+) => {
+  const { scene } = engineContext.runtime;
+  const lights: string[] = [];
+  scene.traverse((obj: any) => {
+    if (obj instanceof Light) {
+      lights.push(obj.uuid);
+    }
+  });
+
+  return (
+    ([node, sibling] as SourceNode[])
+      .filter((n) => !!n)
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((n) => nodeCacheKey(graph, n))
+      .join('-') +
+    '|Lights:' +
+    lights.join(',') +
+    '|Bg:' +
+    scene.background?.uuid +
+    '|Env:' +
+    scene.environment?.uuid
+  );
+};
+
+const onBeforeCompileMegaShader = (
+  engineContext: EngineContext,
+  newMat: any
+) => {
+  log('compiling three megashader!');
+  const { renderer, sceneData, scene, camera } = engineContext.runtime;
+  const { mesh } = sceneData;
+
+  // Mirror the defines that FrogMaterial always sets so the force-compiled
+  // megashader includes the same conditional declarations (e.g. tangent, vUv).
+  newMat.defines = {
+    ...(newMat.defines || {}),
+    USE_UV: '',
+    USE_UV2: '',
+    USE_TANGENT: '',
+  };
+
+  const originalMaterial = mesh.material;
+  mesh.material = newMat;
+  renderer.compile(scene, camera);
+
+  const fragmentRef = renderer.properties
+    .get(mesh.material)
+    .programs.values()
+    .next().value.fragmentShader;
+  const vertexRef = renderer.properties
+    .get(mesh.material)
+    .programs.values()
+    .next().value.vertexShader;
+
+  const gl = renderer.getContext();
+  const fragment = gl.getShaderSource(fragmentRef);
+  const vertex = gl.getShaderSource(vertexRef);
+
+  mesh.material = originalMaterial;
+
+  return {
+    material: newMat,
+    fragmentRef,
+    vertexRef,
+    fragment,
+    vertex,
+  };
+};
+
+const cacher = (
+  engineContext: EngineContext,
+  graph: Graph,
+  node: SourceNode,
+  sibling: SourceNode | undefined,
+  newValue: (...args: any[]) => any
+) => {
+  const cacheKey = programCacheKey(engineContext, graph, node, sibling);
+
+  if (engineContext.runtime.cache.data[cacheKey]) {
+    log('Cache hit', cacheKey);
+  } else {
+    log('Cache miss', cacheKey);
+  }
+  const materialData = engineContext.runtime.cache.data[cacheKey] || newValue();
+
+  engineContext.runtime.cache.data[cacheKey] = materialData;
+  engineContext.runtime.engineMaterial = materialData.material;
+
+  return {
+    computedSource:
+      node.stage === 'fragment' ? materialData.fragment : materialData.vertex,
+  };
+};
+
+// const megaShaderManipulateAst: NodeParser['manipulateAst'] = (
+//   engineContext,
+//   engine,
+//   graph,
+//   ast,
+//   inputEdges,
+//   node,
+//   sibling
+// ) => {
+//   const programAst = ast as Program;
+//   const mainName = 'main';
+//   if (node.stage === 'vertex') {
+//     if (doesLinkThruShader(graph, node)) {
+//       returnGlPositionHardCoded(mainName, programAst, 'vec3', 'transformed');
+//     } else {
+//       returnGlPosition(mainName, programAst);
+//     }
+//   }
+//   mangleMainFn(programAst, node, sibling);
+//   return programAst;
+// };
+
 export type ThreeRuntime = {
   scene: Scene;
   camera: PerspectiveCamera;
@@ -580,18 +719,54 @@ export const threngine: Engine = {
       },
     },
     [EngineNodeType.phong]: {
+      onBeforeCompile: async (graph, engineContext, node, sibling) =>
+        cacher(engineContext, graph, node, sibling, () =>
+          onBeforeCompileMegaShader(
+            engineContext,
+            new MeshPhongMaterial({
+              // @ts-ignore
+              isMeshPhongMaterial: true,
+              ...threeMaterialProperties(graph, node, sibling),
+            })
+          )
+        ),
+      // manipulateAst: megaShaderManipulateAst,
       produceFiller:
         (_node, _ast) =>
         (...args: string[]) =>
           makeExpression(`main_MeshPhongMaterial(${args.join(', ')})`),
     },
     [EngineNodeType.physical]: {
+      onBeforeCompile: async (graph, engineContext, node, sibling) =>
+        cacher(engineContext, graph, node, sibling, () =>
+          onBeforeCompileMegaShader(
+            engineContext,
+            new MeshPhysicalMaterial({
+              ...node.config.hardCodedProperties,
+              ...threeMaterialProperties(graph, node, sibling),
+            })
+          )
+        ),
+      // manipulateAst: megaShaderManipulateAst,
       produceFiller:
         (_node, _ast) =>
         (...args: string[]) =>
           makeExpression(`main_MeshPhysicalMaterial(${args.join(', ')})`),
     },
     [EngineNodeType.toon]: {
+      onBeforeCompile: async (graph, engineContext, node, sibling) =>
+        cacher(engineContext, graph, node, sibling, () =>
+          onBeforeCompileMegaShader(
+            engineContext,
+            new MeshToonMaterial({
+              gradientMap: new Texture(),
+              // @ts-ignore
+              isMeshToonMaterial: true,
+              ...threeMaterialProperties(graph, node, sibling),
+            })
+          )
+        ),
+      // manipulateAst: megaShaderManipulateAst,
       produceFiller:
         (_node, _ast) =>
         (...args: string[]) =>
@@ -686,50 +861,80 @@ export const engineNodeTypeToConstructor = (type: string) => {
 
 const frogMergeOptions = { includePrecisions: false, includeVersion: false };
 
-// Varyings that Three.js unconditionally declares. User declarations of these
-// names would redefine Three's, so strip them. `vPosition` and other
-// user-coined names are NOT in this set — they're in threngine.preserve to
-// prevent mangling, but Three doesn't declare them.
-const THREE_PROVIDED_VARYINGS = new Set(['vNormal', 'vViewPosition', 'vUv']);
+const getStructTypeName = (
+  stmt: DeclarationStatementNode
+): string | undefined => {
+  try {
+    const specifier = (stmt.declaration as any).specified_type?.specifier
+      ?.specifier;
+    return specifier?.typeName?.identifier;
+  } catch {
+    return undefined;
+  }
+};
 
-// Uniforms that Three's WebGLProgram prefix unconditionally declares for every
-// program. Anything else (time, renderResolution, color, roughness, etc.) is
-// either user-defined or engine-node-defined (and engine sections are skipped
-// separately), so must NOT be stripped.
-const THREE_PREFIX_UNIFORMS = new Set([
-  'modelMatrix',
-  'modelViewMatrix',
-  'projectionMatrix',
-  'viewMatrix',
-  'normalMatrix',
-  'cameraPosition',
-  'isOrthographic',
-]);
+const collectThreeNames = (
+  sections: ShaderSections
+): { uniforms: Set<string>; qualified: Set<string>; structs: Set<string> } => {
+  const uniforms = new Set<string>();
+  const qualified = new Set<string>();
+  const structs = new Set<string>();
 
-// Strip declarations that Three.js already provides so injected GLSL doesn't
-// redefine them.
-// Vertex `in` (attributes): Three always provides all of them — strip everything.
-// Fragment `in` (varyings from vertex): only strip Three-provided ones, keep
-//   user-defined custom varyings like vPosition, worldPos_*, etc.
-// Uniforms: only strip the WebGLProgram prefix uniforms (matrices + camera).
+  for (const line of sections.uniforms) {
+    const decl = line.source.declaration;
+    if (decl.type === 'interface_declarator') {
+      const id = (decl as any).identifier?.identifier?.identifier;
+      if (id) uniforms.add(id);
+    } else if (decl.type === 'declarator_list') {
+      (decl as DeclaratorListNode).declarations?.forEach((d) =>
+        uniforms.add(d.identifier.identifier)
+      );
+    }
+  }
+
+  for (const line of [...sections.inStatements, ...sections.outStatements]) {
+    const dec = line.source.declaration as DeclaratorListNode;
+    dec.declarations?.forEach((d) => qualified.add(d.identifier.identifier));
+  }
+
+  for (const line of sections.structs) {
+    const name = getStructTypeName(line.source);
+    if (name) structs.add(name);
+  }
+
+  return { uniforms, qualified, structs };
+};
+
+// Strip top-level declarations that the Three.js megashader already provides,
+// so injected user GLSL doesn't redefine them. Uses the parsed megashader
+// sections from the engine node context rather than a hardcoded list.
 const stripThreeDeclarations = (
   sections: ShaderSections,
-  stage: 'vertex' | 'fragment'
+  threeShaderSections: ShaderSections
 ): ShaderSections => {
-  const notProvidedByThree = (name: string) =>
-    !THREE_PROVIDED_VARYINGS.has(name);
-  const notPrefixUniform = (name: string) => !THREE_PREFIX_UNIFORMS.has(name);
+  const {
+    uniforms: threeUniforms,
+    qualified: threeQualified,
+    structs: threeStructs,
+  } = collectThreeNames(threeShaderSections);
+
   return {
     ...sections,
-    inStatements:
-      stage === 'vertex'
-        ? []
-        : filterQualifiedStatements(sections.inStatements, notProvidedByThree),
+    inStatements: filterQualifiedStatements(
+      sections.inStatements,
+      (name) => !threeQualified.has(name)
+    ),
     outStatements: filterQualifiedStatements(
       sections.outStatements,
-      notProvidedByThree
+      (name) => !threeQualified.has(name)
     ),
-    uniforms: filterUniformNames(sections.uniforms, notPrefixUniform),
+    uniforms: filterUniformNames(
+      sections.uniforms,
+      (name) => !threeUniforms.has(name)
+    ),
+    structs: sections.structs.filter(
+      (s) => !threeStructs.has(getStructTypeName(s.source) ?? '')
+    ),
   };
 };
 
@@ -804,11 +1009,38 @@ export const createFrogMaterialResult = (
   ]);
   const noSkip = (s: LineAndSource) => !skipIds.has(s.nodeId);
 
+  // Get parsed Three.js megashader sections from engine node contexts so we
+  // can dynamically strip whatever Three.js actually declares in this compile.
+  // Must use compileResult.updatedNodeContext (not ctx.nodes) since the engine
+  // node's megashader AST is computed during this compilation pass.
+  const { updatedNodeContext } = compileResult;
+  const engineNodes = Array.from(engineNodeIds).map(
+    (id) => graph.nodes.find((n) => n.id === id) as CodeNode
+  );
+  const threeFragSections = (() => {
+    const fragNode = engineNodes.find((n) => n?.stage === 'fragment');
+    const ast = fragNode
+      ? (updatedNodeContext[fragNode.id]?.ast as Program)
+      : null;
+    return ast?.program?.length
+      ? findShaderSections('three', ast)
+      : shaderSectionsCons();
+  })();
+  const threeVertSections = (() => {
+    const vertNode = engineNodes.find((n) => n?.stage === 'vertex');
+    const ast = vertNode
+      ? (updatedNodeContext[vertNode.id]?.ast as Program)
+      : null;
+    return ast?.program?.length
+      ? findShaderSections('three', ast)
+      : shaderSectionsCons();
+  })();
+
   const fragmentShader = generate(
     shaderSectionsToProgram(
       stripThreeDeclarations(
         filterSections(noSkip, graphResult.fragment),
-        'fragment'
+        threeFragSections
       ),
       frogMergeOptions
     ).program
@@ -817,7 +1049,7 @@ export const createFrogMaterialResult = (
     shaderSectionsToProgram(
       stripThreeDeclarations(
         filterSections(noSkip, graphResult.vertex),
-        'vertex'
+        threeVertSections
       ),
       frogMergeOptions
     ).program

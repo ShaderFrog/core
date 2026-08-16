@@ -122,7 +122,7 @@ const computeNodeContext = async (
   //   return y;
   // }
 
-  const { manipulateAst } = parser;
+  const { onBeforeCompile, manipulateAst } = parser;
 
   // Save the updated node context if onBeforeCompile() modifies it, which
   // happens if an engine shader generates a computedSource. This is a silly
@@ -135,41 +135,48 @@ const computeNodeContext = async (
   // have this function not modify EngineContext at all.
   let updatedNodeContext;
   let updatedContext = engineContext;
+  if (onBeforeCompile) {
+    updatedNodeContext = await onBeforeCompile(
+      graph,
+      engineContext,
+      node,
+      sibling
+    );
+    if (updatedNodeContext) {
+      updatedContext = extendNodeContext(
+        engineContext,
+        node.id,
+        updatedNodeContext
+      );
+    }
+  }
 
   const inputEdges = graph.edges.filter((edge) => edge.to === node.id);
 
   let mainFn: ReturnType<typeof findMain>;
   let ast: ReturnType<typeof parser.produceAst>;
-  if (node.engine) {
-    ast = {
-      type: 'program',
-      program: [],
-      scopes: [],
-    };
-  } else {
-    try {
-      ast = parser.produceAst(updatedContext, engine, graph, node, inputEdges);
+  try {
+    ast = parser.produceAst(updatedContext, engine, graph, node, inputEdges);
 
-      // Find the main function before mangling
-      if (shouldNodeHaveMainFn(node)) {
-        mainFn = findMain(ast as Program);
-      }
-
-      if (manipulateAst) {
-        ast = manipulateAst(
-          updatedContext,
-          engine,
-          graph,
-          ast,
-          inputEdges,
-          node,
-          sibling as SourceNode
-        );
-      }
-    } catch (error) {
-      console.error('Error parsing source code!', { error, node });
-      return makeError(node.id, error as GlslSyntaxError);
+    // Find the main function before mangling
+    if (shouldNodeHaveMainFn(node)) {
+      mainFn = findMain(ast as Program);
     }
+
+    if (manipulateAst) {
+      ast = manipulateAst(
+        updatedContext,
+        engine,
+        graph,
+        ast,
+        inputEdges,
+        node,
+        sibling as SourceNode
+      );
+    }
+  } catch (error) {
+    console.error('Error parsing source code!', { error, node });
+    return makeError(node.id, error as GlslSyntaxError);
   }
 
   // Find all the inputs of this node where a "source" code node flows into it,
