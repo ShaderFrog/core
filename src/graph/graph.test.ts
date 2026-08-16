@@ -38,7 +38,7 @@ const mergeBlocks = (ast1: Program, ast2: Program): string => {
     shaderSectionsToProgram(merged, {
       includePrecisions: true,
       includeVersion: true,
-    }),
+    })
   );
 };
 
@@ -47,7 +47,7 @@ const dedupe = (code: string) =>
     shaderSectionsToProgram(findShaderSections('', parse(code)), {
       includePrecisions: true,
       includeVersion: true,
-    }),
+    })
   );
 
 const p = { x: 0, y: 0 };
@@ -96,7 +96,7 @@ const makeSourceNode = (
   id: string,
   source: string,
   stage: ShaderStage,
-  strategies = [texture2DStrategy()],
+  strategies = [texture2DStrategy()]
 ) =>
   sourceNode(
     id,
@@ -109,7 +109,7 @@ const makeSourceNode = (
       uniforms: [],
     },
     source,
-    stage,
+    stage
   );
 
 it('compileSource() fragment produces inlined output without', async () => {
@@ -125,7 +125,7 @@ void main() {
   gl_FragColor = vec4(col1 + col2, 1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
   const input1 = makeSourceNode(
     makeId(),
@@ -134,7 +134,7 @@ void main() {
   gl_FragColor = vec4(0.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
   const input2 = makeSourceNode(
     makeId(),
@@ -143,7 +143,7 @@ void main() {
   gl_FragColor = vec4(1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   const graph: Graph = {
@@ -155,7 +155,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment',
+        'fragment'
       ),
       makeEdge(
         makeId(),
@@ -163,7 +163,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image1',
-        'fragment',
+        'fragment'
       ),
       makeEdge(
         makeId(),
@@ -171,7 +171,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image2',
-        'fragment',
+        'fragment'
       ),
     ],
   };
@@ -216,7 +216,7 @@ void main() {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex',
+    'vertex'
   );
 
   const graph: Graph = {
@@ -228,7 +228,7 @@ void main() {
         outV.id,
         'out',
         'filler_gl_Position',
-        'vertex',
+        'vertex'
       ),
     ],
   };
@@ -266,7 +266,7 @@ void main() {
   gl_FragColor = vec4(col1 + col2, 1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   imageReplacemMe.backfillers = {
@@ -285,7 +285,7 @@ void main() {
   gl_FragColor = vec4(vUv, 1.0, 1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   const graph: Graph = {
@@ -297,7 +297,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment',
+        'fragment'
       ),
       makeEdge(
         makeId(),
@@ -305,7 +305,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image1',
-        'fragment',
+        'fragment'
       ),
     ],
   };
@@ -357,7 +357,7 @@ void main() {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex',
+    'vertex'
   );
 
   const frag = makeSourceNode(
@@ -367,7 +367,7 @@ void main() {
   gl_FragColor = vec4(vUv, 0.0, 1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   const graph: Graph = {
@@ -379,7 +379,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment',
+        'fragment'
       ),
       linkFromVertToFrag(makeId(), vert.id, frag.id),
     ],
@@ -417,7 +417,7 @@ void main() {
   gl_FragColor = vec4(col1, 1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   // Inine an expression source node
@@ -433,7 +433,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment',
+        'fragment'
       ),
       makeEdge(
         makeId(),
@@ -441,7 +441,7 @@ void main() {
         imageReplacemMe.id,
         'out',
         'filler_image1',
-        'fragment',
+        'fragment'
       ),
     ],
   };
@@ -475,7 +475,7 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   // Inine an expression source node
@@ -494,7 +494,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment',
+        'fragment'
       ),
     ],
   };
@@ -526,7 +526,7 @@ void main() {
   gl_FragColor = vec4(1.0);
 }
 `,
-    'fragment',
+    'fragment'
   );
 
   const graph: Graph = {
@@ -538,7 +538,7 @@ void main() {
         outF.id,
         'out',
         'filler_frogFragOut',
-        'fragment',
+        'fragment'
       ),
     ],
   };
@@ -624,7 +624,7 @@ uniform vec3 a;
 
   // Verify these lines are preserved (they go through dedupeUniforms)
   expect(dedupe(`layout(std140,column_major) uniform;`)).toEqual(
-    `layout(std140,column_major) uniform;`,
+    `layout(std140,column_major) uniform;`
   );
 });
 
@@ -634,11 +634,11 @@ it('filterUniformNames', () => {
 uniform vec2 x, y[5];
 uniform Light0 { vec4 y; } x;
 uniform Light0 { vec4 x; } y;
-`,
+`
   ).program.filter((s) => s.type === 'declaration_statement');
   const filtered = filterUniformNames(
     stmts.map((x) => ({ nodeId: '', source: x })),
-    (name) => name !== 'x',
+    (name) => name !== 'x'
   );
 
   expect(generate(extractSource(filtered))).toEqual(`uniform vec4 y;
@@ -651,11 +651,11 @@ it('filterQualifiedStatements', () => {
   const stmts = parse(
     `in vec2 x, y;
 out vec2 x;
-`,
+`
   ).program.filter((s) => s.type === 'declaration_statement');
   const filtered = filterQualifiedStatements(
     stmts.map((x) => ({ nodeId: '', source: x })),
-    (name) => name !== 'x',
+    (name) => name !== 'x'
   );
 
   expect(generate(extractSource(filtered))).toEqual(`in vec2 y;

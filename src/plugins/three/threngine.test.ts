@@ -20,7 +20,7 @@ const makeSourceNode = (
   id: string,
   source: string,
   stage: ShaderStage,
-  strategies = [texture2DStrategy(), namedAttributeStrategy('position')],
+  strategies = [texture2DStrategy(), namedAttributeStrategy('position')]
 ) =>
   sourceNode(
     id,
@@ -33,7 +33,7 @@ const makeSourceNode = (
       uniforms: [],
     },
     source,
-    stage,
+    stage
   );
 
 it('threngine compileSource() and manipulateAst()', async () => {
@@ -49,7 +49,7 @@ void main() {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex',
+    'vertex'
   );
 
   const graph: Graph = {
@@ -61,7 +61,7 @@ void main() {
         outV.id,
         'out',
         'filler_gl_Position',
-        'vertex',
+        'vertex'
       ),
     ],
   };
@@ -85,7 +85,7 @@ void main() {
 
   // Check that it inlned. For fun.
   expect(result.vertexResult).toContain(
-    `gl_Position = ${nodeName(vertInput)}();`,
+    `gl_Position = ${nodeName(vertInput)}();`
   );
 });
 
@@ -99,7 +99,7 @@ it('threngine compileSource() linking through vertex', async () => {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex',
+    'vertex'
   );
   const vert2 = makeSourceNode(
     makeId(),
@@ -107,7 +107,7 @@ it('threngine compileSource() linking through vertex', async () => {
   gl_Position = modelViewMatrix * vec4(position, 1.0);
 }
 `,
-    'vertex',
+    'vertex'
   );
 
   const graph: Graph = {
@@ -119,7 +119,7 @@ it('threngine compileSource() linking through vertex', async () => {
         outV.id,
         'out',
         'filler_gl_Position',
-        'vertex',
+        'vertex'
       ),
       makeEdge(
         makeId(),
@@ -127,7 +127,7 @@ it('threngine compileSource() linking through vertex', async () => {
         vert1.id,
         'out',
         'filler_position',
-        'vertex',
+        'vertex'
       ),
     ],
   };

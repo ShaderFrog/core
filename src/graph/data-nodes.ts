@@ -37,13 +37,13 @@ const TypeCompatibility: Set<GraphDataType>[] = [
 
 export const canMapType = (
   fromType: GraphDataType | undefined,
-  toType: GraphDataType | undefined,
+  toType: GraphDataType | undefined
 ) => {
   if (fromType === toType || !fromType || !toType) {
     return true;
   }
   return TypeCompatibility.some(
-    (compatibility) => compatibility.has(fromType) && compatibility.has(toType),
+    (compatibility) => compatibility.has(fromType) && compatibility.has(toType)
   );
 };
 
@@ -65,7 +65,7 @@ export const numberNode = (
     isRandom?: boolean;
     inputs?: NodeInput[];
     outputs?: NodeOutput[];
-  },
+  }
 ): NumberNode => ({
   type: 'number',
   id,
@@ -95,7 +95,7 @@ export const numberUniformData = (
   name: string,
   value: string,
   range?: [string | number, string | number],
-  stepper?: string | number,
+  stepper?: string | number
 ): NumberDataUniform => ({
   type: 'number',
   name,
@@ -124,7 +124,7 @@ export const textureNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value?: TextureNodeValueData,
+  value?: TextureNodeValueData
 ): TextureNode => ({
   type: 'texture',
   id,
@@ -149,7 +149,7 @@ export type TextureDataUniform = Pick<TextureNode, 'type' | 'value' | 'name'>;
 
 export const textureUniformData = (
   name: string,
-  value: TextureNodeValueData,
+  value: TextureNodeValueData
 ): TextureDataUniform => ({ type: 'texture', name, value });
 
 export type SamplerCubeNodeValueData = {
@@ -165,7 +165,7 @@ export const samplerCubeNode = (
   id: string,
   name: string,
   position: NodePosition,
-  value?: SamplerCubeNodeValueData,
+  value?: SamplerCubeNodeValueData
 ): SamplerCubeNode => ({
   type: 'samplerCube',
   id,
@@ -190,7 +190,7 @@ export type SamplerCubeDataUniform = Pick<
 
 export const samplerCubeUniformData = (
   name: string,
-  value: SamplerCubeNodeValueData,
+  value: SamplerCubeNodeValueData
 ): SamplerCubeDataUniform => ({
   type: 'samplerCube',
   name,
@@ -209,7 +209,7 @@ export function arrayNode(
   id: string,
   name: string,
   position: NodePosition,
-  value: ArrayValue,
+  value: ArrayValue
 ): ArrayNode {
   return {
     id,
@@ -258,7 +258,7 @@ export function vectorNode(
   name: string,
   position: NodePosition,
   value: Vector2 | Vector3 | Vector4,
-  options?: { stepper?: string | number; locked?: boolean },
+  options?: { stepper?: string | number; locked?: boolean }
 ): Vector2Node | Vector3Node | Vector4Node {
   const dataType: GraphDataType =
     value.length === 2 ? 'vector2' : value.length === 3 ? 'vector3' : 'vector4';
@@ -286,9 +286,19 @@ export function vectorNode(
       locked: options?.locked,
     };
   } else if (value.length === 3) {
-    return { ...base, value: value as Vector3, dimensions: 3 as const, type: 'vector3' as const };
+    return {
+      ...base,
+      value: value as Vector3,
+      dimensions: 3 as const,
+      type: 'vector3' as const,
+    };
   } else {
-    return { ...base, value: value as Vector4, dimensions: 4 as const, type: 'vector4' as const };
+    return {
+      ...base,
+      value: value as Vector4,
+      dimensions: 4 as const,
+      type: 'vector4' as const,
+    };
   }
 }
 
@@ -299,7 +309,7 @@ export type ArrayDataUniform = Pick<
 
 export const arrayUniformData = (
   name: string,
-  value: ArrayValue,
+  value: ArrayValue
 ): ArrayDataUniform => ({
   name,
   value,
@@ -323,14 +333,20 @@ export type Vector4DataUniform = Pick<
 export const vectorUniformData = (
   name: string,
   value: Vector2 | Vector3 | Vector4,
-  options?: { stepper?: string | number; locked?: boolean },
+  options?: { stepper?: string | number; locked?: boolean }
 ): Vector2DataUniform | Vector3DataUniform | Vector4DataUniform => ({
   name,
   ...(value.length === 2
-    ? { value, dimensions: 2, type: 'vector2', stepper: options?.stepper, locked: options?.locked }
+    ? {
+        value,
+        dimensions: 2,
+        type: 'vector2',
+        stepper: options?.stepper,
+        locked: options?.locked,
+      }
     : value.length === 3
-      ? { value, dimensions: 3, type: 'vector3' }
-      : { value, dimensions: 4, type: 'vector4' }),
+    ? { value, dimensions: 3, type: 'vector3' }
+    : { value, dimensions: 4, type: 'vector4' }),
 });
 
 export interface RgbNode extends BaseNode {
@@ -348,7 +364,7 @@ export function colorNode(
   id: string,
   name: string,
   position: NodePosition,
-  value: Vector3 | Vector4,
+  value: Vector3 | Vector4
 ): RgbNode | RgbaNode {
   const dataType = value.length === 3 ? 'rgb' : 'rgba';
   return {
@@ -381,7 +397,7 @@ export type RgbaDataUniform = Omit<
 
 export const colorUniformData = (
   name: string,
-  value: Vector3 | Vector4,
+  value: Vector3 | Vector4
 ): RgbDataUniform | RgbaDataUniform => ({
   name,
   ...(value.length === 3
