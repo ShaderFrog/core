@@ -1,6 +1,6 @@
 {
   "name": "@shaderfrog/core",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "description": "Shaderfrog core",
   "type": "module",
   "files": [
@@ -37,8 +37,10 @@
     "@shaderfrog/glsl-parser": "^7.0.1",
     "@swc/core": "^1.6.7",
     "@types/lodash.groupby": "^4.6.7",
+    "@types/node": "^20.1.2",
     "@types/three": "^0.169.0",
     "babylonjs": "^6.2.0",
+    "playcanvas": "^1.65.3",
     "prettier": "^3.3.2",
     "three": "^0.169.0",
     "typescript": "^5.5.3",

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "target": "es5",
-    "lib": ["esnext"],
+    "lib": ["esnext", "dom"],
     "strict": true,
     "allowJs": true,
     "skipLibCheck": true,

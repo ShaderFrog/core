@@ -69,7 +69,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, threngine, engineContext);
@@ -135,7 +134,6 @@ it('threngine compileSource() linking through vertex', async () => {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, threngine, engineContext);

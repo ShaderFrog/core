@@ -179,7 +179,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, engine, engineContext);
@@ -236,7 +235,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, engine, engineContext);
@@ -313,7 +311,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
   const preserver = { ...engine, preserve: new Set<string>(['vUv']) };
 
@@ -388,7 +385,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, engine, engineContext);
@@ -449,7 +445,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, engine, engineContext);
@@ -503,7 +498,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, engine, engineContext);
@@ -546,7 +540,6 @@ void main() {
     engine: 'three',
     nodes: {},
     runtime: {},
-    debuggingNonsense: {},
   };
 
   const result = await compileSource(graph, engine, engineContext);
