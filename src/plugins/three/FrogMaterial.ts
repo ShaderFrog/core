@@ -139,6 +139,7 @@ type ConstructorParams<C extends MaterialConstructor> = C extends new (
 
 type FrogSpecificKeys =
   | 'baseMaterial'
+  | 'materialName'
   | 'fragmentShader'
   | 'fragmentOutput'
   | 'vertexShader'
@@ -152,6 +153,9 @@ export type FrogMaterialParams<
   C extends MaterialConstructor = MaterialConstructor,
 > = {
   baseMaterial: C;
+  /** Stable name used as the GLSL engine function prefix (e.g. 'MeshPhysicalMaterial').
+   *  Required in minified/production bundles where Function.name is mangled. */
+  materialName?: string;
   fragmentShader: string;
   fragmentOutput: string;
   vertexShader: string;
@@ -164,10 +168,12 @@ export type FrogMaterialParams<
     shader: WebGLProgramParametersWithUniforms,
     renderer: WebGLRenderer,
   ) => void;
-} & Omit<WithInjectables<ConstructorParams<C>>, FrogSpecificKeys>;
+} & Omit<WithInjectables<ConstructorParams<C>>, FrogSpecificKeys> &
+  Partial<Record<InjectableKey, string>>;
 
 function _create<C extends MaterialConstructor>({
   baseMaterial: BaseMaterial,
+  materialName,
   fragmentShader,
   fragmentOutput,
   vertexShader,
@@ -179,7 +185,7 @@ function _create<C extends MaterialConstructor>({
   ...baseProps
 }: FrogMaterialParams<C>): Material {
   // Split baseProps: injectable strings become GLSL injections + dummy textures
-  const glslInjections: Array<{ find: RegExp; replace: string }> = [];
+  const glslInjections: ShaderInjection[] = [];
   const materialProps: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(
@@ -190,7 +196,7 @@ function _create<C extends MaterialConstructor>({
         FRAGMENT_INJECTABLE[key as InjectableKey] ||
         VERTEX_INJECTABLES[key as InjectableKey];
       if (inj) {
-        glslInjections.push({ find: inj.find, replace: inj.replace(value) });
+        glslInjections.push({ search: inj.find, replace: inj.replace(value) });
         if (inj.forceProperty) {
           materialProps[inj.forceProperty] = new Texture();
         }
@@ -203,7 +209,7 @@ function _create<C extends MaterialConstructor>({
   }
 
   const mat = new BaseMaterial(materialProps as ConstructorParams<C>);
-  const engineFnName = `main_${BaseMaterial.name || 'BaseMaterial'}`;
+  const engineFnName = `main_${materialName || BaseMaterial.name || 'BaseMaterial'}`;
 
   mat.onBeforeCompile = (shader, renderer) => {
     Object.assign(shader.uniforms, uniforms);
@@ -231,8 +237,8 @@ function _create<C extends MaterialConstructor>({
           `\n\nvec4 ${engineFnName}() {\n    vec4 fragColor = vec4(0.0);`,
       ) + `\n\nvoid main() { gl_FragColor = ${fragmentOutput}; }`;
 
-    for (const { find, replace } of glslInjections) {
-      shader.fragmentShader = shader.fragmentShader.replace(find, replace);
+    for (const { search, replace } of glslInjections) {
+      shader.fragmentShader = shader.fragmentShader.replace(search, replace);
     }
 
     for (const { search, replace } of fragmentInjections) {
@@ -261,8 +267,8 @@ function _create<C extends MaterialConstructor>({
           `\n\nvec4 ${engineFnName}() {\n    vec4 fragPosition = vec4(0.0);`,
       ) + `\n\nvoid main() { ${vertexOutput} }`;
 
-    for (const { find, replace } of glslInjections) {
-      shader.vertexShader = shader.vertexShader.replace(find, replace);
+    for (const { search, replace } of glslInjections) {
+      shader.vertexShader = shader.vertexShader.replace(search, replace);
     }
 
     for (const { search, replace } of vertexInjections) {

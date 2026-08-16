@@ -30,7 +30,11 @@ import { prepopulatePropertyInputs, mangleMainFn } from '../../graph/graph';
 import importers from './importers';
 
 import { Engine, EngineContext, EngineNodeType } from '../../engine';
-import { doesLinkThruShader, CompileResult } from '../../graph/graph';
+import {
+  doesLinkThruShader,
+  CompileResult,
+  EngineNodeProperties,
+} from '../../graph/graph';
 import {
   filterSections,
   filterQualifiedStatements,
@@ -73,7 +77,7 @@ export const phongNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -93,13 +97,13 @@ export const phongNode = (
           'Emissive Map',
           'emissiveMap',
           'texture',
-          'filler_emissiveMap'
+          'filler_emissiveMap',
         ),
         property(
           'Emissive Intensity',
           'emissiveIntensity',
           'number',
-          'uniform_emissive'
+          'uniform_emissive',
         ),
         property('Texture', 'map', 'texture', 'filler_map'),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
@@ -109,7 +113,7 @@ export const phongNode = (
           'AO Intensity',
           'aoMapIntensity',
           'number',
-          'filler_aoMapIntensity'
+          'filler_aoMapIntensity',
         ),
         property('Shininess', 'shininess', 'number'),
         property('Reflectivity', 'reflectivity', 'number'),
@@ -119,13 +123,13 @@ export const phongNode = (
           'Specular Map',
           'specularMap',
           'texture',
-          'filler_specularMap'
+          'filler_specularMap',
         ),
         property(
           'Displacement Map',
           'displacementMap',
           'texture',
-          'filler_displacementMap'
+          'filler_displacementMap',
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Bump Map', 'bumpMap', 'texture', 'filler_bumpMap'),
@@ -146,7 +150,7 @@ export const phongNode = (
         'filler',
         undefined, // Data type for what plugs into this filler
         ['code', 'data'],
-        true
+        true,
       ),
     ],
     outputs: [
@@ -166,7 +170,7 @@ export const physicalNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -190,7 +194,7 @@ export const physicalNode = (
           'AO Intensity',
           'aoMapIntensity',
           'number',
-          'filler_aoMapIntensity'
+          'filler_aoMapIntensity',
         ),
         property('Metalness', 'metalness', 'number', 'uniform_metalness'),
         property('Roughness', 'roughness', 'number', 'uniform_roughness'),
@@ -198,13 +202,13 @@ export const physicalNode = (
           'Roughness Map',
           'roughnessMap',
           'texture',
-          'filler_roughnessMap'
+          'filler_roughnessMap',
         ),
         property(
           'Displacement Map',
           'displacementMap',
           'texture',
-          'filler_displacementMap'
+          'filler_displacementMap',
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         // MeshPhysicalMaterial gets envMap from the scene. MeshStandardMaterial
@@ -214,14 +218,14 @@ export const physicalNode = (
           'Env Map Intensity',
           'envMapIntensity',
           'number',
-          'uniform_envMapIntensity'
+          'uniform_envMapIntensity',
         ),
         property('Transmission', 'transmission', 'number'),
         property(
           'Transmission Map',
           'transmissionMap',
           'texture',
-          'filler_transmissionMap'
+          'filler_transmissionMap',
         ),
         property('Thickness', 'thickness', 'number'),
         property('Index of Refraction', 'ior', 'number'),
@@ -238,7 +242,7 @@ export const physicalNode = (
           'iridescenceThicknessRange',
           'array',
           undefined,
-          ['100', '400']
+          ['100', '400'],
         ),
       ],
       hardCodedProperties: {
@@ -269,7 +273,7 @@ export const physicalNode = (
               'filler',
               undefined, // Data type for what plugs into this filler
               ['code', 'data'],
-              true
+              true,
             ),
           ]
         : [],
@@ -300,7 +304,7 @@ export const defaultPropertySetting = (property: NodeProperty) => {
 const threeMaterialProperties = (
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ): Record<string, any> => {
   // Find inputs to this node that are dependent on a property of the material
   const propertyInputs = indexById(node.inputs.filter((i) => i.property));
@@ -314,7 +318,7 @@ const threeMaterialProperties = (
       if (propertyInput) {
         // Find the property itself
         const property = (node.config.properties || []).find(
-          (p) => p.property === propertyInput.property
+          (p) => p.property === propertyInput.property,
         ) as NodeProperty;
 
         // Initialize the property on the material
@@ -342,7 +346,7 @@ const programCacheKey = (
   engineContext: EngineContext,
   graph: Graph,
   node: SourceNode,
-  sibling?: SourceNode
+  sibling?: SourceNode,
 ) => {
   const { scene } = engineContext.runtime;
   const lights: string[] = [];
@@ -369,7 +373,7 @@ const programCacheKey = (
 
 const onBeforeCompileMegaShader = (
   engineContext: EngineContext,
-  newMat: any
+  newMat: any,
 ) => {
   log('Compiling three megashader!');
   const { renderer, sceneData, scene, camera } = engineContext.runtime;
@@ -417,7 +421,7 @@ const cacher = (
   graph: Graph,
   node: SourceNode,
   sibling: SourceNode | undefined,
-  newValue: (...args: any[]) => any
+  newValue: (...args: any[]) => any,
 ) => {
   const cacheKey = programCacheKey(engineContext, graph, node, sibling);
 
@@ -486,27 +490,27 @@ const evaluateNode = (node: DataNode) => {
     return new Vector3(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
-      parseFloat(node.value[2])
+      parseFloat(node.value[2]),
     );
   } else if (node.type === 'vector4') {
     return new Vector4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
+      parseFloat(node.value[3]),
     );
   } else if (node.type === 'rgb') {
     return new Color(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
-      parseFloat(node.value[2])
+      parseFloat(node.value[2]),
     );
   } else if (node.type === 'rgba') {
     return new Vector4(
       parseFloat(node.value[0]),
       parseFloat(node.value[1]),
       parseFloat(node.value[2]),
-      parseFloat(node.value[3])
+      parseFloat(node.value[3]),
     );
   } else {
     return node.value;
@@ -518,7 +522,7 @@ export const toonNode = (
   name: string,
   position: NodePosition,
   uniforms: UniformDataType[],
-  stage: ShaderStage | undefined
+  stage: ShaderStage | undefined,
 ): CodeNode =>
   prepopulatePropertyInputs({
     id,
@@ -538,7 +542,7 @@ export const toonNode = (
           'Gradient Map',
           'gradientMap',
           'texture',
-          'filler_gradientMap'
+          'filler_gradientMap',
         ),
         property('Normal Map', 'normalMap', 'texture', 'filler_normalMap'),
         property('Normal Scale', 'normalScale', 'vector2'),
@@ -547,13 +551,13 @@ export const toonNode = (
           'AO Intensity',
           'aoMapIntensity',
           'number',
-          'filler_aoMapIntensity'
+          'filler_aoMapIntensity',
         ),
         property(
           'Displacement Map',
           'displacementMap',
           'texture',
-          'filler_displacementMap'
+          'filler_displacementMap',
         ),
         property('Displacement Scale', 'displacementScale', 'number'),
         property('Env Map', 'envMap', 'samplerCube'),
@@ -680,7 +684,7 @@ export const threngine: Engine = {
         ast,
         inputEdges,
         node,
-        sibling
+        sibling,
       ) => {
         const programAst = ast as Program;
         const mainName = 'main'; // || nodeName(node);
@@ -705,8 +709,8 @@ export const threngine: Engine = {
               // @ts-ignore
               isMeshPhongMaterial: true,
               ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
+            }),
+          ),
         ),
       produceFiller:
         (_node, _ast) =>
@@ -721,8 +725,8 @@ export const threngine: Engine = {
             new MeshPhysicalMaterial({
               ...node.config.hardCodedProperties,
               ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
+            }),
+          ),
         ),
       produceFiller:
         (_node, _ast) =>
@@ -739,8 +743,8 @@ export const threngine: Engine = {
               // @ts-ignore
               isMeshToonMaterial: true,
               ...threeMaterialProperties(graph, node, sibling),
-            })
-          )
+            }),
+          ),
         ),
       produceFiller:
         (_node, _ast) =>
@@ -752,7 +756,7 @@ export const threngine: Engine = {
 
 export const createMaterial = (
   compileResult: CompileResult,
-  ctx: EngineContext
+  ctx: EngineContext,
 ) => {
   const { engineMaterial } = ctx.runtime as ThreeRuntime;
 
@@ -778,7 +782,7 @@ export const createMaterial = (
     vertexShader: compileResult?.vertexResult.replace('#version 300 es', ''),
     fragmentShader: compileResult?.fragmentResult.replace(
       '#version 300 es',
-      ''
+      '',
     ),
   };
 
@@ -805,14 +809,14 @@ export const createMaterial = (
         // WebGLProgram
         // https://github.com/mrdoob/three.js/blob/e7042de7c1a2c70e38654a04b6fd97d9c978e781/src/renderers/webgl/WebGLProgram.js#L392
         // which occurs if we set isMeshPhysicalMaterial/isMeshStandardMaterial
-        property !== 'defines'
+        property !== 'defines',
     )
     .reduce(
       (acc, [key, value]) => ({
         ...acc,
         [key]: value,
       }),
-      {}
+      {},
     );
 
   const material = new RawShaderMaterial(initialProperties);
@@ -837,7 +841,7 @@ export const engineNodeTypeToConstructor = (type: string) => {
 const frogMergeOptions = { includePrecisions: false, includeVersion: false };
 
 const getStructTypeName = (
-  stmt: DeclarationStatementNode
+  stmt: DeclarationStatementNode,
 ): string | undefined => {
   try {
     const specifier = (stmt.declaration as any).specified_type?.specifier
@@ -849,7 +853,7 @@ const getStructTypeName = (
 };
 
 const collectThreeNames = (
-  sections: ShaderSections
+  sections: ShaderSections,
 ): { uniforms: Set<string>; qualified: Set<string>; structs: Set<string> } => {
   const uniforms = new Set<string>();
   const qualified = new Set<string>();
@@ -862,7 +866,7 @@ const collectThreeNames = (
       if (id) uniforms.add(id);
     } else if (decl.type === 'declarator_list') {
       (decl as DeclaratorListNode).declarations?.forEach((d) =>
-        uniforms.add(d.identifier.identifier)
+        uniforms.add(d.identifier.identifier),
       );
     }
   }
@@ -885,7 +889,7 @@ const collectThreeNames = (
 // sections from the engine node context rather than a hardcoded list.
 const stripThreeDeclarations = (
   sections: ShaderSections,
-  threeShaderSections: ShaderSections
+  threeShaderSections: ShaderSections,
 ): ShaderSections => {
   const {
     uniforms: threeUniforms,
@@ -897,18 +901,18 @@ const stripThreeDeclarations = (
     ...sections,
     inStatements: filterQualifiedStatements(
       sections.inStatements,
-      (name) => !threeQualified.has(name)
+      (name) => !threeQualified.has(name),
     ),
     outStatements: filterQualifiedStatements(
       sections.outStatements,
-      (name) => !threeQualified.has(name)
+      (name) => !threeQualified.has(name),
     ),
     uniforms: filterUniformNames(
       sections.uniforms,
-      (name) => !threeUniforms.has(name)
+      (name) => !threeUniforms.has(name),
     ),
     structs: sections.structs.filter(
-      (s) => !threeStructs.has(getStructTypeName(s.source) ?? '')
+      (s) => !threeStructs.has(getStructTypeName(s.source) ?? ''),
     ),
   };
 };
@@ -921,7 +925,7 @@ const extractOutputExpr = (
   sections: ShaderSections,
   outputNodeId: string,
   assignTarget: string,
-  fallback: string
+  fallback: string,
 ): string => {
   const entry = sections.program.find((s) => s.nodeId === outputNodeId);
   if (!entry) return fallback;
@@ -946,7 +950,7 @@ const extractOutputExpr = (
 const extractVertexMainStmts = (
   sections: ShaderSections,
   outputNodeId: string,
-  fallback: string
+  fallback: string,
 ): string => {
   const entry = sections.program.find((s) => s.nodeId === outputNodeId);
   if (!entry) return `gl_Position = ${fallback};`;
@@ -958,12 +962,12 @@ const extractVertexMainStmts = (
 export const createFrogMaterialResult = (
   compileResult: CompileResult,
   ctx: EngineContext,
-  graph: Graph
+  graph: Graph,
 ) => {
   const { compileResult: graphResult } = compileResult;
 
   const engineNodeIds = new Set<string>(
-    graph.nodes.filter((node) => (node as CodeNode).engine).map(({ id }) => id)
+    graph.nodes.filter((node) => (node as CodeNode).engine).map(({ id }) => id),
   );
 
   const engineNode = graph.nodes.find((n) => engineNodeIds.has(n.id));
@@ -992,7 +996,7 @@ export const createFrogMaterialResult = (
   // node's megashader AST is computed during this compilation pass.
   const { updatedNodeContext } = compileResult;
   const engineNodes = Array.from(engineNodeIds).map(
-    (id) => graph.nodes.find((n) => n.id === id) as CodeNode
+    (id) => graph.nodes.find((n) => n.id === id) as CodeNode,
   );
   const threeFragSections = (() => {
     const fragNode = engineNodes.find((n) => n?.stage === 'fragment');
@@ -1018,20 +1022,20 @@ export const createFrogMaterialResult = (
       stripThreeDeclarations(
         filterSections(noSkip, graphResult.fragment),
         // graphResult.fragment,
-        threeFragSections
+        threeFragSections,
       ),
-      frogMergeOptions
-    ).program
+      frogMergeOptions,
+    ).program,
   );
   const vertexShader = generate(
     shaderSectionsToProgram(
       stripThreeDeclarations(
         filterSections(noSkip, graphResult.vertex),
         // graphResult.vertex,
-        threeVertSections
+        threeVertSections,
       ),
-      frogMergeOptions
-    ).program
+      frogMergeOptions,
+    ).program,
   );
 
   // Extract the final output expressions from the output nodes' compiled AST.
@@ -1041,12 +1045,12 @@ export const createFrogMaterialResult = (
     graphResult.fragment,
     graphResult.outputFrag.id,
     'frogFragOut',
-    'vec4(1.0)'
+    'vec4(1.0)',
   );
   const vertexOutput = extractVertexMainStmts(
     graphResult.vertex,
     graphResult.outputVert.id,
-    'vec4(1.0)'
+    'vec4(1.0)',
   );
 
   const uniforms: Record<string, { value: any }> = {
@@ -1059,7 +1063,7 @@ export const createFrogMaterialResult = (
   let vertexInjections: ShaderInjection[] = [];
 
   const additionalProperties = Object.entries(
-    compileResult.compileResult.engineNodeProperties
+    compileResult.compileResult.engineNodeProperties,
   ).reduce<Record<string, any>>((acc, [name, property]) => {
     if (
       property.fillerGroup.filler
@@ -1082,6 +1086,7 @@ export const createFrogMaterialResult = (
 
   const mat = new FrogMaterial({
     baseMaterial: BaseMaterial as any,
+    materialName: engineNodeTypeToConstructorName(engineNode.type) ?? undefined,
     fragmentShader,
     fragmentOutput,
     vertexShader,
@@ -1101,4 +1106,139 @@ export const createFrogMaterialResult = (
   m.defines.USE_TANGENT = '';
 
   return mat;
+};
+
+export const engineNodeTypeToConstructorName = (
+  type: string,
+): 'MeshPhongMaterial' | 'MeshPhysicalMaterial' | 'MeshToonMaterial' | null => {
+  if (type === EngineNodeType.physical) return 'MeshPhysicalMaterial';
+  if (type === EngineNodeType.phong) return 'MeshPhongMaterial';
+  if (type === EngineNodeType.toon) return 'MeshToonMaterial';
+  return null;
+};
+
+export type FrogMaterialExport = {
+  fragmentShader: string;
+  vertexShader: string;
+  fragmentOutput: string;
+  vertexOutput: string;
+  baseMaterialType:
+    | 'MeshPhongMaterial'
+    | 'MeshPhysicalMaterial'
+    | 'MeshToonMaterial';
+  // Properties passed as-is to FrogMaterial (map, normalMap, etc. as GLSL strings)
+  injectableProps: Record<string, string>;
+  // Injections that replace assignment patterns in Three's compiled shader
+  fragmentInjections: ShaderInjection[];
+  vertexInjections: ShaderInjection[];
+};
+
+export const prepareFrogMaterialExport = (
+  compileResult: CompileResult,
+  graph: Graph,
+): FrogMaterialExport | null => {
+  const { compileResult: graphResult } = compileResult;
+
+  const engineNodeIds = new Set<string>(
+    graph.nodes.filter((node) => (node as CodeNode).engine).map(({ id }) => id),
+  );
+  const engineNode = graph.nodes.find((n) => engineNodeIds.has(n.id));
+
+  if (!engineNode) return null;
+
+  const baseMaterialType = engineNodeTypeToConstructorName(engineNode.type);
+  if (!baseMaterialType) return null;
+
+  const skipIds = new Set([
+    graphResult.outputFrag.id,
+    graphResult.outputVert.id,
+  ]);
+  const noSkip = (s: LineAndSource) => !skipIds.has(s.nodeId);
+
+  const { updatedNodeContext } = compileResult;
+  const engineNodes = Array.from(engineNodeIds).map(
+    (id) => graph.nodes.find((n) => n.id === id) as CodeNode,
+  );
+
+  const threeFragSections = (() => {
+    const fragNode = engineNodes.find((n) => n?.stage === 'fragment');
+    const ast = fragNode
+      ? (updatedNodeContext[fragNode.id]?.ast as Program)
+      : null;
+    return ast?.program?.length
+      ? findShaderSections('three', ast)
+      : shaderSectionsCons();
+  })();
+
+  const threeVertSections = (() => {
+    const vertNode = engineNodes.find((n) => n?.stage === 'vertex');
+    const ast = vertNode
+      ? (updatedNodeContext[vertNode.id]?.ast as Program)
+      : null;
+    return ast?.program?.length
+      ? findShaderSections('three', ast)
+      : shaderSectionsCons();
+  })();
+
+  const fragmentShader = generate(
+    shaderSectionsToProgram(
+      stripThreeDeclarations(
+        filterSections(noSkip, graphResult.fragment),
+        threeFragSections,
+      ),
+      frogMergeOptions,
+    ).program,
+  );
+
+  const vertexShader = generate(
+    shaderSectionsToProgram(
+      stripThreeDeclarations(
+        filterSections(noSkip, graphResult.vertex),
+        threeVertSections,
+      ),
+      frogMergeOptions,
+    ).program,
+  );
+
+  const fragmentOutput = extractOutputExpr(
+    graphResult.fragment,
+    graphResult.outputFrag.id,
+    'frogFragOut',
+    'vec4(1.0)',
+  );
+
+  const vertexOutput = extractVertexMainStmts(
+    graphResult.vertex,
+    graphResult.outputVert.id,
+    'vec4(1.0)',
+  );
+
+  // Mirror the same split createFrogMaterialResult does
+  const fragmentInjections: ShaderInjection[] = [];
+  const vertexInjections: ShaderInjection[] = [];
+  const injectableProps: Record<string, string> = {};
+
+  Object.entries(graphResult.engineNodeProperties).forEach(([name, prop]) => {
+    if (!prop.result) return;
+    if (
+      prop.fillerGroup.filler.toString().includes('strategy_type_assignmentTo')
+    ) {
+      const replace = `$1${prop.result};`;
+      fragmentInjections.push({ search: `(${name} = ).+;`, replace });
+      vertexInjections.push({ search: `(${name} = ).+;`, replace });
+    } else {
+      injectableProps[name] = prop.result;
+    }
+  });
+
+  return {
+    fragmentShader,
+    vertexShader,
+    fragmentOutput,
+    vertexOutput,
+    baseMaterialType,
+    injectableProps,
+    fragmentInjections,
+    vertexInjections,
+  };
 };

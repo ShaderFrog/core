@@ -1,8 +1,91 @@
 # Shaderfrog Core
 
-🚨 This library is experimental! 🚨
+ShaderFrog Core is the core library that powers [Shaderfrog.com](https://shaderfrog.com/). You're proably here for exported materials from Shaderfrog using `FrogMaterial`.
 
-🚨 The API can change at any time! 🚨
+# FrogMaterial: Three.js Material Export 
+
+`FrogMaterial` creates an extensible Three.js material with a high degree of control over the source code, making Three.js materials more customizable than the standard path using [onBeforeCompile](https://threejs.org/docs/#Material.onBeforeCompile).
+
+Usage example: 
+
+```ts
+import { MesHPhysicalMaterial } from 'three';
+import { FrogMaterial } from '@shaderfrog/core/plugins/three';
+
+const material = new FrogMaterial({
+    baseMaterial: MeshPhysicalMaterial,
+    materialName: 'MeshPhysicalMaterial',
+    fragmentShader,
+    fragmentOutput: "(main_Edge_Glow()+ main_MeshPhysicalMaterial())",
+    vertexShader,
+    vertexOutput: "main_Parallax();\n\n    \n  main_Edge_Glow();\n\n    \n  main_Striped_Mandelbrot();\n\n    \n  main_Julia();\n\n    \n  gl_Position = main_MeshPhysicalMaterial();\n",
+    uniforms,
+    map: "main_Parallax()",
+    fragmentInjections: [{
+      search: new RegExp("(normal = ).+;"), replace: "$1(vNormal + sampledDiffuseColor.rgb * 0.5);"
+    }],
+    vertexInjections: [{
+      search: new RegExp("(normal = ).+;"), replace: "$1(vNormal + sampledDiffuseColor.rgb * 0.5);"
+    }],
+    metalness: 0,
+    roughness: 0.065,
+});
+```
+
+The FrogMaterial API:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `baseMaterial` | Three.js material constructor, e.g. `MeshPhysicalMaterial` | Yes | The Three.js material class to extend. `FrogMaterial` constructs an instance of this class and drives its `onBeforeCompile`. |
+| `materialName` | `string` | No | Stable name used as the GLSL engine function prefix (e.g. `'MeshPhysicalMaterial'`). Falls back to `baseMaterial.name`, but that's mangled by minifiers, so set this explicitly in production bundles. |
+| `fragmentShader` | `string` | Yes | GLSL source injected above `main()` in the fragment shader. Must declare a `main_<materialName>()`-style function per `fragmentOutput`/injections below. |
+| `fragmentOutput` | `string` | Yes | GLSL expression assigned to `gl_FragColor` in the generated `main()`, e.g. `"(main_Edge_Glow() + main_MeshPhysicalMaterial())"`. |
+| `vertexShader` | `string` | Yes | GLSL source injected above `main()` in the vertex shader, mirroring `fragmentShader`. |
+| `vertexOutput` | `string` | Yes | Statement(s) run inside the generated vertex `main()`; should end by assigning `gl_Position`. |
+| `uniforms` | `Record<string, IUniform>` | No | Custom uniforms merged into `shader.uniforms` in `onBeforeCompile`. |
+| `fragmentInjections` | `ShaderInjection[]` | No | Raw `{ search, replace }` patches applied to the final fragment shader source, after chunk expansion and output wiring. |
+| `vertexInjections` | `ShaderInjection[]` | No | Same as `fragmentInjections`, applied to the final vertex shader source. |
+| `onBeforeCompile` | `(shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer) => void` | No | Called last, after all FrogMaterial transforms are applied to the shader. |
+| *texture-injectable keys* (`map`, `normalMap`, `aoMap`, `emissiveMap`, `roughnessMap`, `specularMap`, `displacementMap`, `bumpMap`, `transmissionMap`, `gradientMap`, `thickness`, `transmission`, `position`) | `string \| Texture` | No | Any of `baseMaterial`'s own texture/property fields. Pass a `Texture` for normal Three.js behavior, or a GLSL expression string (e.g. `"main_Parallax()"`) to wire a generated function's output into that slot instead. |
+| *(remaining fields)* | Whatever `baseMaterial`'s constructor accepts (e.g. `metalness`, `roughness`, `color`) | No | Any other property `baseMaterial`'s constructor takes is passed straight through, e.g. `metalness: 0, roughness: 0.065`. |
+
+#### `uniforms`
+
+Merged directly into the compiled shader's uniforms, using the same shape Three.js uniforms use:
+
+```ts
+uniforms: {
+  time: { value: 0 },
+  resolution: { value: new Vector2(1, 1) },
+}
+```
+
+#### `fragmentInjections` / `vertexInjections`
+
+Each entry is a `{ search: string | RegExp, replace: string }` pair applied via `shader.replace(search, replace)` against the fully assembled shader source, after chunk expansion and after `fragmentOutput`/`vertexOutput` wiring — use these for edits that can't be expressed as a plain injectable property:
+
+```ts
+fragmentInjections: [
+  {
+    search: new RegExp('(normal = ).+;'),
+    replace: '$1(vNormal + sampledDiffuseColor.rgb * 0.5);',
+  },
+],
+```
+
+#### `onBeforeCompile`
+
+Runs after FrogMaterial's own `onBeforeCompile` logic, so `shader.fragmentShader`/`shader.vertexShader` already reflect every injection above:
+
+```ts
+onBeforeCompile: (shader, renderer) => {
+  shader.uniforms.time.value = performance.now() / 1000;
+},
+```
+
+# Core Shaderfrog Graph API
+
+🚨 This Core Graph API is experimental and can change at any time! 🚨
 
 The core graph API that powers Shaderfrog. This API, built on top of the
 [@Shaderfrog/glsl-parser](https://github.com/ShaderFrog/glsl-parser), compiles
