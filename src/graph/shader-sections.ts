@@ -5,14 +5,17 @@ import {
   AstNode,
   DeclarationStatementNode,
   DeclaratorListNode,
+  FunctionNode,
   InterfaceDeclaratorNode,
   KeywordNode,
   PreprocessorNode,
   ProgramStatement,
+  StructNode,
 } from '@shaderfrog/glsl-parser/ast';
 import { generate } from '@shaderfrog/glsl-parser';
 import { makeStatement } from '../util/ast';
 import { Program } from '@shaderfrog/glsl-parser/ast';
+import type { Scope } from '@shaderfrog/glsl-parser/parser/scope';
 
 export type LineAndSource<T = any> = { nodeId: string; source: T };
 
@@ -370,6 +373,74 @@ export const shaderSectionsToProgram = (
     ...extractSource(sections.program),
   ],
 });
+
+/**
+ * Deduplicate the `structs` section by struct type name, keeping the first
+ * occurrence of each named struct and dropping later re-definitions.
+ * Unnamed (anonymous) structs are always kept.
+ */
+export const dedupeStructs = (
+  structs: LineAndSource<DeclarationStatementNode>[]
+): LineAndSource<DeclarationStatementNode>[] => {
+  const seen = new Set<string>();
+  return structs.filter(({ source }) => {
+    const specifier = (source.declaration as DeclaratorListNode)
+      ?.specified_type?.specifier?.specifier;
+    if (specifier?.type === 'struct') {
+      const name = (specifier as StructNode).typeName?.identifier;
+      if (!name) return true;
+      if (seen.has(name)) return false;
+      seen.add(name);
+    }
+    return true;
+  });
+};
+
+/**
+ * Deduplicate the `program` section of a single ShaderSections result,
+ * keeping the first occurrence of each function definition and each global
+ * variable declaration and dropping any later re-declarations.
+ *
+ * Call this directly on `findShaderSections(nodeId, ast).program` before
+ * passing the sections to `shaderSectionsToProgram`.  It is particularly
+ * useful after concatenating the program arrays from two shaders that share
+ * common sub-module code — without it, shared helper functions and globals
+ * appear twice and cause GLSL redefinition errors.
+ *
+ * `sections.program` contains everything that isn't a uniform / in / out /
+ * struct / version / precision — concretely: function definitions and global
+ * variable declarations.  Other statement kinds (preprocessor directives
+ * embedded in the body, etc.) are always kept.
+ */
+export const dedupeProgramStatements = (
+  stmts: LineAndSource<ProgramStatement>[]
+): LineAndSource<ProgramStatement>[] => {
+  const seenFns = new Set<string>();
+  const seenBindings = new Set<string>();
+
+  return stmts.filter(({ source }) => {
+    if (source.type === 'function') {
+      const name = (source as FunctionNode).prototype.header.name.identifier;
+      if (seenFns.has(name)) return false;
+      seenFns.add(name);
+      return true;
+    }
+    if (
+      source.type === 'declaration_statement' &&
+      source.declaration.type === 'declarator_list'
+    ) {
+      const names = (source.declaration as DeclaratorListNode).declarations.map(
+        (d) => d.identifier.identifier
+      );
+      // Drop only when every declared name is already seen; if any name is
+      // new we keep the whole statement and register all its names.
+      if (names.every((n) => seenBindings.has(n))) return false;
+      names.forEach((n) => seenBindings.add(n));
+      return true;
+    }
+    return true;
+  });
+};
 
 /**
  * Group an AST into logical sections. The output of this funciton is consumed

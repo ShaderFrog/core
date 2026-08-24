@@ -16,7 +16,7 @@ export const expandChunks = (glsl: string, depth = 0): string => {
     if (chunk !== undefined) {
       return `/* ~~~ #include <${chunkName}> ~~~ */\n${expandChunks(
         chunk,
-        depth + 1,
+        depth + 1
       )}\n/* ~~~ end <${chunkName}> ~~~ */`;
     }
     return `/* MISSING #include <${chunkName}> */`;
@@ -150,7 +150,7 @@ type FrogSpecificKeys =
   | 'onBeforeCompile';
 
 export type FrogMaterialParams<
-  C extends MaterialConstructor = MaterialConstructor,
+  C extends MaterialConstructor = MaterialConstructor
 > = {
   baseMaterial: C;
   /** Stable name used as the GLSL engine function prefix (e.g. 'MeshPhysicalMaterial').
@@ -166,7 +166,7 @@ export type FrogMaterialParams<
   /** Called after all frog transforms are applied to the shader */
   onBeforeCompile?: (
     shader: WebGLProgramParametersWithUniforms,
-    renderer: WebGLRenderer,
+    renderer: WebGLRenderer
   ) => void;
 } & Omit<WithInjectables<ConstructorParams<C>>, FrogSpecificKeys> &
   Partial<Record<InjectableKey, string>>;
@@ -189,7 +189,7 @@ function _create<C extends MaterialConstructor>({
   const materialProps: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(
-    baseProps as Record<string, unknown>,
+    baseProps as Record<string, unknown>
   )) {
     if (INJECTABLE_KEYS.has(key) && typeof value === 'string') {
       const inj =
@@ -209,7 +209,9 @@ function _create<C extends MaterialConstructor>({
   }
 
   const mat = new BaseMaterial(materialProps as ConstructorParams<C>);
-  const engineFnName = `main_${materialName || BaseMaterial.name || 'BaseMaterial'}`;
+  const engineFnName = `main_${
+    materialName || BaseMaterial.name || 'BaseMaterial'
+  }`;
 
   mat.onBeforeCompile = (shader, renderer) => {
     Object.assign(shader.uniforms, uniforms);
@@ -221,12 +223,12 @@ function _create<C extends MaterialConstructor>({
       shader.fragmentShader,
       shader.fragmentShader.indexOf('void main'),
       /gl_FragColor/g,
-      'fragColor',
+      'fragColor'
     );
     shader.fragmentShader = replaceLast(
       shader.fragmentShader,
       '}',
-      'return fragColor;\n}',
+      'return fragColor;\n}'
     );
 
     shader.fragmentShader =
@@ -234,8 +236,17 @@ function _create<C extends MaterialConstructor>({
         'void main() {',
         `vec4 ${engineFnName}();\n` +
           fragmentShader +
-          `\n\nvec4 ${engineFnName}() {\n    vec4 fragColor = vec4(0.0);`,
-      ) + `\n\nvoid main() { gl_FragColor = ${fragmentOutput}; }`;
+          `\n\nvec4 ${engineFnName}() {\n    vec4 fragColor = vec4(0.0);`
+      ) +
+      `
+
+void main() {${
+        // HACK: Need to update compiled shader generator to assign here
+        fragmentOutput.includes('gl_FragColor')
+          ? fragmentOutput
+          : `  gl_FragColor = ${fragmentOutput};`
+      }
+}`;
 
     for (const { search, replace } of glslInjections) {
       shader.fragmentShader = shader.fragmentShader.replace(search, replace);
@@ -251,12 +262,12 @@ function _create<C extends MaterialConstructor>({
       shader.vertexShader,
       shader.vertexShader.indexOf('void main'),
       'gl_Position',
-      'fragPosition',
+      'fragPosition'
     );
     shader.vertexShader = replaceLast(
       shader.vertexShader,
       '}',
-      'return fragPosition;\n}',
+      'return fragPosition;\n}'
     );
 
     shader.vertexShader =
@@ -264,7 +275,7 @@ function _create<C extends MaterialConstructor>({
         'void main() {',
         `vec4 ${engineFnName}();\n` +
           vertexShader +
-          `\n\nvec4 ${engineFnName}() {\n    vec4 fragPosition = vec4(0.0);`,
+          `\n\nvec4 ${engineFnName}() {\n    vec4 fragPosition = vec4(0.0);`
       ) + `\n\nvoid main() { ${vertexOutput} }`;
 
     for (const { search, replace } of glslInjections) {
@@ -297,7 +308,7 @@ function _create<C extends MaterialConstructor>({
 // Interface merge: TypeScript sees FrogMaterial as extending THREE.Material,
 // so instances can be used wherever THREE.Material is expected.
 export interface FrogMaterial<
-  C extends MaterialConstructor = MaterialConstructor,
+  C extends MaterialConstructor = MaterialConstructor
 > extends Material {}
 export class FrogMaterial<C extends MaterialConstructor = MaterialConstructor> {
   constructor(params: FrogMaterialParams<C>) {
