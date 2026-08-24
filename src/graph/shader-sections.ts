@@ -420,9 +420,15 @@ export const dedupeProgramStatements = (
 
   return stmts.filter(({ source }) => {
     if (source.type === 'function') {
-      const name = (source as FunctionNode).prototype.header.name.identifier;
-      if (seenFns.has(name)) return false;
-      seenFns.add(name);
+      const fn = source as FunctionNode;
+      const name = fn.prototype.header.name.identifier;
+      const paramTypes = (fn.prototype.parameters ?? []).map((p) => {
+        const s = p.specifier.specifier as any;
+        return s.token ?? s.identifier ?? 'unknown';
+      });
+      const sig = `${name}(${paramTypes.join(',')})`;
+      if (seenFns.has(sig)) return false;
+      seenFns.add(sig);
       return true;
     }
     if (
