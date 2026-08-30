@@ -50,7 +50,6 @@ import { FrogMaterial, ShaderInjection } from './FrogMaterial';
 import {
   makeExpression,
   returnGlPosition,
-  returnGlPositionHardCoded,
   returnGlPositionVec3Right,
 } from '../../util/ast';
 import {
@@ -616,6 +615,7 @@ export const threngine: Engine = {
     'vViewPosition',
     'vNormal',
     'vPosition',
+    'vWorldPosition',
     // Uniforms
     'cameraPosition',
     'isOrthographic',
@@ -635,6 +635,7 @@ export const threngine: Engine = {
     'flipEnvMap',
     'maxMipLevel',
     'roughnessMap',
+    'gradientMap',
     // Uniforms for lighting
     'receiveShadow',
     'ambientLightColor',
@@ -642,11 +643,6 @@ export const threngine: Engine = {
     // Light uniform arrays
     'spotLights',
     'pointLights',
-    // This isn't three wtf
-    'resolution',
-    'color',
-    'image',
-    'gradientMap',
     // TODO: This isn't specific to threejs as an engine, it's specific to the
     // phong shader. If a *shader* node has brightness, it should be unique, not
     // use the threejs one!

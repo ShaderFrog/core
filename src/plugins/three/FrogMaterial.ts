@@ -43,7 +43,8 @@ type InjectableKey =
   | 'gradientMap'
   | 'thickness'
   | 'transmission'
-  | 'position';
+  | 'position'
+  | 'vNormal';
 
 const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
   'map',
@@ -59,6 +60,7 @@ const INJECTABLE_KEYS: ReadonlySet<string> = new Set<InjectableKey>([
   'thickness',
   'transmission',
   'position',
+  'vNormal',
 ]);
 
 // FrogMaterial properties that replace Three.js geenrated code
@@ -110,6 +112,37 @@ const VERTEX_INJECTABLES: Partial<Record<InjectableKey, InjectionPoint>> = {
   position: {
     find: /vec3 transformed = vec3\( position \);/,
     replace: (call: string) => `vec3 transformed = ${call}.xyz;`,
+  },
+  // Overrides Three's own `normal_vertex` chunk output — used by composited
+  // shaders (see buildComposite's vNormalProp in glsl-parse-worker.ts) that
+  // need to substitute an explicit blend of two source shaders' normals
+  // instead of Three's single computed `transformedNormal`.
+  //
+  // Also re-derives vBitangent's tangent input via Gram-Schmidt against the
+  // new vNormal, instead of Three's own `cross( vNormal, vTangent )` using
+  // vTangent as-is. vTangent comes from the mesh's `tangent` attribute via
+  // `defaultnormal_vertex` — computed independently of vNormal and never
+  // displaced — so it stays valid as long as vNormal stays close to the
+  // undisplaced surface normal it was originally built alongside. A vNormal
+  // substituted here can diverge arbitrarily far from that (e.g. a fully
+  // Voronoi-displaced normal with no blending anchor back to the original),
+  // and once it's nearly parallel to the untouched vTangent, `cross(
+  // vNormal, vTangent )` collapses toward zero and `normalize()` of that
+  // blows up — corrupting the whole TBN basis, and with it every
+  // tangent-space-perturbed `normal` downstream (direct specular, clearcoat,
+  // IBL). Projecting vTangent's component along vNormal out first keeps the
+  // two vectors orthogonal by construction regardless of how far vNormal has
+  // moved, so the cross product can't degenerate that way. This is a no-op
+  // when vNormal is close to its original direction (dot ≈ 0 already), so
+  // it's safe to always emit alongside a vNormal override.
+  vNormal: {
+    find: /vNormal = normalize\( transformedNormal \);\s*#ifdef USE_TANGENT\s*vTangent = normalize\( transformedTangent \);\s*vBitangent = normalize\( cross\( vNormal, vTangent \) \* tangent\.w \);\s*#endif/,
+    replace: (call: string) => `vNormal = ${call};
+    #ifdef USE_TANGENT
+        vTangent = normalize( transformedTangent );
+        vec3 vTangentOrtho = normalize( vTangent - vNormal * dot( vTangent, vNormal ) );
+        vBitangent = normalize( cross( vNormal, vTangentOrtho ) * tangent.w );
+    #endif`,
   },
   displacementMap: {
     find: /texture2D\( displacementMap, vDisplacementMapUv \)/,
