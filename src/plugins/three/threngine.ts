@@ -1219,8 +1219,14 @@ export const prepareFrogMaterialExport = (
       prop.fillerGroup.filler.toString().includes('strategy_type_assignmentTo')
     ) {
       const replace = `$1${prop.result};`;
-      fragmentInjections.push({ search: `(${name} = ).+;`, replace });
-      vertexInjections.push({ search: `(${name} = ).+;`, replace });
+      if (prop.stage === 'fragment') {
+        fragmentInjections.push({ search: `(${name} = ).+;`, replace });
+      } else if (prop.stage === 'vertex') {
+        vertexInjections.push({ search: `(${name} = ).+;`, replace });
+      } else {
+        fragmentInjections.push({ search: `(${name} = ).+;`, replace });
+        vertexInjections.push({ search: `(${name} = ).+;`, replace });
+      }
     } else {
       injectableProps[name] = prop.result;
     }
