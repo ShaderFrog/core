@@ -1243,3 +1243,29 @@ export const prepareFrogMaterialExport = (
     vertexInjections,
   };
 };
+
+export type RawGraphVertexInfo = {
+  vertexOutput: string;
+  position: string;
+};
+
+// Extract the vertex function to call (the one pluged into the output node),
+// and the rest of the functions to call in the vertex shader.
+export const extractRawGraphVertexInfo = (
+  compileResult: CompileResult
+): RawGraphVertexInfo => {
+  const { compileResult: graphResult } = compileResult;
+  return {
+    position: extractOutputExpr(
+      graphResult.vertex,
+      graphResult.outputVert.id,
+      'gl_Position',
+      'vec4(1.0)'
+    ),
+    vertexOutput: extractVertexMainStmts(
+      graphResult.vertex,
+      graphResult.outputVert.id,
+      'vec4(1.0)'
+    ),
+  };
+};
