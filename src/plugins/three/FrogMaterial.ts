@@ -23,6 +23,38 @@ export const expandChunks = (glsl: string, depth = 0): string => {
   });
 };
 
+// Three's transmission_pars_fragment chunk declares its own `uniform mat4
+// modelMatrix;`, gated behind `#ifdef USE_TRANSMISSION` — the only Three
+// fragment chunk that redeclares a matrix the vertex prefix already gets for
+// free. That chunk is included unconditionally in the physical fragment
+// template, so expandChunks above always inlines the declaration as literal
+// text; the #ifdef is only evaluated later, by the GPU compiler. A compiled
+// shader graph that needs modelMatrix in its own fragment code (e.g. a
+// world-position/reflection node) has to declare it explicitly too, since
+// fragment doesn't get it unconditionally like vertex does. When the
+// material's transmission uniform is actually > 0, both declarations become
+// active and the GPU rejects the redefinition. Unlike a varying such as
+// vWorldPosition, this name is load-bearing (Three binds it by exact name at
+// render time), so it can't be renamed away in source — instead, drop
+// Three's chunk-injected copy (which only ever matters when transmission is
+// truly active, and Three's own transmission code binds the same global
+// identifier regardless of which declaration survives) and keep the graph's
+// own copy, which is always spliced in later in the string and so is always
+// the last match.
+const RESERVED_FRAGMENT_UNIFORM_REDECLARATIONS = ['modelMatrix'];
+
+const dedupeReservedFragmentUniforms = (fragmentShader: string): string => {
+  return RESERVED_FRAGMENT_UNIFORM_REDECLARATIONS.reduce((glsl, name) => {
+    const re = new RegExp(`[ \\t]*uniform mat4 ${name};[ \\t]*\\r?\\n`, 'g');
+    const matches = glsl.match(re);
+    if (!matches || matches.length < 2) return glsl;
+    let seen = 0;
+    return glsl.replace(re, (match) =>
+      ++seen === matches.length ? match : ''
+    );
+  }, fragmentShader);
+};
+
 export type InjectionPoint = {
   find: RegExp;
   replace: (callExpr: string) => string;
@@ -288,6 +320,8 @@ void main() {${
     for (const { search, replace } of fragmentInjections) {
       shader.fragmentShader = shader.fragmentShader.replace(search, replace);
     }
+
+    shader.fragmentShader = dedupeReservedFragmentUniforms(shader.fragmentShader);
 
     shader.vertexShader = expandChunks(shader.vertexShader);
 
