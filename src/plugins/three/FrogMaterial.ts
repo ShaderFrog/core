@@ -104,7 +104,19 @@ const FRAGMENT_INJECTABLE: Partial<Record<InjectableKey, InjectionPoint>> = {
   },
   normalMap: {
     find: /vec3 mapN = texture2D\( normalMap, vNormalMapUv \)\.xyz \* 2\.0 - 1\.0;/,
-    replace: (call: string) => `vec3 mapN = ${call}.rgb * 2.0 - 1.0;`,
+    // A plugged-in expression isn't guaranteed to be a real tangent-space
+    // normal map — a valid one decodes to x,y in [-1,1] and z reconstructed
+    // as sqrt(1 - x^2 - y^2) (a unit vector, z >= 0), which is what a
+    // well-formed source already satisfies (so this is a no-op for one).
+    // An arbitrary expression's r/g channels can decode to an x,y pair
+    // outside the unit disk (e.g. a fully-saturated color), which would
+    // otherwise make z imaginary/zeroed and the vector non-unit — clamp the
+    // x,y offset to the unit disk first so mapN is always a valid encoded
+    // normal color, same as a real one would be.
+    replace: (call: string) => `
+vec2 sfNormalMapXY = (${call}).rg * 2.0 - 1.0;
+sfNormalMapXY /= max(1.0, length(sfNormalMapXY));
+vec3 mapN = vec3(sfNormalMapXY, sqrt(max(0.0, 1.0 - dot(sfNormalMapXY, sfNormalMapXY))));`.trim(),
     forceProperty: 'normalMap',
   },
   emissiveMap: {
