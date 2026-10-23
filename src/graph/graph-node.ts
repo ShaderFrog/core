@@ -121,61 +121,90 @@ export const expressionNode = (
   source,
 });
 
-export const addNode = (id: string, position: NodePosition): BinaryNode => ({
-  id,
-  name: 'add',
-  position,
-  type: NodeType.BINARY,
-  engine: false,
-  stage: undefined,
-  config: {
-    mangle: false,
-    version: 3,
-    preprocess: true,
-    strategies: [],
-    uniforms: [],
-  },
-  inputs: [],
-  outputs: [
-    {
-      name: 'sum',
-      category: 'data',
-      id: '1',
-    },
-  ],
-  source: `a + b`,
-  operator: '+',
-  sourceType: SourceType.EXPRESSION,
-  biStage: true,
-});
+export const BINARY_NODE_TYPES = {
+  add: { operator: '+', output: 'sum' },
+  subtract: { operator: '-', output: 'difference' },
+  multiply: { operator: '*', output: 'product' },
+  divide: { operator: '/', output: 'quotient' },
+} as const;
 
-export const multiplyNode = (
+export type BinaryNodeType = keyof typeof BINARY_NODE_TYPES;
+
+export const binaryNodeTypes = Object.keys(
+  BINARY_NODE_TYPES,
+) as BinaryNodeType[];
+
+export const isBinaryNodeType = (type: string): type is BinaryNodeType =>
+  type in BINARY_NODE_TYPES;
+
+export const binaryNodeType = (node: BinaryNode): BinaryNodeType | undefined =>
+  binaryNodeTypes.find(
+    (type) => BINARY_NODE_TYPES[type].operator === node.operator,
+  );
+
+export const binaryNode = (
   id: string,
   position: NodePosition,
-): BinaryNode => ({
-  id,
-  name: 'multiply',
-  type: NodeType.BINARY,
-  engine: false,
-  stage: undefined,
-  position,
-  config: {
-    version: 3,
-    uniforms: [],
-    mangle: false,
-    preprocess: true,
-    strategies: [],
-  },
-  inputs: [],
-  outputs: [
-    {
-      name: 'product',
-      category: 'data',
-      id: '1',
+  type: BinaryNodeType,
+): BinaryNode => {
+  const { operator, output } = BINARY_NODE_TYPES[type];
+  return {
+    id,
+    name: type,
+    position,
+    type: NodeType.BINARY,
+    engine: false,
+    stage: undefined,
+    config: {
+      mangle: false,
+      version: 3,
+      preprocess: true,
+      strategies: [],
+      uniforms: [],
     },
-  ],
-  source: `a * b`,
-  operator: '*',
-  sourceType: SourceType.EXPRESSION,
-  biStage: true,
-});
+    inputs: [],
+    outputs: [
+      {
+        name: output,
+        category: 'data',
+        id: '1',
+      },
+    ],
+    source: `a ${operator} b`,
+    operator,
+    sourceType: SourceType.EXPRESSION,
+    biStage: true,
+  };
+};
+
+/**
+ * Switch a binary node to a different operator. Keeps the id, position,
+ * inputs, and output ids so the edges into and out of it stay connected. The
+ * node name is only changed if it's still the default name of the old type.
+ */
+export const changeBinaryNodeType = (
+  node: BinaryNode,
+  type: BinaryNodeType,
+): BinaryNode => {
+  const { operator, output } = BINARY_NODE_TYPES[type];
+  const oldType = binaryNodeType(node);
+  return {
+    ...node,
+    name: !oldType || node.name === oldType ? type : node.name,
+    source: `a ${operator} b`,
+    operator,
+    outputs: node.outputs.map((o) => ({ ...o, name: output })),
+  };
+};
+
+export const addNode = (id: string, position: NodePosition): BinaryNode =>
+  binaryNode(id, position, 'add');
+
+export const subtractNode = (id: string, position: NodePosition): BinaryNode =>
+  binaryNode(id, position, 'subtract');
+
+export const multiplyNode = (id: string, position: NodePosition): BinaryNode =>
+  binaryNode(id, position, 'multiply');
+
+export const divideNode = (id: string, position: NodePosition): BinaryNode =>
+  binaryNode(id, position, 'divide');
