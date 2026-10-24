@@ -24,7 +24,8 @@ import { nodeInput } from './base-node';
 import { Graph, MAGIC_OUTPUT_STMTS, NodeType } from './graph-types';
 import { nodeName } from './graph';
 import { Evaluate } from './evaluate';
-import { generateFiller } from '../util/ast';
+import { FrogProgram, generateFiller } from '../util/ast';
+import { alignPreprocessedLines, annotateStatementLines } from './gl-errors';
 import { unshiftFnStmtWithIndent } from '../util/whitespace';
 import { NodeContext } from './context';
 
@@ -145,6 +146,13 @@ export const coreParsers: CoreParser = {
               });
 
         ast = parse(preprocessed, { stage: node.stage });
+
+        // Track source lines so GPU compile errors can be mapped back here
+        annotateStatementLines(ast);
+        (ast as FrogProgram).sourceLineMap = alignPreprocessedLines(
+          source,
+          preprocessed
+        );
 
         if (node.config.version === 2 && node.stage) {
           from2To3(ast, node.stage);

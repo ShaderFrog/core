@@ -23,6 +23,7 @@ import {
 import { InputFillerGroup, InputFillers } from '../strategy';
 import { coreParsers } from './parsers';
 import { findMain } from '../util/ast';
+import type { GlslCompilerError } from './gl-errors';
 
 /**
  * A node's context is the runtime / in-memory computed data associated with a
@@ -47,7 +48,7 @@ export type NodeContexts = Record<string, NodeContext>;
 export type NodeErrors = {
   type: 'errors';
   nodeId: string;
-  errors: (GlslSyntaxError | string)[];
+  errors: (GlslSyntaxError | GlslCompilerError | string)[];
 };
 const makeError = (
   nodeId: string,

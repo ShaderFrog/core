@@ -31,6 +31,9 @@ const log = (...args: any[]) =>
 
 export interface FrogProgram extends Program {
   outVar?: string;
+  // Maps preprocessed source lines to the node's original source lines. See
+  // alignPreprocessedLines()
+  sourceLineMap?: number[];
 }
 
 export const makeLiteral = (literal: string, whitespace = ''): LiteralNode => ({
