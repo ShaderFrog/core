@@ -556,6 +556,67 @@ void main() {
 }`);
 });
 
+it('compileSource() includes a node used by multiple inputs only once, before its consumers', async () => {
+  const outV = outputNode(makeId(), 'Output v', p, 'vertex');
+  const outF = outputNode(makeId(), 'Output f', p, 'fragment');
+
+  const shared = makeSourceNode(
+    makeId(),
+    `float amount = 1.0;
+void main() {
+  gl_FragColor = vec4(amount);
+}
+`,
+    'fragment'
+  );
+  const consumer = (id: string) =>
+    makeSourceNode(
+      id,
+      `uniform sampler2D image;
+void main() {
+  gl_FragColor = texture2D(image, vec2(0.0));
+}
+`,
+      'fragment'
+    );
+  const left = consumer(makeId());
+  const right = consumer(makeId());
+  const add = addNode(makeId(), p);
+
+  const graph: Graph = {
+    nodes: [outV, outF, shared, left, right, add],
+    edges: [
+      makeEdge(makeId(), shared.id, left.id, 'out', 'filler_image', 'fragment'),
+      makeEdge(makeId(), shared.id, right.id, 'out', 'filler_image', 'fragment'),
+      makeEdge(makeId(), left.id, add.id, 'out', 'a'),
+      makeEdge(makeId(), right.id, add.id, 'out', 'b'),
+      makeEdge(makeId(), add.id, outF.id, 'out', 'filler_frogFragOut', 'fragment'),
+    ],
+  };
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+  };
+
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+  const frag = result.fragmentResult;
+
+  const sharedFn = `vec4 ${nodeName(shared)}() {`;
+  const count = (str: string) => frag.split(str).length - 1;
+  expect(count(sharedFn)).toBe(1);
+  expect(count(`float amount_${shared.id} = 1.0;`)).toBe(1);
+
+  // Both consumers call the shared node, and it's declared before either
+  expect(count(`${nodeName(shared)}()`)).toBe(3);
+  const sharedAt = frag.indexOf(sharedFn);
+  expect(sharedAt).toBeLessThan(frag.indexOf(`vec4 ${nodeName(left)}() {`));
+  expect(sharedAt).toBeLessThan(frag.indexOf(`vec4 ${nodeName(right)}() {`));
+});
+
 describe('evaluateNode()', () => {
   it('evaluates binary nodes', () => {
     const finalAdd = addNode(makeId(), p);

@@ -461,6 +461,25 @@ export type CompileNodeResult = [
 export const isDataInput = (input: NodeInput) =>
   (input.type === 'uniform' || input.type === 'property') && !input.baked;
 
+/**
+ * Per-stage memo of compiled nodes. A node's output can go to many inputs, but
+ * its source can only be included once in the program, the same as a module
+ * that's imported in many places. Compiling depth first, and only including a
+ * node's sections the first time it's seen, gives a topological order: every
+ * node's sections come after all of its dependencies, and before any node that
+ * uses it.
+ */
+export type CompileCache = {
+  // Finished nodes, keyed by node id
+  results: Record<string, CompileNodeResult>;
+  // Nodes currently being compiled, to catch cycles
+  inProgress: Set<string>;
+};
+export const compileCacheCons = (): CompileCache => ({
+  results: {},
+  inProgress: new Set(),
+});
+
 export const compileNode = (
   engine: Engine,
   graph: Graph,
@@ -468,8 +487,23 @@ export const compileNode = (
   engineContext: EngineContext,
   node: GraphNode,
   engineNodeProperties: EngineNodeProperties,
-  activeIds: NodeIds = {}
+  cache: CompileCache = compileCacheCons()
 ): CompileNodeResult => {
+  // If this node was already compiled for another input, its sections are
+  // already in the program, so only hand back the filler. Re-compiling it would
+  // duplicate its declarations and re-fill its inputs.
+  const cached = cache.results[node.id];
+  if (cached) {
+    const [, filler, ids] = cached;
+    return [shaderSectionsCons(), filler, ids];
+  }
+  if (cache.inProgress.has(node.id)) {
+    throw new Error(
+      `Cycle in graph: "${node.name}" (id ${node.id}) depends on itself`
+    );
+  }
+  cache.inProgress.add(node.id);
+
   // THIS DUPLICATES OTHER LINE
   const parser = {
     ...(coreParsers[node.type] || coreParsers[NodeType.SOURCE]),
@@ -499,7 +533,7 @@ export const compileNode = (
     );
   }
 
-  let compiledIds = activeIds;
+  let compiledIds: NodeIds = {};
 
   const inputEdges = edges.filter((edge) => edge.to === node.id);
   let continuation = shaderSectionsCons();
@@ -532,7 +566,7 @@ export const compileNode = (
         engineContext,
         fromNode,
         engineNodeProperties,
-        activeIds
+        cache
       );
       if (!fillerFn) {
         throw new TypeError(
@@ -628,7 +662,14 @@ export const compileNode = (
     ? () => makeExpression(toGlsl(node))
     : parser.produceFiller(node, ast);
 
-  return [sections, filler, { ...compiledIds, [node.id]: node }];
+  const result: CompileNodeResult = [
+    sections,
+    filler,
+    { ...compiledIds, [node.id]: node },
+  ];
+  cache.inProgress.delete(node.id);
+  cache.results[node.id] = result;
+  return result;
 };
 
 export type CompileGraphResult = {

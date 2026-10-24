@@ -512,8 +512,11 @@ export const backfillAst = (
   if (mainFn) {
     mainFn.prototype.parameters = (mainFn.prototype.parameters || [])
       .filter(
-        // Watch out for the main(void){} case!
-        (arg) => (arg.specifier.specifier as KeywordNode).token !== 'void'
+        (arg) =>
+          // Watch out for the main(void){} case!
+          (arg.specifier.specifier as KeywordNode).token !== 'void' &&
+          // A node used by multiple inputs can get backfilled more than once
+          arg.identifier?.identifier !== targetVariable
       )
       .concat(
         (
