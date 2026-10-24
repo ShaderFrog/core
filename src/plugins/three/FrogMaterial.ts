@@ -368,6 +368,17 @@ void main() {${
     userOnBeforeCompile?.(shader, renderer);
   };
 
+  // Three reuses a compiled program when this key matches, so it has to cover
+  // everything that changes the final GLSL. That includes glslInjections, which
+  // hold property expressions like map = "main_a() * main_b()". Changing only
+  // the expression (like switching a binary node from + to *) doesn't change
+  // any of the shader source above, so without them the old program is reused.
+  // RegExp searches are stringified because JSON.stringify(RegExp) is "{}".
+  const injectionsKey = (injections: ShaderInjection[]) =>
+    injections
+      .map(({ search, replace }) => `${String(search)}\x01${replace}`)
+      .join('\x02');
+
   mat.customProgramCacheKey = () =>
     fragmentShader +
     '\x00' +
@@ -377,9 +388,11 @@ void main() {${
     '\x00' +
     vertexOutput +
     '\x00' +
-    JSON.stringify(fragmentInjections) +
+    injectionsKey(fragmentInjections) +
     '\x00' +
-    JSON.stringify(vertexInjections);
+    injectionsKey(vertexInjections) +
+    '\x00' +
+    injectionsKey(glslInjections);
 
   return mat;
 }

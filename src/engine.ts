@@ -4,7 +4,11 @@ import preprocess from '@shaderfrog/glsl-parser/preprocessor';
 import { generate, parse } from '@shaderfrog/glsl-parser';
 import { Graph, ShaderStage, GraphNode, NodeType } from './graph/graph-types';
 import { NodeInput, NodePosition } from './graph/base-node';
-import { DataNode, UniformDataType } from './graph/data-nodes';
+import {
+  DataNode,
+  DataNodeDefaults,
+  UniformDataType,
+} from './graph/data-nodes';
 import { CodeNode, NodeProperty, SourceNode } from './graph/code-nodes';
 import { Edge } from './graph/edge';
 import groupBy from 'lodash.groupby';
@@ -60,6 +64,9 @@ export interface Engine {
   parsers: Record<string, NodeParser>;
   importers: EngineImporters;
   evaluateNode: (node: DataNode) => any;
+  // Settings for data nodes created by dragging out from a material property
+  // input, keyed by property name, like "normalScale"
+  propertyDataDefaults?: Record<string, DataNodeDefaults>;
   constructors: {
     [EngineNodeType.phong]?: PhongNodeConstructor;
     [EngineNodeType.physical]?: PhysicalNodeConstructor;

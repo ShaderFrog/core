@@ -234,6 +234,15 @@ export type Vector2 = [string, string];
 export type Vector3 = [string, string, string];
 export type Vector4 = [string, string, string, string];
 
+/**
+ * Settings for a data node created to feed an engine material property, like
+ * the slider range. See Engine.propertyDataDefaults
+ */
+export type DataNodeDefaults = {
+  range?: [string, string] | [string, string, string, string];
+  locked?: boolean;
+};
+
 export interface Vector2Node extends BaseNode {
   type: 'vector2';
   dimensions: 2;
@@ -258,7 +267,11 @@ export function vectorNode(
   name: string,
   position: NodePosition,
   value: Vector2 | Vector3 | Vector4,
-  options?: { stepper?: string | number; locked?: boolean }
+  options?: {
+    stepper?: string | number;
+    locked?: boolean;
+    range?: [string, string, string, string];
+  }
 ): Vector2Node | Vector3Node | Vector4Node {
   const dataType: GraphDataType =
     value.length === 2 ? 'vector2' : value.length === 3 ? 'vector3' : 'vector4';
@@ -284,6 +297,7 @@ export function vectorNode(
       type: 'vector2' as const,
       stepper: options?.stepper,
       locked: options?.locked,
+      range: options?.range,
     };
   } else if (value.length === 3) {
     return {

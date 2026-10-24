@@ -591,6 +591,11 @@ export const threngine: Engine = {
     includeVersion: true,
   },
   evaluateNode,
+  propertyDataDefaults: {
+    normalScale: { range: ['0', '1', '0', '1'], locked: true },
+    thickness: { range: ['0', '3'] },
+    ior: { range: ['0', '3'] },
+  },
   constructors: {
     [EngineNodeType.phong]: phongNode,
     [EngineNodeType.physical]: physicalNode,
