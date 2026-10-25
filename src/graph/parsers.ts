@@ -17,7 +17,12 @@ import {
   makeExpressionWithScopes,
   makeFnBodyStatementWithScopes,
 } from '../util/ast';
-import { applyStrategy, ComputedInput, Filler } from '../strategy';
+import {
+  applyStrategy,
+  ComputedInput,
+  Filler,
+  snippetInputs,
+} from '../strategy';
 import { Edge } from './edge';
 import { BinaryNode, SourceNode, SourceType } from './code-nodes';
 import { nodeInput } from './base-node';
@@ -105,7 +110,7 @@ type CoreParser = { [key: string]: CoreNodeParser };
 export const coreParsers: CoreParser = {
   [NodeType.SOURCE]: {
     produceAst: (engineContext, engine, graph, node, inputEdges) => {
-      let ast: Program;
+      let ast: FrogProgram;
 
       // Load the source either from the computed source at runtime, or the
       // node's source code itself
@@ -120,20 +125,26 @@ export const coreParsers: CoreParser = {
       }
 
       if (node.sourceType === SourceType.FN_BODY_FRAGMENT) {
-        const { statements, scope } = makeFnBodyStatementWithScopes(source);
+        const { statements, scope, undeclaredVariables, undeclaredFunctions } =
+          makeFnBodyStatementWithScopes(source);
         ast = {
           type: 'program',
           scopes: [scope],
           // @ts-ignore
           program: statements,
+          undeclaredVariables,
+          undeclaredFunctions,
         };
       } else if (node.sourceType === SourceType.EXPRESSION) {
-        const { expression, scope } = makeExpressionWithScopes(source);
+        const { expression, scope, undeclaredVariables, undeclaredFunctions } =
+          makeExpressionWithScopes(source);
         ast = {
           type: 'program',
           scopes: [scope],
           // @ts-ignore
           program: [expression as AstNode],
+          undeclaredVariables,
+          undeclaredFunctions,
         };
       } else {
         const preprocessed =
@@ -169,15 +180,24 @@ export const coreParsers: CoreParser = {
     },
     findInputs: (engineContext, ast, edges, node, sibling) => {
       let seen = new Set<string>();
-      let inputs = node.config.strategies
-        .flatMap((strategy) => applyStrategy(strategy, ast, node, sibling))
-        .filter(([input, _]) => {
-          if (!seen.has(input.id)) {
-            seen.add(input.id);
-            return true;
-          }
-          return false;
-        });
+      // Expressions and function body fragments always get inputs for what
+      // they use but don't declare, so the user doesn't have to add a
+      // strategy. They go first so they win over duplicate strategy inputs.
+      const isSnippet =
+        node.sourceType === SourceType.EXPRESSION ||
+        node.sourceType === SourceType.FN_BODY_FRAGMENT;
+      let inputs = [
+        ...(isSnippet ? snippetInputs(ast as FrogProgram) : []),
+        ...node.config.strategies.flatMap((strategy) =>
+          applyStrategy(strategy, ast, node, sibling),
+        ),
+      ].filter(([input, _]) => {
+        if (!seen.has(input.id)) {
+          seen.add(input.id);
+          return true;
+        }
+        return false;
+      });
       return inputs;
     },
     produceFiller: (node, ast) => {

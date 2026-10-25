@@ -2,9 +2,15 @@ import { expect, it } from 'vitest';
 
 import { parse } from '@shaderfrog/glsl-parser';
 import { generate } from '@shaderfrog/glsl-parser';
+import { Program } from '@shaderfrog/glsl-parser/ast';
 
 import { applyStrategy, StrategyType } from '.';
-import { makeExpression } from '../util/ast';
+import {
+  makeExpression,
+  makeExpressionWithScopes,
+  makeFnBodyStatementWithScopes,
+} from '../util/ast';
+import { snippetInputs } from './variable';
 
 import { SourceNode } from '../graph/code-nodes';
 import preprocess from '@shaderfrog/glsl-parser/preprocessor';
@@ -362,4 +368,60 @@ void getNormal() {
       {} as SourceNode,
     ).map(([{ displayName: name }]) => name),
   ).toEqual(['normalMap']);
+});
+
+it('variable strategy makes inputs for undeclared function calls', () => {
+  const { expression, scope, undeclaredFunctions } = makeExpressionWithScopes(
+    'vec4(main_Chain_Chomp().r) + mix(a, main_Chain_Chomp(), texture(b, vUv))',
+  );
+  const ast = {
+    type: 'program',
+    scopes: [scope],
+    program: [expression],
+    undeclaredFunctions,
+  } as Program;
+
+  const inputs = applyStrategy(
+    { type: StrategyType.VARIABLE, config: {} },
+    ast,
+    {} as SourceNode,
+    {} as SourceNode,
+  );
+  expect(inputs.map(([{ displayName }]) => displayName)).toEqual([
+    'a',
+    'b',
+    'vUv',
+    'main_Chain_Chomp()',
+  ]);
+
+  inputs[3][1](() => makeExpression('main_Mario()'));
+  expect(generate(ast)).toBe(
+    'vec4(main_Mario().r) + mix(a, main_Mario(), texture(b, vUv))',
+  );
+});
+
+it('snippet inputs skip declared variables and fill every use', () => {
+  const { statements, scope, undeclaredVariables, undeclaredFunctions } =
+    makeFnBodyStatementWithScopes(`float x = a * 2.0;
+if (x > 1.0) {
+  x = a + gl_FragCoord.x;
+}
+return vec4(x * main_X());`);
+  const ast = {
+    type: 'program',
+    scopes: [scope],
+    program: statements,
+    undeclaredVariables,
+    undeclaredFunctions,
+  } as Program;
+
+  const inputs = snippetInputs(ast);
+  expect(inputs.map(([{ displayName }]) => displayName)).toEqual([
+    'a',
+    'main_X()',
+  ]);
+
+  inputs[0][1](() => makeExpression('uv.x'));
+  expect(generate(ast)).toContain('float x = uv.x * 2.0;');
+  expect(generate(ast)).toContain('x = uv.x + gl_FragCoord.x;');
 });

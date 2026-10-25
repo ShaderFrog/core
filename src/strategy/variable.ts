@@ -1,4 +1,5 @@
-import { AstNode, Program } from '@shaderfrog/glsl-parser/ast';
+import { generate } from '@shaderfrog/glsl-parser';
+import { AstNode, IdentifierNode, visit } from '@shaderfrog/glsl-parser/ast';
 import { InputCategory, nodeInput } from '../graph/base-node';
 import {
   BaseStrategy,
@@ -8,7 +9,7 @@ import {
   Filler,
 } from '.';
 import { Scope, ScopeIndex } from '@shaderfrog/glsl-parser/parser/scope';
-import { generateFiller } from '../util/ast';
+import { FrogProgram, generateFiller } from '../util/ast';
 
 export interface VariableStrategy extends BaseStrategy {
   type: StrategyType.VARIABLE;
@@ -24,8 +25,8 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
   graphNode,
   siblingNode,
 ) => {
-  const program = ast as Program;
-  return Object.values(
+  const program = ast as FrogProgram;
+  const variableInputs = Object.values(
     (program.scopes as Scope[]).reduce<ScopeIndex>(
       (acc, scope) => ({ ...acc, ...scope.bindings }),
       {},
@@ -73,4 +74,99 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
       [],
     );
   });
+
+  return [...variableInputs, ...undeclaredFunctionInputs(program)];
+};
+
+/**
+ * Inputs for an expression or function body fragment: the variables and
+ * functions it uses but doesn't declare. Unlike the variable strategy, this
+ * skips variables the snippet declares itself, which can't be replaced.
+ */
+export const snippetInputs = (program: FrogProgram): ComputedInput[] => [
+  ...Object.entries(program.undeclaredVariables || {})
+    // Built in variables like gl_FragCoord aren't inputs
+    .filter(([name]) => !name.startsWith('gl_'))
+    .map<ComputedInput>(([name, refs]) => [
+      nodeInput(
+        name,
+        `filler_${name}`,
+        'filler',
+        undefined,
+        ['code', 'data'],
+        false,
+      ),
+      (filler: Filler) => {
+        refs.forEach((ref) => {
+          (ref as IdentifierNode).identifier = generateFiller(filler());
+        });
+        return program;
+      },
+    ]),
+  ...undeclaredFunctionInputs(program),
+];
+
+// Calls to functions the snippet doesn't declare, like main_Chain_Chomp(),
+// become inputs too. Plugging a node into one replaces the call with that
+// node's filler, so the reference follows the edge if the node is swapped out.
+const undeclaredFunctionInputs = (program: FrogProgram): ComputedInput[] => {
+  // The parser doesn't always represent a call's name as an identifier, so
+  // match the call nodes the scope found instead of their names
+  const callNames = new Map<AstNode, string>(
+    Object.entries(program.undeclaredFunctions || {}).flatMap(
+      ([name, nodes]) => nodes.map((node) => [node, name] as const),
+    ),
+  );
+  if (!callNames.size) {
+    return [];
+  }
+
+  const calls: Record<
+    string,
+    { parent: any; key: string; index?: number; args: AstNode[] }[]
+  > = {};
+  visit(program, {
+    function_call: {
+      enter: (path) => {
+        const name = callNames.get(path.node);
+        if (!name || !path.parent || !path.key) {
+          return;
+        }
+        calls[name] = calls[name] || [];
+        calls[name].push({
+          parent: path.parent,
+          key: path.key,
+          index: path.index,
+          args: path.node.args,
+        });
+      },
+    },
+  });
+
+  return Object.entries(calls).map<ComputedInput>(([name, refs]) => [
+    nodeInput(
+      `${name}()`,
+      `filler_fn_${name}`,
+      'filler',
+      undefined,
+      ['code', 'data'],
+      false,
+    ),
+    (filler: Filler) => {
+      refs.forEach(({ parent, key, index, args }) => {
+        // Args include the comma literals between them
+        const f = filler(
+          ...args
+            .filter((arg) => arg.type !== 'literal' || arg.literal !== ',')
+            .map(generate),
+        );
+        if (typeof index === 'number') {
+          parent[key][index] = f;
+        } else {
+          parent[key] = f;
+        }
+      });
+      return program;
+    },
+  ]);
 };

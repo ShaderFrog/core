@@ -34,7 +34,47 @@ export interface FrogProgram extends Program {
   // Maps preprocessed source lines to the node's original source lines. See
   // alignPreprocessedLines()
   sourceLineMap?: number[];
+  // Variables an expression or function body fragment uses without declaring,
+  // keyed by name, to the identifier nodes that use them
+  undeclaredVariables?: Record<string, AstNode[]>;
+  // Calls to functions an expression or function body fragment uses without
+  // declaring, like another node's main_X(), keyed by function name. Built-in
+  // GLSL functions aren't included because the parser doesn't track them.
+  undeclaredFunctions?: Record<string, AstNode[]>;
 }
+
+// The snippet parsers wrap the snippet in a main() fn, so every scope after
+// the global one is part of the snippet
+const findUndeclaredVariables = (ast: Program) =>
+  ast.scopes.slice(1).reduce<Record<string, AstNode[]>>((acc, scope) => {
+    Object.entries(scope.bindings).forEach(([name, binding]) => {
+      if (!binding.declaration) {
+        acc[name] = [
+          ...(acc[name] || []),
+          ...binding.references.filter((ref) => ref.type === 'identifier'),
+        ];
+      }
+    });
+    return acc;
+  }, {});
+
+// The snippet parsers wrap the snippet in a main() fn, so the global scope
+// holds that main and any functions the snippet calls but doesn't declare
+const findUndeclaredFunctions = (ast: Program) =>
+  Object.fromEntries(
+    Object.entries(ast.scopes[0].functions)
+      .filter(
+        ([name, overloads]) =>
+          name !== 'main' &&
+          Object.values(overloads).every((overload) => !overload.declaration),
+      )
+      .map(([name, overloads]) => [
+        name,
+        Object.values(overloads).flatMap(
+          (overload) => overload.references as AstNode[],
+        ),
+      ]),
+  );
 
 export const makeLiteral = (literal: string, whitespace = ''): LiteralNode => ({
   type: 'literal',
@@ -162,6 +202,11 @@ export const from2To3 = (ast: Program, stage: ShaderStage) => {
     identifier: {
       enter: (path) => {
         if (path.node.identifier === 'gl_FragColor') {
+          if (stage !== 'fragment') {
+            throw new Error(
+              'gl_FragColor can only be used in a fragment shader',
+            );
+          }
           path.node.identifier = glOut;
           ast.scopes[0].bindings[glOut].references.push(path.node);
         }
@@ -261,6 +306,8 @@ export const makeExpressionWithScopes = (
 ): {
   scope: Scope;
   expression: AstNode;
+  undeclaredVariables: Record<string, AstNode[]>;
+  undeclaredFunctions: Record<string, AstNode[]>;
 } => {
   let ast: Program;
   try {
@@ -278,6 +325,8 @@ export const makeExpressionWithScopes = (
   // log(util.inspect(ast, false, null, true));
   return {
     scope: ast.scopes[1],
+    undeclaredVariables: findUndeclaredVariables(ast),
+    undeclaredFunctions: findUndeclaredFunctions(ast),
     expression: (
       (ast.program[0] as FunctionNode).body
         .statements[0] as ExpressionStatementNode
@@ -290,6 +339,8 @@ export const makeFnBodyStatementWithScopes = (
 ): {
   scope: Scope;
   statements: AstNode[];
+  undeclaredVariables: Record<string, AstNode[]>;
+  undeclaredFunctions: Record<string, AstNode[]>;
 } => {
   let ast: Program;
   try {
@@ -307,6 +358,8 @@ ${body}
   // log(util.inspect(ast, false, null, true));
   return {
     scope: ast.scopes[1],
+    undeclaredVariables: findUndeclaredVariables(ast),
+    undeclaredFunctions: findUndeclaredFunctions(ast),
     statements: (ast.program[0] as FunctionNode).body.statements,
   };
 };
