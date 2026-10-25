@@ -23,14 +23,14 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
   strategy,
   ast,
   graphNode,
-  siblingNode,
+  siblingNode
 ) => {
   const program = ast as FrogProgram;
   const variableInputs = Object.values(
     (program.scopes as Scope[]).reduce<ScopeIndex>(
       (acc, scope) => ({ ...acc, ...scope.bindings }),
-      {},
-    ),
+      {}
+    )
   ).flatMap((binding: any) => {
     return (binding.references as AstNode[]).reduce<ComputedInput[]>(
       (acc, ref) => {
@@ -65,13 +65,13 @@ export const applyVariableStrategy: ApplyStrategy<VariableStrategy> = (
               'filler',
               undefined, // Data type for what plugs into this filler
               ['code', 'data'],
-              false,
+              false
             ),
             replacer,
           ],
         ];
       },
-      [],
+      []
     );
   });
 
@@ -94,7 +94,7 @@ export const snippetInputs = (program: FrogProgram): ComputedInput[] => [
         'filler',
         undefined,
         ['code', 'data'],
-        false,
+        false
       ),
       (filler: Filler) => {
         refs.forEach((ref) => {
@@ -113,9 +113,9 @@ const undeclaredFunctionInputs = (program: FrogProgram): ComputedInput[] => {
   // The parser doesn't always represent a call's name as an identifier, so
   // match the call nodes the scope found instead of their names
   const callNames = new Map<AstNode, string>(
-    Object.entries(program.undeclaredFunctions || {}).flatMap(
-      ([name, nodes]) => nodes.map((node) => [node, name] as const),
-    ),
+    Object.entries(program.undeclaredFunctions || {}).flatMap(([name, nodes]) =>
+      nodes.map((node) => [node, name] as const)
+    )
   );
   if (!callNames.size) {
     return [];
@@ -150,7 +150,7 @@ const undeclaredFunctionInputs = (program: FrogProgram): ComputedInput[] => {
       'filler',
       undefined,
       ['code', 'data'],
-      false,
+      false
     ),
     (filler: Filler) => {
       refs.forEach(({ parent, key, index, args }) => {
@@ -158,7 +158,7 @@ const undeclaredFunctionInputs = (program: FrogProgram): ComputedInput[] => {
         const f = filler(
           ...args
             .filter((arg) => arg.type !== 'literal' || arg.literal !== ',')
-            .map(generate),
+            .map(generate)
         );
         if (typeof index === 'number') {
           parent[key][index] = f;
