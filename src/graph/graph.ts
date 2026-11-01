@@ -48,6 +48,13 @@ export const isSourceNode = (node: GraphNode): node is SourceNode =>
   !isDataNode(node);
 
 /**
+ * Nodes whose output is GLSL code rather than a uniform value: shaders and
+ * binary nodes (a + b). Plugging one into a bakeable input auto-bakes it.
+ */
+export const outputsCode = (node: { type?: string }) =>
+  node.type === NodeType.SOURCE || node.type === NodeType.BINARY;
+
+/**
  * Determine if a node's source code / AST should have a main function. Essentially
  * check if the source code is a full program or not.
  */

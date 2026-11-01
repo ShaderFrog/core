@@ -18,6 +18,7 @@ import {
   findLinkedVertexNodes,
   isSourceNode,
   mangleEntireProgram,
+  outputsCode,
   shouldNodeHaveMainFn,
 } from './graph';
 import { InputFillerGroup, InputFillers } from '../strategy';
@@ -144,17 +145,17 @@ const computeNodeContext = async (
     return makeError(node.id, error as GlslSyntaxError);
   }
 
-  // Find all the inputs of this node where a "source" code node flows into it,
-  // to auto-bake it. This handles the case where a graph is instantiated with
-  // a shader plugged into a texture property. The property on the intial node
-  // doesn't know if it's baked or not
+  // Find all the inputs of this node where a code node (a shader or a binary
+  // node) flows into it, to auto-bake it. This handles the case where a graph
+  // is instantiated with a shader plugged into a texture property. The
+  // property on the intial node doesn't know if it's baked or not
   const dataInputs = groupBy(
     filterGraphFromNode(
       graph,
       node,
       {
         input: (input, b, c, fromNode) =>
-          input.bakeable && fromNode?.type === 'source',
+          input.bakeable && !!fromNode && outputsCode(fromNode),
       },
       1
     ).inputs[node.id] || [],

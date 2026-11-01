@@ -21,8 +21,8 @@ import { linkFromVertToFrag, makeEdge } from './edge';
 import { Engine, EngineContext, PhysicalNodeConstructor } from '../engine';
 import { evaluateNode } from './evaluate';
 import { compileSource, nodeName } from './graph';
-import { texture2DStrategy } from '../strategy';
-import { isError } from './context';
+import { Strategy, texture2DStrategy, uniformStrategy } from '../strategy';
+import { computeAllContexts, isError } from './context';
 import { fail } from '../test-util';
 import { SourceType } from './code-nodes';
 import { makeId } from 'src/util/id';
@@ -96,7 +96,7 @@ const makeSourceNode = (
   id: string,
   source: string,
   stage: ShaderStage,
-  strategies = [texture2DStrategy()]
+  strategies: Strategy[] = [texture2DStrategy()]
 ) =>
   sourceNode(
     id,
@@ -508,6 +508,65 @@ void main() {
   expect(result.fragmentResult).toContain(`void main() {
   frogFragOut = (${nodeName(color)}()+ vec4(1.0));
 }`);
+});
+
+it('compileSource() auto-bakes an input plugged into by a binary node', async () => {
+  const outV = outputNode(makeId(), 'Output v', p, 'vertex');
+  const outF = outputNode(makeId(), 'Output f', p, 'fragment');
+
+  const tinted = makeSourceNode(
+    makeId(),
+    `uniform vec4 tint;
+void main() {
+  gl_FragColor = tint;
+}
+`,
+    'fragment',
+    [uniformStrategy()]
+  );
+
+  const a = makeSourceNode(makeId(), `vec4(1.0)`, 'fragment');
+  a.sourceType = SourceType.EXPRESSION;
+  const b = makeSourceNode(makeId(), `vec4(0.5)`, 'fragment');
+  b.sourceType = SourceType.EXPRESSION;
+
+  const add = addNode(makeId(), p);
+  const graph: Graph = {
+    nodes: [tinted, a, b, add, outV, outF],
+    edges: [
+      makeEdge(makeId(), a.id, add.id, 'out', 'a'),
+      makeEdge(makeId(), b.id, add.id, 'out', 'b'),
+      makeEdge(makeId(), add.id, tinted.id, 'out', 'uniform_tint'),
+      makeEdge(
+        makeId(),
+        tinted.id,
+        outF.id,
+        'out',
+        'filler_frogFragOut',
+        'fragment'
+      ),
+    ],
+  };
+
+  const engineContext: EngineContext = {
+    engine: 'three',
+    nodes: {},
+    runtime: {},
+  };
+
+  // The first pass finds the node's inputs, the second auto-bakes them, like
+  // the editor recomputing context on each compile
+  await computeAllContexts(engineContext, engine, graph);
+  await computeAllContexts(engineContext, engine, graph);
+  const result = await compileSource(graph, engine, engineContext);
+  if (isError(result)) {
+    fail(result);
+  }
+
+  const tintInput = tinted.inputs.find((i) => i.id === 'uniform_tint');
+  expect(tintInput?.baked).toBe(true);
+  // Baked, so the binary expression replaces the uniform
+  expect(result.fragmentResult).toContain('vec4(1.0)+ vec4(0.5)');
 });
 
 it('compileSource() base case', async () => {
